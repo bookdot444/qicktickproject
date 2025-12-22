@@ -19,6 +19,11 @@
   }
 }
 
+/* Custom Yellow Input Style */
+.input-yellow {
+  @apply border border-black rounded-md px-3 py-2 text-black placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
