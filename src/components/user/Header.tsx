@@ -259,9 +259,42 @@ export default function UserFeed() {
                 <button onClick={() => setShowLoginPopup(true)} className="border px-3 py-2 rounded">
                   Login
                 </button>
-                <button onClick={() => setShowRegisterPopup(true)} className="bg-yellow-600 px-4 py-2 rounded text-white">
-                  Register
-                </button>
+                {/* Register Button in Header */}
+{/* Register Dropdown in Header */}
+<div className="relative">
+  <button
+    onClick={() => setOpenMenu(openMenu === "register" ? null : "register")}
+    className="bg-yellow-600 px-4 py-2 rounded text-white"
+  >
+    Register
+  </button>
+
+  {openMenu === "register" && (
+    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-50">
+      {/* User Registration */}
+      <button
+        onClick={() => {
+          setShowRegisterPopup(true);
+          setOpenMenu(null);
+        }}
+        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+      >
+        User Registration
+      </button>
+
+      {/* Vendor Registration */}
+      <Link
+        href="/vendorlogin"
+        className="block px-4 py-2 hover:bg-gray-100"
+        onClick={() => setOpenMenu(null)}
+      >
+        Vendor Registration
+      </Link>
+    </div>
+  )}
+</div>
+
+
               </div>
             )}
 

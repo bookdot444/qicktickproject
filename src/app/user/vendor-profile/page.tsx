@@ -14,6 +14,9 @@ export default function VendorProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [vendorId, setVendorId] = useState<string | null>(null);
+const [subscriptionPlan, setSubscriptionPlan] = useState<
+  "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond"
+>("Bronze");
 
   // Profile States
   const [email, setEmail] = useState("");
@@ -140,6 +143,78 @@ export default function VendorProfile() {
       </div>
     );
   }
+  const planStyles: Record<string, {
+  bg: string;
+  border: string;
+  icon: string;
+}> = {
+  Bronze: {
+    bg: "bg-[#CD7F32]/10",
+    border: "border-[#CD7F32]",
+    icon: "text-[#CD7F32]",
+  },
+  Silver: {
+    bg: "bg-slate-200",
+    border: "border-slate-400",
+    icon: "text-slate-500",
+  },
+  Gold: {
+    bg: "bg-amber-100",
+    border: "border-amber-400",
+    icon: "text-amber-500",
+  },
+  Platinum: {
+    bg: "bg-cyan-100",
+    border: "border-cyan-400",
+    icon: "text-cyan-500",
+  },
+  Diamond: {
+    bg: "bg-violet-100",
+    border: "border-violet-500",
+    icon: "text-violet-600",
+  },
+};
+const subscriptionCardStyles: Record<string, {
+  gradient: string;
+  crown: string;
+  zap: string;
+  progress: string;
+}> = {
+  Bronze: {
+    gradient: "from-[#CD7F32] to-[#b87333]",
+    crown: "text-white/20",
+    zap: "text-[#CD7F32]",
+    progress: "bg-[#CD7F32]",
+  },
+  Silver: {
+    gradient: "from-slate-300 to-slate-400",
+    crown: "text-white/30",
+    zap: "text-slate-600",
+    progress: "bg-slate-500",
+  },
+  Gold: {
+    gradient: "from-amber-400 to-yellow-300",
+    crown: "text-white/30",
+    zap: "text-amber-600",
+    progress: "bg-amber-500",
+  },
+  Platinum: {
+    gradient: "from-cyan-400 to-sky-300",
+    crown: "text-white/30",
+    zap: "text-cyan-700",
+    progress: "bg-cyan-600",
+  },
+  Diamond: {
+    gradient: "from-violet-500 to-fuchsia-400",
+    crown: "text-white/40",
+    zap: "text-violet-700",
+    progress: "bg-violet-500",
+  },
+};
+const cardStyle = subscriptionCardStyles[subscriptionPlan] ?? subscriptionCardStyles.Bronze;
+
+
+const planStyle = planStyles[subscriptionPlan];
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] py-8 px-4 md:px-8 font-sans selection:bg-red-100 selection:text-red-700">
@@ -187,9 +262,17 @@ export default function VendorProfile() {
             <div className="bg-white rounded-[2.5rem] p-8 text-amber-950 shadow-2xl shadow-amber-900/5 relative overflow-hidden group border border-amber-100">
                 <Sparkles className="absolute top-4 right-4 text-amber-300 w-12 h-12 opacity-50 group-hover:rotate-12 transition-transform" />
                 <div className="relative z-10">
-                    <div className="w-20 h-20 bg-white rounded-3xl mb-6 flex items-center justify-center shadow-xl border-4 border-amber-300 overflow-hidden">
-                        {logo ? <img src={logo} className="w-full h-full object-cover" /> : <Building2 className="text-amber-400" size={32} />}
-                    </div>
+<div
+  className={`w-20 h-20 rounded-3xl mb-6 flex items-center justify-center shadow-xl border-4 overflow-hidden
+  ${planStyle.bg} ${planStyle.border}`}
+>
+  {logo ? (
+    <img src={logo} className="w-full h-full object-cover" />
+  ) : (
+    <Building2 className={`${planStyle.icon}`} size={32} />
+  )}
+</div>
+
                     <h3 className="text-2xl font-black leading-tight mb-2 truncate">{companyName || "No Name"}</h3>
                     <p className="text-amber-800/80 text-sm font-medium mb-6">Active Vendor Since 2024</p>
                     
@@ -207,31 +290,47 @@ export default function VendorProfile() {
             </div>
 
             {/* SUBSCRIPTION PLAN CARD */}
-            <div className="bg-gradient-to-br from-red-400 to-rose-300 rounded-[2.5rem] p-6 text-white shadow-xl shadow-red-600/20 overflow-hidden relative">
-                <Crown className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10 rotate-12" />
-                <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 px-3 py-1 rounded-full">Current Plan</span>
-                        <Zap size={16} className="text-amber-300 fill-amber-300" />
-                    </div>
-                    <h4 className="text-xl font-black uppercase tracking-tight mb-1">Premium Pro</h4>
-                    <p className="text-white/70 text-[11px] font-bold mb-6">Renews on Oct 12, 2025</p>
-                    
-                    <div className="space-y-3 mb-6">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span>Plan Usage</span>
-                            <span>75%</span>
-                        </div>
-                        <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                            <div className="bg-amber-400 h-full w-[75%] rounded-full shadow-[0_0_10px_rgba(251,191,36,0.5)]" />
-                        </div>
-                    </div>
+             <div
+      className={`bg-gradient-to-br ${cardStyle.gradient} rounded-[2.5rem] p-6 text-white shadow-xl overflow-hidden relative`}
+    >
+      <Crown
+        className={`absolute -bottom-4 -right-4 w-24 h-24 rotate-12 ${cardStyle.crown}`}
+      />
 
-                    <button className="w-full bg-white text-red-600 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-colors shadow-lg">
-                        Manage Subscription
-                    </button>
-                </div>
-            </div>
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 px-3 py-1 rounded-full">
+            Current Plan
+          </span>
+          <Zap size={16} className={cardStyle.zap} />
+        </div>
+
+        <h4 className="text-xl font-black uppercase tracking-tight mb-1">
+          {subscriptionPlan} Plan
+        </h4>
+
+        <p className="text-white/70 text-[11px] font-bold mb-6">
+          Renews on Oct 12, 2025
+        </p>
+
+        <div className="space-y-3 mb-6">
+          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+            <span>Plan Usage</span>
+            <span>75%</span>
+          </div>
+
+          <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+            <div
+              className={`${cardStyle.progress} h-full w-[75%] rounded-full shadow-lg`}
+            />
+          </div>
+        </div>
+
+        <button className="w-full bg-white text-slate-900 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-colors shadow-lg">
+          Manage Subscription
+        </button>
+      </div>
+    </div>
 
             {/* Navigation Tabs (Side) */}
             <nav className="bg-white rounded-[2rem] p-4 border border-amber-100 shadow-sm flex flex-col gap-2">
@@ -261,9 +360,18 @@ export default function VendorProfile() {
                 <div className="space-y-8">
                   <div className="flex items-center gap-8 p-8 bg-amber-50/50 rounded-[2.5rem] border border-amber-100">
                     <div className="relative group cursor-pointer">
-                        <div className="w-24 h-24 bg-white rounded-[2rem] shadow-lg flex items-center justify-center border-2 border-white overflow-hidden">
-                             {logo ? <img src={logo} className="w-full h-full object-cover" /> : <Building2 className="text-amber-200" size={32}/>}
-                        </div>
+                      
+                        <div
+  className={`w-20 h-20 rounded-3xl mb-6 flex items-center justify-center shadow-xl border-4 overflow-hidden
+  ${planStyle.bg} ${planStyle.border}`}
+>
+  {logo ? (
+    <img src={logo} className="w-full h-full object-cover" />
+  ) : (
+    <Building2 className={`${planStyle.icon}`} size={32} />
+  )}
+</div>
+
                         <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer hover:bg-red-700 transition-colors">
                              <Camera size={18} />
                              <input type="file" hidden onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" />
