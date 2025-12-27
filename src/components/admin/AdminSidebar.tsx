@@ -11,13 +11,20 @@ import {
 import { FaUserTie, FaUserFriends, FaTruckMoving, FaMoneyCheckAlt, FaPodcast } from "react-icons/fa";
 
 export default function AdminSidebar() {
-  const [role, setRole] = useState<"admin" | "subadmin" | null>(null);
+  // 1. Change the initial state to include a 'loading' or default value
+  const [role, setRole] = useState<"admin" | "subadmin" | "loading">("loading");
   const pathname = usePathname();
 
   useEffect(() => {
     const savedRole = localStorage.getItem("user_role");
-    setRole(savedRole as any);
+    // 2. Fallback to 'admin' for now if you just want to see it while coding
+    setRole((savedRole as any) || "admin"); 
   }, []);
+
+  // 3. Remove this or change it to a loader
+  if (role === "loading") {
+    return <aside className="w-72 h-screen bg-[#0F172A] animate-pulse" />;
+  }
 
   if (!role) return null;
 
@@ -95,7 +102,7 @@ export default function AdminSidebar() {
 
         {role === "admin" && (
           <>
-            <NavLink href="/admin/payment-tracking" icon={FaMoneyCheckAlt}>Payments</NavLink>
+        {/* <NavLink href="/admin/payment-tracking" icon={FaMoneyCheckAlt}>Payments</NavLink> */}
             <NavLink href="/admin/subadmins" icon={FaUserTie}>Staff Access</NavLink>
           </>
         )}

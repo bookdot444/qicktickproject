@@ -8,15 +8,18 @@ import {
     Building,
     Phone,
     Mail,
-    Globe,
-    Hash,
     CornerDownRight,
     CheckCircle2,
     ArrowRight,
     ArrowLeft,
-    Loader2
+    Loader2,
+    Briefcase,
+    ShieldAlert,
+    Sparkles
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { Toaster, toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 const indiaStatesCities = {
     "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur"],
@@ -28,26 +31,43 @@ const indiaStatesCities = {
 
 const allStates = Object.keys(indiaStatesCities);
 
-const FormInput = ({ label, value, onChange, error, placeholder, Icon, type = "text", required = true, disabled = false, isSelect = false, options = [], className = "", rows = 1, id }) => (
-    <div className={`flex flex-col ${className}`} id={id}>
-        <label className="font-bold text-xs uppercase tracking-widest text-slate-500 mb-2 ml-1">
+// Updated FormInput to match the "Direct Message" styling
+const FormInput = ({ label, value, onChange, error, placeholder, Icon, type = "text", required = true, disabled = false, isSelect = false, options = [], className = "", rows = 1 }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 flex items-center gap-2">
+            {Icon && <Icon size={14} className="text-[#D80000]" />}
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <div className="relative group">
-            {Icon && (
-                <Icon size={18} className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors duration-200 ${error ? "text-red-500" : "text-slate-400 group-focus-within:text-yellow-500"}`} />
-            )}
             {isSelect ? (
-                <select value={value} onChange={onChange} disabled={disabled} className={`w-full bg-white border border-slate-200 rounded-xl px-4 py-3 appearance-none text-slate-800 transition-all focus:outline-none focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 ${Icon ? "pl-11" : "pl-4"} ${disabled ? "bg-slate-50 cursor-not-allowed opacity-60" : "hover:border-slate-300"} ${error ? "border-red-500 bg-red-50" : ""}`}>
+                <select 
+                    value={value} 
+                    onChange={onChange} 
+                    disabled={disabled} 
+                    className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-6 py-4 appearance-none text-slate-800 transition-all focus:outline-none focus:ring-2 focus:ring-[#D80000]/20 focus:border-[#D80000] font-bold text-sm ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-slate-300"} ${error ? "border-red-500 bg-red-50" : ""}`}
+                >
                     {options.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
                 </select>
             ) : rows > 1 ? (
-                <textarea rows={rows} placeholder={placeholder} value={value} onChange={onChange} className={`w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 transition-all focus:outline-none focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 ${Icon ? "pl-11" : "pl-4"} ${error ? "border-red-500 bg-red-100/20" : "hover:border-slate-300"}`} />
+                <textarea 
+                    rows={rows} 
+                    placeholder={placeholder} 
+                    value={value} 
+                    onChange={onChange} 
+                    className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-6 py-4 text-slate-800 transition-all focus:outline-none focus:ring-2 focus:ring-[#D80000]/20 focus:border-[#D80000] font-bold text-sm placeholder:text-slate-300 resize-none ${error ? "border-red-500 bg-red-50" : "hover:border-slate-300"}`} 
+                />
             ) : (
-                <input type={type} placeholder={placeholder} value={value} onChange={onChange} disabled={disabled} className={`w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 transition-all focus:outline-none focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 ${Icon ? "pl-11" : "pl-4"} ${disabled ? "bg-slate-50 cursor-not-allowed opacity-60" : "hover:border-slate-300"} ${error ? "border-red-500 bg-red-100/20" : ""}`} />
+                <input 
+                    type={type} 
+                    placeholder={placeholder} 
+                    value={value} 
+                    onChange={onChange} 
+                    disabled={disabled} 
+                    className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-6 py-4 text-slate-800 transition-all focus:outline-none focus:ring-2 focus:ring-[#D80000]/20 focus:border-[#D80000] font-bold text-sm placeholder:text-slate-300 ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-slate-300"} ${error ? "border-red-500 bg-red-50" : ""}`} 
+                />
             )}
         </div>
-        {error && <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">{error}</p>}
+        {error && <p className="text-[#D80000] text-[11px] font-bold mt-1.5 ml-1">{error}</p>}
     </div>
 );
 
@@ -77,169 +97,209 @@ export default function AddBusinessPage() {
 
     const handleChange = (field) => (e) => {
         setFormData({ ...formData, [field]: e.target.value });
-        setErrors(prev => ({ ...prev, [field]: "" }));
+        if (errors[field]) setErrors(prev => ({ ...prev, [field]: "" }));
     };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+            const selectedFile = e.target.files[0];
+            if (selectedFile.size > 2 * 1024 * 1024) {
+                toast.error("File too large", { description: "Please upload an image under 2MB." });
+                return;
+            }
+            setFile(selectedFile);
         }
     };
 
-    const validate = () => {
+    const validateStep = (step) => {
         const newErrors = {};
-        if (!formData.name.trim()) newErrors.name = "Full name is required.";
-        if (!formData.company.trim()) newErrors.company = "Company name is required.";
-        if (!formData.phone.trim() || !/^[6-9]\d{9}$/.test(formData.phone)) newErrors.phone = "Valid 10-digit phone required.";
-        if (!formData.state) newErrors.state = "Required";
-        if (!formData.city) newErrors.city = "Required";
-        if (!formData.preferredAddress) newErrors.preferredAddress = "Address required";
-        
+        if (step === 1) {
+            if (!formData.name.trim()) newErrors.name = "Full name required.";
+            if (!formData.company.trim()) newErrors.company = "Business name required.";
+            if (!formData.phone.trim() || !/^[6-9]\d{9}$/.test(formData.phone)) newErrors.phone = "Valid 10-digit phone required.";
+        }
+        if (step === 2) {
+            if (!formData.state) newErrors.state = "State required.";
+            if (!formData.city) newErrors.city = "City required.";
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
+    const nextStep = () => {
+        if (validateStep(activeStep)) setActiveStep(prev => prev + 1);
+        else toast.warning("Please fill required fields.");
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validate()) return;
-        
-        setIsSubmitting(true);
-        let logoUrl = "";
-
-        try {
-            // 1. Handle File Upload to Supabase Storage
-            if (file) {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}.${fileExt}`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('business-logos') // Ensure this bucket exists in Supabase
-                    .upload(fileName, file);
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('business-logos')
-                    .getPublicUrl(fileName);
-                
-                logoUrl = publicUrl;
-            }
-
-            // 2. Submit Data to Table
-            const { error: dbError } = await supabase.from("businesses").insert([{
-                ...formData,
-                logo_url: logoUrl,
-                alt_phone: formData.altPhone,
-                pin_code: formData.pinCode,
-                preferred_address: formData.preferredAddress,
-                business_details: formData.businessDetails,
-            }]);
-
-            if (dbError) throw dbError;
-
-            alert("🎉 Business listed successfully!");
-            
-            // 3. RESET FORM AND GO BACK TO STEP 1
-            setFormData(initialState);
-            setFile(null);
-            setActiveStep(1);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        } catch (error) {
-            alert("Error: " + error.message);
-        } finally {
-            setIsSubmitting(false);
+        if (!formData.preferredAddress) {
+            setErrors({ preferredAddress: "Address is required" });
+            return;
         }
+        setIsSubmitting(true);
+
+        const submissionPromise = new Promise(async (resolve, reject) => {
+            try {
+                let logoUrl = "";
+                if (file) {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                    const { error: uploadError } = await supabase.storage.from('business-logos').upload(fileName, file);
+                    if (uploadError) throw uploadError;
+                    const { data: { publicUrl } } = supabase.storage.from('business-logos').getPublicUrl(fileName);
+                    logoUrl = publicUrl;
+                }
+                const { error: dbError } = await supabase.from("businesses").insert([{ ...formData, logo_url: logoUrl }]);
+                if (dbError) throw dbError;
+                setFormData(initialState);
+                setFile(null);
+                setActiveStep(1);
+                resolve();
+            } catch (error) { reject(error); }
+        });
+
+        toast.promise(submissionPromise, {
+            loading: 'Listing your business...',
+            success: '🎉 Business successfully listed!',
+            error: (err) => `Error: ${err.message}`,
+        });
+        setIsSubmitting(false);
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="text-center mb-12">
-                    <span className="bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">Grow with QickTick</span>
-                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 mt-4 tracking-tight">List Your Business</h1>
-                </div>
+        <div className="min-h-screen bg-[#F9F9F9] text-slate-900 pb-20 font-sans">
+            <Toaster position="top-center" richColors closeButton />
+            
+            {/* --- BRAND HERO SECTION (Updated to Red/Gold) --- */}
+            <div className="bg-[#D80000] pt-24 pb-44 px-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#FFD700] rounded-full blur-[120px] opacity-10 -mr-48 -mt-48" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-black rounded-full blur-[100px] opacity-20 -ml-24 -mb-24" />
 
-                {/* Progress Bar */}
-                <div className="flex items-center justify-between mb-10 px-4">
+                <div className="max-w-4xl mx-auto text-center relative z-10">
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-6">
+                        <div className="bg-white/10 p-4 rounded-[1.5rem] backdrop-blur-md border border-white/20 shadow-2xl">
+                            <Sparkles size={32} className="text-[#FFD700]" />
+                        </div>
+                    </motion.div>
+                    <h1 className="text-4xl md:text-6xl font-black text-white mt-4 tracking-tighter">
+                        List Your <span className="text-[#FFD700]">Business</span>
+                    </h1>
+                    <p className="text-white/80 mt-4 text-lg font-medium max-w-lg mx-auto">
+                        Join our <span className="underline decoration-[#FFD700] underline-offset-4">verified ecosystem</span> and grow your reach.
+                    </p>
+                </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-6 -mt-24 relative z-20">
+                {/* Progress Tracker (Updated to Red Theme) */}
+                <div className="bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-[2.5rem] p-4 mb-8 flex items-center justify-between">
                     {[1, 2, 3].map((step) => (
                         <div key={step} className="flex items-center flex-1 last:flex-none">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${activeStep >= step ? "bg-slate-900 text-yellow-500 shadow-lg" : "bg-white text-slate-300 border border-slate-200"}`}>
-                                {activeStep > step ? <CheckCircle2 size={20} /> : step}
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black transition-all duration-500 ${activeStep >= step ? "bg-slate-900 text-[#FFD700] shadow-xl scale-110" : "bg-slate-100 text-slate-400"}`}>
+                                {activeStep > step ? <CheckCircle2 size={22} /> : <span className="text-sm">0{step}</span>}
                             </div>
-                            {step < 3 && <div className={`h-1 flex-1 mx-4 rounded ${activeStep > step ? "bg-slate-900" : "bg-slate-200"}`} />}
+                            {step < 3 && <div className={`h-1 flex-1 mx-4 rounded-full transition-all duration-700 ${activeStep > step ? "bg-slate-900" : "bg-slate-100"}`} />}
                         </div>
                     ))}
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
-                    {/* STEP 1 */}
-                    <div className={`bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 md:p-12 ${activeStep === 1 ? 'block' : 'hidden'}`}>
-                        <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                            <span className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-sm">1</span> Basic Information
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput label="Full Name" value={formData.name} onChange={handleChange("name")} error={errors.name} Icon={User} />
-                            <FormInput label="Business Name" value={formData.company} onChange={handleChange("company")} error={errors.company} Icon={Building} />
-                            <FormInput label="Primary Phone" value={formData.phone} onChange={handleChange("phone")} error={errors.phone} Icon={Phone} type="tel" />
-                            <FormInput label="Email" value={formData.email} onChange={handleChange("email")} Icon={Mail} required={false} />
-                        </div>
-                        <div className="mt-10 flex justify-end">
-                            <button type="button" onClick={() => setActiveStep(2)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-2 group">
-                                Next Step <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* STEP 2 */}
-                    <div className={`bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 md:p-12 ${activeStep === 2 ? 'block' : 'hidden'}`}>
-                        <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                            <span className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-sm">2</span> Location Details
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput label="State" value={formData.state} onChange={handleChange("state")} error={errors.state} isSelect options={[{ value: "", label: "Select State" }, ...allStates.map(s => ({ value: s, label: s }))]} Icon={MapPin} />
-                            <FormInput label="City" value={formData.city} onChange={handleChange("city")} error={errors.city} isSelect options={[{ value: "", label: "Select City" }, ...cities.map(c => ({ value: c, label: c }))]} disabled={!formData.state} Icon={MapPin} />
-                        </div>
-                        <div className="mt-10 flex justify-between">
-                            <button type="button" onClick={() => setActiveStep(1)} className="text-slate-500 font-bold flex items-center gap-2"><ArrowLeft size={20} /> Back</button>
-                            <button type="button" onClick={() => setActiveStep(3)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-2">Next <ArrowRight /></button>
-                        </div>
-                    </div>
-
-                    {/* STEP 3 */}
-                    <div className={`bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 md:p-12 ${activeStep === 3 ? 'block' : 'hidden'}`}>
-                        <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                            <span className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-sm">3</span> Final Details
-                        </h2>
-                        <div className="space-y-6">
-                            <FormInput label="Address" value={formData.preferredAddress} onChange={handleChange("preferredAddress")} error={errors.preferredAddress} rows={3} Icon={CornerDownRight} />
-                            
-                            {/* PHOTO UPLOAD LOGIC */}
-                            <div className="flex flex-col">
-                                <label className="font-bold text-xs uppercase tracking-widest text-slate-500 mb-2">Upload Photo</label>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                                <div 
-                                    onClick={() => fileInputRef.current.click()}
-                                    className="border-2 border-dashed border-slate-200 rounded-[2rem] p-10 flex flex-col items-center justify-center hover:bg-yellow-50/30 hover:border-yellow-400 cursor-pointer transition-all"
-                                >
-                                    <Upload className="text-yellow-600 mb-2" />
-                                    <p className="font-bold text-slate-700">{file ? file.name : "Select Business Photo"}</p>
-                                    {file && <p className="text-xs text-green-600 font-bold">Ready to upload</p>}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-12 pt-8 border-t flex justify-between items-center">
-                            <button type="button" onClick={() => setActiveStep(2)} className="text-slate-500 font-bold flex items-center gap-2"><ArrowLeft /> Back</button>
-                            <button 
-                                type="submit" 
-                                disabled={isSubmitting}
-                                className="bg-yellow-400 text-slate-900 px-10 py-4 rounded-2xl font-black hover:bg-yellow-500 transition-all shadow-lg flex items-center gap-2"
+                <form onSubmit={handleSubmit}>
+                    <AnimatePresence mode="wait">
+                        {/* STEP 1 */}
+                        {activeStep === 1 && (
+                            <motion.div 
+                                key="step1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-8 md:p-12"
                             >
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : "Complete Listing"}
-                            </button>
-                        </div>
-                    </div>
+                                <div className="flex items-center gap-4 mb-10">
+                                    <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
+                                        <Briefcase className="text-[#D80000]" size={22} />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Basic Information</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <FormInput label="Full Name" value={formData.name} onChange={handleChange("name")} error={errors.name} Icon={User} placeholder="John Doe" />
+                                    <FormInput label="Business Name" value={formData.company} onChange={handleChange("company")} error={errors.company} Icon={Building} placeholder="QickTick Solutions" />
+                                    <FormInput label="Primary Phone" value={formData.phone} onChange={handleChange("phone")} error={errors.phone} Icon={Phone} type="tel" placeholder="+91" />
+                                    <FormInput label="Email Address" value={formData.email} onChange={handleChange("email")} Icon={Mail} required={false} placeholder="business@email.com" />
+                                </div>
+                                <div className="mt-12 flex justify-end">
+                                    <button type="button" onClick={nextStep} className="bg-slate-900 text-[#FFD700] px-10 py-5 rounded-[1.5rem] font-black flex items-center gap-3 transition-all hover:bg-black active:scale-95 shadow-xl">
+                                        Next Details <ArrowRight size={20} />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* STEP 2 */}
+                        {activeStep === 2 && (
+                            <motion.div 
+                                key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-8 md:p-12"
+                            >
+                                <div className="flex items-center gap-4 mb-10">
+                                    <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
+                                        <MapPin className="text-[#D80000]" size={22} />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Location Access</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <FormInput label="State" value={formData.state} onChange={handleChange("state")} error={errors.state} isSelect options={[{ value: "", label: "Select State" }, ...allStates.map(s => ({ value: s, label: s }))]} Icon={MapPin} />
+                                    <FormInput label="City" value={formData.city} onChange={handleChange("city")} error={errors.city} isSelect options={[{ value: "", label: "Select City" }, ...cities.map(c => ({ value: c, label: c }))]} disabled={!formData.state} Icon={MapPin} />
+                                </div>
+                                <div className="mt-12 flex justify-between items-center">
+                                    <button type="button" onClick={() => setActiveStep(1)} className="text-slate-400 font-black flex items-center gap-2 hover:text-[#D80000] transition-colors"><ArrowLeft size={20} /> Back</button>
+                                    <button type="button" onClick={nextStep} className="bg-slate-900 text-[#FFD700] px-10 py-5 rounded-[1.5rem] font-black flex items-center gap-3 shadow-xl hover:bg-black">
+                                        Next Step <ArrowRight size={20} />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* STEP 3 */}
+                        {activeStep === 3 && (
+                            <motion.div 
+                                key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+                                className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-8 md:p-12"
+                            >
+                                <div className="flex items-center gap-4 mb-10">
+                                    <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
+                                        <CornerDownRight className="text-[#D80000]" size={22} />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Final Verification</h2>
+                                </div>
+                                <div className="space-y-8">
+                                    <FormInput label="Full Business Address" value={formData.preferredAddress} onChange={handleChange("preferredAddress")} error={errors.preferredAddress} rows={3} Icon={CornerDownRight} placeholder="Street, Building, Area details..." />
+                                    
+                                    <div className="flex flex-col">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Business Branding</label>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                                        <div 
+                                            onClick={() => fileInputRef.current.click()}
+                                            className={`border-2 border-dashed rounded-[2rem] p-12 flex flex-col items-center justify-center transition-all duration-300 ${file ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200 hover:border-[#D80000] hover:bg-red-50/30"} cursor-pointer`}
+                                        >
+                                            <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${file ? "bg-emerald-100 text-emerald-600" : "bg-white text-slate-400 shadow-sm"}`}>
+                                                {file ? <CheckCircle2 /> : <Upload />}
+                                            </div>
+                                            <p className="font-black text-slate-700">{file ? file.name : "Upload Logo or Store Photo"}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between items-center">
+                                    <button type="button" onClick={() => setActiveStep(2)} className="text-slate-400 font-black flex items-center gap-2 hover:text-[#D80000]"><ArrowLeft size={20} /> Back</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting}
+                                        className="bg-slate-900 text-[#FFD700] px-12 py-5 rounded-[1.5rem] font-black hover:bg-black transition-all shadow-2xl flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? <Loader2 className="animate-spin" /> : "List Business Now"}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </form>
             </div>
         </div>

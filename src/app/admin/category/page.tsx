@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Trash2,
-  Edit2,
+  Edit2,RefreshCw ,
   Plus,
   X,
   Image as ImageIcon,

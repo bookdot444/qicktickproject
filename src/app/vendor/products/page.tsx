@@ -1,326 +1,398 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, ChangeEvent, useMemo } from 'react';
 import { supabase } from "@/lib/supabaseClient";
-import {
-  Package,
-  PlusCircle,
-  Edit3,
-  Trash2,
-  X,
-  Save,
-  Image as ImageIcon,
-  Youtube,
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  X, UploadCloud, Link, Film, Package, PlusCircle, 
+  PackagePlus, Trash2, Pencil, ExternalLink, 
+  Loader, LayoutGrid, Share2 
 } from "lucide-react";
 
-type MediaItem = {
-  url: string;
-  type: "image" | "youtube";
-};
+interface Category { id: string; name: string; }
+interface Product {
+  id: string;
+  product_name: string;
+  price: number;
+  description: string;
+  category_id: string;
+  is_active: boolean;
+  product_image: string;
+  product_video?: string;
+  created_at: string;
+}
 
-export default function VendorProductsPage() {
-  const router = useRouter();
+export default function VendorInventoryStudio() {
+  // --- States ---
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [existingProductNames, setExistingProductNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  
+  // Edit Mode State
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [vendor, setVendor] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
-  const [productForm, setProductForm] = useState({
-    product_name: "",
-    price: "",
-    description: "",
+  // Form States
+  const [images, setImages] = useState<string[]>([]); 
+  const [videoData, setVideoData] = useState<string>(""); 
+  const [videoType, setVideoType] = useState<'url' | 'upload'>('url');
+  const [isOtherSelected, setIsOtherSelected] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [formData, setFormData] = useState({
+    product_name: '',
+    price: '',
+    description: '',
+    category_id: '',
+    is_active: true
   });
 
-  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
-  const [youtubeUrl, setYoutubeUrl] = useState("");
+  // --- Logic & Validation ---
+  const isDuplicateProduct = useMemo(() => {
+    if (!formData.product_name.trim() || editingId) return false;
+    return existingProductNames.includes(formData.product_name.trim().toLowerCase());
+  }, [formData.product_name, existingProductNames, editingId]);
 
-  /* ---------------- LOAD DATA ---------------- */
-  useEffect(() => {
-    const loadData = async () => {
-      const stored = localStorage.getItem("vendorData");
-      if (!stored) return router.push("/");
+  useEffect(() => { fetchInitialData(); }, []);
 
-      const localVendor = JSON.parse(stored);
+  async function fetchInitialData() {
+    setFetching(true);
+    await Promise.all([fetchCategories(), fetchProducts()]);
+    setFetching(false);
+  }
 
-      const { data: vendorData } = await supabase
-        .from("vendor_register")
-        .select("*")
-        .eq("email", localVendor.email)
-        .maybeSingle();
+  async function fetchCategories() {
+    const { data } = await supabase.from('categories').select('id, name').eq('is_active', true).order('name', { ascending: true });
+    if (data) setCategories(data);
+  }
 
-      if (!vendorData) return;
-      setVendor(vendorData);
-
-      const { data } = await supabase
-        .from("vendor_products")
-        .select("*")
-        .eq("vendor_id", vendorData.id)
-        .order("created_at", { ascending: false });
-
-      setProducts(data || []);
-      setLoading(false);
-    };
-
-    loadData();
-  }, [router]);
-
-  /* ---------------- IMAGE UPLOAD ---------------- */
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setMediaList([{ url: reader.result as string, type: "image" }]);
-      setYoutubeUrl("");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  /* ---------------- YOUTUBE URL ---------------- */
-  const addYoutubeUrl = () => {
-    if (!youtubeUrl.trim()) return;
-
-    setMediaList([{ url: youtubeUrl.trim(), type: "youtube" }]);
-    setYoutubeUrl("");
-  };
-
-  const getYoutubeEmbed = (url: string) => {
-    const id =
-      url.split("v=")[1]?.split("&")[0] ||
-      url.split("youtu.be/")[1];
-    return `https://www.youtube.com/embed/${id}`;
-  };
-
-  /* ---------------- SAVE ---------------- */
-  const handleSave = async () => {
-    if (!productForm.product_name || !productForm.price) {
-      alert("Please fill mandatory fields");
-      return;
+  async function fetchProducts() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('vendor_products').select('*').order('created_at', { ascending: false });
+    if (data) {
+        setProducts(data);
+        setExistingProductNames(data.map((p: any) => p.product_name.toLowerCase()));
     }
+  }
 
-    const payload = {
-      vendor_id: vendor.id,
-      product_name: productForm.product_name,
-      price: Number(productForm.price),
-      description: productForm.description,
-      product_image: JSON.stringify(mediaList),
-    };
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
-    if (editingProduct.id === "new") {
-      await supabase.from("vendor_products").insert(payload);
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const base64Images = await Promise.all(filesArray.map(file => convertToBase64(file)));
+      setImages(prev => [...prev, ...base64Images]);
+    }
+  };
+
+  // --- ACTIONS ---
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this product from inventory permanently?")) return;
+    const { error } = await supabase.from('vendor_products').delete().eq('id', id);
+    if (!error) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        if (editingId === id) resetForm();
+    }
+  };
+
+  const handleShare = async (item: Product) => {
+    const shareUrl = `${window.location.origin}/product/${item.id}`;
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: item.product_name,
+                text: `Check out ${item.product_name} on our catalog!`,
+                url: shareUrl,
+            });
+        } catch (err) { console.log("Share failed", err); }
     } else {
-      await supabase
-        .from("vendor_products")
-        .update(payload)
-        .eq("id", editingProduct.id);
+        navigator.clipboard.writeText(shareUrl);
+        alert("Link copied to clipboard!");
     }
-
-    resetForm();
-    refreshProducts();
   };
 
-  const refreshProducts = async () => {
-    const { data } = await supabase
-      .from("vendor_products")
-      .select("*")
-      .eq("vendor_id", vendor.id)
-      .order("created_at", { ascending: false });
-    setProducts(data || []);
+  const startEdit = (item: Product) => {
+    setEditingId(item.id);
+    setFormData({
+        product_name: item.product_name,
+        price: item.price.toString(),
+        description: item.description || '',
+        category_id: item.category_id,
+        is_active: item.is_active
+    });
+    setImages(item.product_image ? item.product_image.split('|||') : []);
+    setVideoData(item.product_video || "");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
-    setEditingProduct(null);
-    setProductForm({ product_name: "", price: "", description: "" });
-    setMediaList([]);
-    setYoutubeUrl("");
+    setEditingId(null);
+    setFormData({ product_name: '', price: '', description: '', category_id: '', is_active: true });
+    setImages([]);
+    setVideoData("");
+    setNewCategoryName("");
+    setIsOtherSelected(false);
   };
 
-  const startEdit = (p: any) => {
-    setEditingProduct(p);
-    setProductForm({
-      product_name: p.product_name,
-      price: p.price.toString(),
-      description: p.description,
-    });
-    const media = JSON.parse(p.product_image || "[]");
-    setMediaList(media);
-    if (media[0]?.type === "youtube") setYoutubeUrl(media[0].url);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isDuplicateProduct || loading) return;
+    setLoading(true);
 
-  if (loading)
-    return (
-      <div className="h-96 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-b-2 border-red-600 rounded-full" />
-      </div>
-    );
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: vendorRecord } = await supabase.from('vendor_register').select('id').eq('user_id', user?.id).single();
+      
+      if (!vendorRecord) throw new Error("Vendor profile not found");
+
+      let finalCatId = formData.category_id;
+      if (isOtherSelected) {
+        const { data: newCat } = await supabase.from('categories').insert([{ name: newCategoryName.trim(), is_active: true }]).select().single();
+        if (newCat) finalCatId = newCat.id;
+      }
+
+      const productPayload = {
+        product_name: formData.product_name.trim(),
+        price: parseFloat(formData.price),
+        description: formData.description,
+        category_id: finalCatId,
+        is_active: formData.is_active,
+        product_image: images.join('|||'),
+        product_video: videoData,
+        vendor_id: vendorRecord.id
+      };
+
+      if (editingId) {
+        // UPDATE EXISTING
+        const { error } = await supabase.from('vendor_products').update(productPayload).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        // INSERT NEW
+        const { error } = await supabase.from('vendor_products').insert([productPayload]);
+        if (error) throw error;
+      }
+
+      resetForm();
+      fetchInitialData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-yellow-50 px-6 xl:px-20 py-12 space-y-12">
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-4xl font-black text-red-700">
-            Inventory <span className="text-yellow-500">Lab</span>
-          </h2>
-          <p className="text-red-700/60 mt-2 font-medium">
-            Manage products with image or video previews
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#F9F9F9] text-slate-900 pb-20 font-sans">
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D80000; border-radius: 10px; }
+      `}</style>
 
-        {!editingProduct && (
-          <button
-            onClick={() => {
-              setEditingProduct({ id: "new" });
-              setProductForm({ product_name: "", price: "", description: "" });
-              setMediaList([]);
-              setYoutubeUrl("");
-            }}
-            className="flex items-center gap-2 bg-red-600 hover:bg-yellow-400
-                       text-white hover:text-red-800 px-8 py-4 rounded-2xl
-                       font-black text-xs uppercase tracking-widest transition"
-          >
-            <PlusCircle size={18} /> New Product
-          </button>
-        )}
+      {/* --- HERO SECTION --- */}
+      <div className="bg-[#D80000] pt-24 pb-44 px-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFD700] rounded-full blur-[120px] opacity-10 -mr-20 -mt-20" />
+        <div className="max-w-6xl mx-auto text-center relative z-10">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-6">
+            <div className="bg-white/10 p-4 rounded-3xl backdrop-blur-md border border-white/20 shadow-xl text-[#FFD700]">
+              <PackagePlus size={42} />
+            </div>
+          </motion.div>
+          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white">
+            Inventory <span className="text-[#FFD700]">Studio</span>
+          </motion.h1>
+        </div>
       </div>
 
-      {/* EDITOR */}
-      {editingProduct && (
-        <div className="bg-white border-4 border-red-600 rounded-[2.5rem]
-                        shadow-[20px_20px_0px_rgba(234,179,8,0.3)]">
-          <div className="bg-red-600 p-6 flex justify-between text-white">
-            <span className="font-black uppercase tracking-widest text-xs">
-              {editingProduct.id === "new" ? "New Product" : "Edit Product"}
-            </span>
-            <button onClick={resetForm}><X /></button>
-          </div>
-
-          <div className="p-10 grid lg:grid-cols-3 gap-10">
-            {/* MEDIA */}
-            <div className="space-y-6">
-              <label className="text-xs font-black text-red-600 uppercase">
-                Product Media
-              </label>
-
-              <div className="aspect-square bg-yellow-50 border-2 border-dashed
-                              border-yellow-300 rounded-3xl flex items-center justify-center overflow-hidden relative">
-                {mediaList[0]?.type === "image" && (
-                  <img src={mediaList[0].url} className="w-full h-full object-cover" />
+      <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          
+          {/* --- CREATE / EDIT FORM --- */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-5 bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-100">
+            <div className="p-8 md:p-10">
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
+                        {editingId ? <Pencil className="text-blue-600" size={24} /> : <PlusCircle className="text-[#D80000]" size={24} />}
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">{editingId ? 'Edit Listing' : 'New Listing'}</h2>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{editingId ? 'Update your product' : 'Product Details & Media'}</p>
+                    </div>
+                </div>
+                {editingId && (
+                    <button onClick={resetForm} className="text-xs font-black text-red-500 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100">Cancel</button>
                 )}
-                {mediaList[0]?.type === "youtube" && (
-                  <iframe
-                    src={getYoutubeEmbed(mediaList[0].url)}
-                    className="w-full h-full"
-                    allowFullScreen
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Product Title *</label>
+                  <input 
+                    required
+                    className={`w-full bg-slate-50 border ${isDuplicateProduct ? 'border-red-500' : 'border-slate-200'} rounded-2xl p-4 font-bold outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all`}
+                    value={formData.product_name}
+                    onChange={(e) => setFormData({...formData, product_name: e.target.value})}
+                    placeholder="e.g. Rolex Datejust 41"
+                  />
+                  {isDuplicateProduct && <p className="text-[10px] text-red-500 font-bold ml-1 italic">Title already exists in inventory</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Price (₹) *</label>
+                    <input 
+                      type="number" required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-black outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all"
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Category *</label>
+                    <select 
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold outline-none appearance-none cursor-pointer"
+                      value={formData.category_id}
+                      onChange={(e) => {
+                        setFormData({...formData, category_id: e.target.value});
+                        setIsOtherSelected(e.target.value === "other");
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                      <option value="other" className="text-[#D80000] font-black">+ Create New</option>
+                    </select>
+                  </div>
+                </div>
+
+                {isOtherSelected && (
+                  <motion.input 
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                    className="w-full bg-[#FFD700]/10 border border-[#FFD700] rounded-2xl p-4 font-bold outline-none"
+                    placeholder="Type new category name..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
                   />
                 )}
-                {!mediaList.length && (
-                  <ImageIcon size={40} className="text-yellow-400" />
-                )}
-                <input
-                  type="file"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  onChange={handleImageUpload}
-                />
-              </div>
 
-              {/* YOUTUBE INPUT */}
-              <div className="flex gap-2">
-                <input
-                  placeholder="YouTube URL"
-                  value={youtubeUrl}
-                  onChange={(e) => setYoutubeUrl(e.target.value)}
-                  className="flex-1 p-3 rounded-xl border border-yellow-300"
-                />
-                <button
-                  onClick={addYoutubeUrl}
-                  className="bg-red-600 text-white px-4 rounded-xl"
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Description</label>
+                  <textarea
+                    rows={3}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 font-bold outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all resize-none text-sm"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Share features, condition, or story..."
+                  />
+                </div>
+
+                <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                   <div className="flex justify-between items-center mb-4">
+                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Media Assets</span>
+                   </div>
+                   <div className="flex gap-3 overflow-x-auto pb-4 custom-scrollbar">
+                      {images.map((img, i) => (
+                        <div key={i} className="min-w-[80px] h-[80px] rounded-2xl relative overflow-hidden ring-2 ring-white shadow-lg">
+                          <img src={img} className="w-full h-full object-cover" alt="" />
+                          <button type="button" onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><X size={10}/></button>
+                        </div>
+                      ))}
+                      <label className="min-w-[80px] h-[80px] bg-white border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-300 hover:border-[#D80000] hover:text-[#D80000] cursor-pointer transition-all">
+                        <UploadCloud size={20} />
+                        <input type="file" multiple className="hidden" onChange={handleImageChange} />
+                      </label>
+                   </div>
+                </div>
+
+                <button 
+                  disabled={loading || isDuplicateProduct}
+                  className={`w-full ${editingId ? 'bg-blue-600' : 'bg-slate-900'} hover:opacity-90 disabled:bg-slate-200 text-[#FFD700] py-6 rounded-[1.5rem] font-black transition-all shadow-2xl flex items-center justify-center gap-3 group active:scale-[0.98] text-lg mt-4`}
                 >
-                  <Youtube size={18} />
+                  {loading ? <Loader className="animate-spin" /> : editingId ? "Update Listing" : "Publish to Catalog"}
                 </button>
+              </form>
+            </div>
+          </motion.div>
+
+          {/* --- LIVE INVENTORY LIST --- */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-7 space-y-8">
+            <div className="flex items-center justify-between px-2">
+               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-900 tracking-tight">
+                <LayoutGrid className="text-[#D80000]" size={24} /> Live Catalog
+              </h2>
+              <div className="bg-white border border-slate-200 px-5 py-2 rounded-full shadow-sm flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{products.length} Items</span>
               </div>
             </div>
 
-            {/* FORM */}
-            <div className="lg:col-span-2 space-y-6">
-              <input
-                placeholder="Product Name"
-                value={productForm.product_name}
-                onChange={(e) =>
-                  setProductForm({ ...productForm, product_name: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl border border-yellow-300"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[1000px] overflow-y-auto pr-2 custom-scrollbar">
+               <AnimatePresence mode='popLayout'>
+                {fetching ? (
+                  [1,2,3,4].map(i => <div key={i} className="h-64 bg-white rounded-[3rem] animate-pulse border border-slate-100" />)
+                ) : products.length === 0 ? (
+                  <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
+                    <Package className="mx-auto text-slate-200 mb-4" size={48} />
+                    <p className="text-slate-400 font-bold">Your inventory is empty</p>
+                  </div>
+                ) : (
+                  products.map((item, idx) => (
+                    <motion.div 
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all overflow-hidden relative flex flex-col"
+                    >
+                      <div className="aspect-[4/3] relative overflow-hidden bg-slate-100">
+                         <img src={item.product_image.split('|||')[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                         
+                         <div className={`absolute top-5 left-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-10 shadow-lg ${item.is_active ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white/50'}`}>
+                           {item.is_active ? 'Active' : 'Draft'}
+                         </div>
 
-              <input
-                type="number"
-                placeholder="Price (INR)"
-                value={productForm.price}
-                onChange={(e) =>
-                  setProductForm({ ...productForm, price: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl border border-yellow-300"
-              />
+                         {/* ACTION OVERLAY */}
+                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4">
+                            <button onClick={() => startEdit(item)} title="Edit" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-900 hover:bg-[#FFD700] transition-all transform hover:-translate-y-1">
+                                <Pencil size={18}/>
+                            </button>
+                            <button onClick={() => handleDelete(item.id)} title="Delete" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition-all transform hover:-translate-y-1">
+                                <Trash2 size={18}/>
+                            </button>
+                            <button onClick={() => handleShare(item)} title="Share" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-900 hover:bg-black hover:text-white transition-all transform hover:-translate-y-1">
+                                <Share2 size={18}/>
+                            </button>
+                         </div>
+                      </div>
 
-              <textarea
-                rows={4}
-                placeholder="Description"
-                value={productForm.description}
-                onChange={(e) =>
-                  setProductForm({ ...productForm, description: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl border border-yellow-300 resize-none"
-              />
-
-              <button
-                onClick={handleSave}
-                className="px-10 py-5 bg-red-600 hover:bg-yellow-400
-                           text-white hover:text-red-800 rounded-2xl
-                           font-black uppercase tracking-widest flex items-center gap-2"
-              >
-                <Save size={16} /> Save Product
-              </button>
+                      <div className="p-7">
+                        <h4 className="font-black text-xl text-slate-900 truncate mb-4">{item.product_name}</h4>
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                           <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Market Price</span>
+                              <span className="text-2xl font-black text-[#D80000]">₹{item.price.toLocaleString()}</span>
+                           </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+               </AnimatePresence>
             </div>
-          </div>
+          </motion.div>
         </div>
-      )}
-
-      {/* GRID */}
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-        {products.map((p) => {
-          const media = JSON.parse(p.product_image || "[]")[0];
-          return (
-            <div key={p.id} className="bg-white rounded-3xl shadow-lg overflow-hidden">
-              <div className="h-60 bg-yellow-100">
-                {media?.type === "image" && (
-                  <img src={media.url} className="w-full h-full object-cover" />
-                )}
-                {media?.type === "youtube" && (
-                  <iframe
-                    src={getYoutubeEmbed(media.url)}
-                    className="w-full h-full"
-                    allowFullScreen
-                  />
-                )}
-              </div>
-              <div className="p-6">
-                <h3 className="font-black text-red-700">{p.product_name}</h3>
-                <p className="text-sm text-red-700/60">{p.description}</p>
-                <div className="mt-4 font-black text-yellow-600">₹{p.price}</div>
-                <button
-                  onClick={() => startEdit(p)}
-                  className="mt-4 text-sm font-bold text-red-600"
-                >
-                  Edit
-                </button>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

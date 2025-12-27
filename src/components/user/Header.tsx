@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // Combined imports
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { User } from "@supabase/supabase-js";
-import { LogOut, UserCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
-
+import {
+  LogOut,
+  UserCircle,
+  ChevronDown,
+  User as UserIcon,
+  Briefcase
+} from "lucide-react";
+import VendorRegisterForm from "@/components/user/vendorreg";
+import { createClient, type User } from "@supabase/supabase-js";
 
 // Supabase
 const supabase = createClient(
@@ -43,8 +47,14 @@ export default function UserFeed() {
   const [registerStep, setRegisterStep] = useState<"form" | "otp">("form");
   const [otpExpiry, setOtpExpiry] = useState<number | null>(null); // timestamp when OTP expires
   const [otpTimer, setOtpTimer] = useState<string | null>(null); // "mm:ss" display
-  const [userRole, setUserRole] = useState<"user" | "vendor" | null>(null);
 
+  // Existing states...
+  const [userRole, setUserRole] = useState<"user" | "vendor" | null>(null);
+  const [openRegisterMenu, setOpenRegisterMenu] = useState(false);
+  const [showVendorPopup, setShowVendorPopup] = useState(false);
+
+  // NEW: State for dynamic profile icon color (default to yellow)
+  const [profileColor, setProfileColor] = useState("#FFD700");
 
   // Get current logged-in user on load
   useEffect(() => {
@@ -55,8 +65,9 @@ export default function UserFeed() {
 
       setUser(user);
 
-      if (!user?.email) {
+      if (!user?.id) {  // Use user.id instead of email for accuracy
         setUserRole(null);
+        setProfileColor("#FFD700");  // Reset to default
         return;
       }
 
@@ -64,13 +75,37 @@ export default function UserFeed() {
       const { data: vendor } = await supabase
         .from("vendor_register")
         .select("id")
-        .eq("email", user.email)
+        .eq("user_id", user.id)  // Use user_id FK for precision
         .single();
 
       if (vendor) {
         setUserRole("vendor");
+
+        // NEW: Fetch subscription plan and color for vendors
+        const { data: vendorData } = await supabase
+          .from("vendor_register")
+          .select("subscription_plan")
+          .eq("user_id", user.id)
+          .single();
+
+        if (vendorData?.subscription_plan) {
+          const { data: plan } = await supabase
+            .from("subscription_plans")
+            .select("color")
+            .eq("name", vendorData.subscription_plan)
+            .single();
+
+          if (plan?.color) {
+            setProfileColor(plan.color);
+          } else {
+            setProfileColor("#FFD700");  // Fallback if no color found
+          }
+        } else {
+          setProfileColor("#FFD700");  // Fallback if no subscription
+        }
       } else {
         setUserRole("user");
+        setProfileColor("#FFD700");  // Default for non-vendors
       }
     };
 
@@ -234,234 +269,173 @@ export default function UserFeed() {
   };
 
   return (
-    <div>
+    <div className="pt-[88px]">
       {/* ---------------- HEADER ---------------- */}
-      <header className="bg-white border-b sticky top-0 z-50 shadow">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-28">
-          <Link href="/user/feed">
-            <Image src="/logo.jpg" alt="QickTick" width={150} height={60} />
+      {/* ---------------- HEADER ---------------- */}
+      <header className="fixed top-0 left-0 right-0 z-[9999] bg-white backdrop-blur-md border-b shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4 ">
+
+          {/* 1. Logo Section: Optimized sizing */}
+          <Link href="/user/feed" className="flex-shrink-0 transition-transform hover:scale-105">
+            <Image
+              src="/logoBlacl.png"
+              alt="QickTick"
+              width={150}
+              height={90}
+              className="object-contain"
+              priority
+            />
           </Link>
 
-          <nav className="hidden md:flex items-center space-x-6 font-semibold text-black">
-            <Link href="/user/feed" className={isActive("/user/feed")}>Home</Link>
-            <Link href="/user/subscription-plans" className={isActive("/user/subscription-plans")}>Plans</Link>
-            <Link href="/user/listing" className={isActive("/user/listing")}>Listing</Link>
-            <Link href="/user/video" className={isActive("/user/video")}>Video</Link>
-            <Link href="/user/transport" className={isActive("/user/transport")}>Transport</Link>
-            <Link href="/user/enquiry" className={isActive("/user/enquiry")}>Enquiry</Link>
-            <Link href="/user/help" className={isActive("/user/help")}>Help And Earn</Link>
-            {/* <Link href="/user/vendor-profile" className={isActive("/user/vendor-profile")}>Vendor</Link> */}
-            <Link href="/user/add-business" className="px-4 py-2 bg-black text-white rounded-md">Add Business</Link>
+          {/* 2. Nav Section: Modern typography and tighter spacing */}
+          {/* 2. Nav Section: Modern typography and interactive links */}
+          <nav className="hidden lg:flex items-center space-x-2 font-semibold text-sm">
+            {[
+              { name: "Home", href: "/user/feed" },
+              { name: "Plans", href: "/user/subscription-plans" },
+              { name: "Listing", href: "/user/listing" },
+              { name: "Video", href: "/user/video" },
+              { name: "Transport", href: "/user/transport" },
+              { name: "Enquiry", href: "/user/enquiry" },
+              { name: "Help & Earn", href: "/user/help" },
+            ].map((link) => {
+              const isLinkActive = pathname === link.href;
 
-            {/* ▼ BEFORE login - show LOGIN + REGISTER */}
-            {!user && (
-              <div className="flex space-x-3">
-                <button onClick={() => setShowLoginPopup(true)} className="border px-3 py-2 rounded">
-                  Login
-                </button>
-                {/* Register Button in Header */}
-                {/* Register Dropdown in Header */}
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`
+          relative px-4 py-2 rounded-full transition-all duration-300 group
+          ${isLinkActive
+                      ? "text-black bg-yellow-400/10 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.4)]"
+                      : "text-gray-500 hover:text-black hover:bg-gray-50"}
+        `}
+                >
+                  {link.name}
+
+                  {/* Animated underline indicator for active link */}
+                  {isLinkActive && (
+                    <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-yellow-500 rounded-full" />
+                  )}
+
+                  {/* Subtle hover line for non-active links */}
+                  {!isLinkActive && (
+                    <span className="absolute bottom-2 left-1/2 w-0 h-[1.5px] bg-gray-300 transition-all duration-300 group-hover:w-1/2 group-hover:-translate-x-1/2" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* 3. Actions Section */}
+          <div className="flex items-center space-x-4">
+            {/* Primary Action Button */}
+            <Link
+              href="/user/add-business"
+              className="hidden md:block px-5 py-2.5 bg-black text-white text-sm font-bold rounded-full hover:bg-gray-800 transition-all shadow-md active:scale-95"
+            >
+              + Add Business
+            </Link>
+
+            <div className="h-6 w-[1px] bg-gray-200 hidden md:block" />
+
+            {/* AUTH SECTION */}
+            <div className="flex items-center space-x-3">
+              {!user ? (
+                <>
+                  <button
+                    onClick={() => setShowLoginPopup(true)}
+                    className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-black transition"
+                  >
+                    Login
+                  </button>
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setOpenRegisterMenu((prev) => !prev)}
+                      className="px-5 py-2.5 bg-[#FFD700] text-black text-sm rounded-full font-bold shadow-sm hover:bg-[#f2cc00] transition-all flex items-center"
+                    >
+                      Register
+                      <ChevronDown size={14} className={`ml-1 transition-transform ${openRegisterMenu ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {openRegisterMenu && (
+                      <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                        <button
+                          onClick={() => { setShowRegisterPopup(true); setOpenRegisterMenu(false); }}
+                          className="w-full text-left px-5 py-3 hover:bg-gray-50 text-sm font-semibold flex items-center space-x-2"
+                        >
+                          <UserIcon size={16} /> <span>User Registration</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            router.push("/vendorlogin");
+                            setOpenRegisterMenu(false);
+                          }}
+                          className="w-full text-left px-5 py-3 hover:bg-gray-50 text-sm font-semibold 
+             border-t border-gray-50 flex items-center space-x-2"
+                        >
+                          <Briefcase size={16} />
+                          <span>Vendor Registration</span>
+                        </button>
+
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Profile Dropdown */
                 <div className="relative">
-                  {/* ---------------- REDESIGNED PREMIUM HEADER ---------------- */}
-                  <header className="fixed top-0 left-0 right-0 z-[100] transition-all duration-300">
-                    {/* Glassmorphism Background Container */}
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)]" />
+                  <button
+                    onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
+                    className="flex items-center space-x-2 p-1 pr-3 rounded-full border border-gray-200 hover:bg-gray-50 transition"
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: profileColor }}
+                    >
+                      <UserCircle size={22} className="text-black" />
+                    </div>
+                    <ChevronDown size={14} className="text-gray-400" />
+                  </button>
 
-                    <div className="relative max-w-7xl mx-auto px-6 h-20 md:h-24 flex items-center justify-between gap-4">
+                  {openMenu === "profile" && (
+                    <div className="absolute right-0 mt-3 bg-white shadow-2xl rounded-2xl border border-gray-100 py-2 w-56 text-sm z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-4 py-2 mb-1 border-b border-gray-50">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account</p>
+                      </div>
 
-                      {/* Brand Logo */}
-                      <Link href="/user/feed" className="flex-shrink-0 hover:opacity-80 transition-opacity">
-                        <Image
-                          src="/logo.jpg"
-                          alt="QickTick"
-                          width={130}
-                          height={50}
-                          className="object-contain"
-                        />
+                      <Link
+                        href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
+                        className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium"
+                      >
+                        My Profile
                       </Link>
 
-                      {/* Main Navigation Links */}
-                      <nav className="hidden xl:flex items-center bg-slate-100/50 rounded-2xl p-1.5 border border-slate-200/50">
-                        {[
-                          { name: "Home", href: "/user/feed" },
-                          { name: "Plans", href: "/user/subscription-plans" },
-                          { name: "Listing", href: "/user/listing" },
-                          { name: "Video", href: "/user/video" },
-                          { name: "Transport", href: "/user/transport" },
-                          { name: "Enquiry", href: "/user/enquiry" },
-                          { name: "Help & Earn", href: "/user/help" },
-                        ].map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${pathname === item.href
-                              ? "bg-[#FFD700] text-slate-900 shadow-sm"
-                              : "text-slate-600 hover:text-slate-900 hover:bg-white"
-                              }`}
-                          >
-                            {item.name}
-                          </Link>
-                        ))}
-                      </nav>
+                      {userRole === "vendor" && (
+                        <>
+                          <Link href="/vendor/products" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700">Products</Link>
+                          <Link href="/vendor/enquiry" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700">Enquiries</Link>
+                          <Link href="/vendor/subscription" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50">Subscription</Link>
+                        </>
+                      )}
 
-                      {/* Right Side Actions */}
-                      <div className="flex items-center space-x-4">
-                        <Link
-                          href="/user/add-business"
-                          className="hidden md:flex px-5 py-2.5 bg-slate-900 text-[#FFD700] rounded-xl text-[11px] font-black uppercase tracking-wider hover:bg-black transition-all shadow-lg shadow-slate-200"
-                        >
-                          Add Business
-                        </Link>
-
-                        {/* Auth Section */}
-                        {!user ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setShowLoginPopup(true)}
-                              className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
-                            >
-                              Login
-                            </button>
-
-                            <div className="relative">
-                              <button
-                                onClick={() => setOpenMenu(openMenu === "register" ? null : "register")}
-                                className="bg-[#FFD700] px-5 py-2.5 rounded-xl text-sm font-black text-slate-900 shadow-md hover:bg-yellow-400 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                              >
-                                Register
-                              </button>
-
-                              {openMenu === "register" && (
-                                <div className="absolute right-0 mt-3 w-56 bg-white shadow-2xl rounded-2xl border border-slate-100 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                  <button
-                                    onClick={() => { setShowRegisterPopup(true); setOpenMenu(null); }}
-                                    className="flex w-full text-left px-5 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors"
-                                  >
-                                    User Registration
-                                  </button>
-                                  <div className="h-[1px] bg-slate-100 mx-3" />
-                                  <Link
-                                    href="/vendorlogin"
-                                    className="flex px-5 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors"
-                                    onClick={() => setOpenMenu(null)}
-                                  >
-                                    Vendor Registration
-                                  </Link>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
-                              className="flex items-center gap-2 p-0.5 rounded-full border-2 border-[#FFD700] hover:bg-yellow-50 transition-all shadow-sm"
-                            >
-                              <UserCircle size={38} className="text-slate-900" />
-                            </button>
-
-                            {openMenu === "profile" && (
-                              <div className="absolute right-0 mt-3 bg-white shadow-2xl rounded-[2rem] border border-slate-100 py-4 w-64 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                <div className="px-6 py-3 mb-2 border-b border-slate-50">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Signed in as</p>
-                                  <p className="text-sm font-black truncate text-slate-900">{user.email}</p>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Link
-                                    href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
-                                    className="flex px-6 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors"
-                                  >
-                                    My Profile
-                                  </Link>
-
-                                  {userRole === "vendor" && (
-                                    <>
-                                      <Link href="/vendor/products" className="flex px-6 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors">Manage Products</Link>
-                                      <Link href="/vendor/enquiry" className="flex px-6 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors">View Enquiries</Link>
-                                      <Link href="/vendor/subscription" className="flex px-6 py-3 hover:bg-slate-50 text-slate-700 font-bold text-sm transition-colors text-yellow-600">Active Plans</Link>
-                                    </>
-                                  )}
-                                </div>
-
-                                <button
-                                  onClick={logout}
-                                  className="flex w-full px-6 py-4 hover:bg-red-50 text-red-600 font-black text-xs uppercase tracking-widest items-center gap-3 mt-2 border-t border-slate-50 transition-colors"
-                                >
-                                  <LogOut size={16} /> Logout Account
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={logout}
+                        className="flex w-full px-4 py-2.5 hover:bg-red-50 text-left text-red-600 font-bold mt-1"
+                      >
+                        Logout
+                      </button>
                     </div>
-                  </header>
-
-                  {/* IMPORTANT: Spacer so content doesn't hide under the fixed header */}
-                  <div className="h-20 md:h-24" />
+                  )}
                 </div>
-
-
-              </div>
-            )}
-
-            {/* ▼ AFTER login - show PROFILE ICON */}
-            {user && (
-              <div className="relative">
-                <button onClick={() => setOpenMenu(openMenu ? null : "profile")}>
-                  <UserCircle size={36} className="text-black" />
-                </button>
-
-                {openMenu === "profile" && (
-                  <div className="absolute right-0 bg-white shadow-xl rounded-md py-2 w-52 text-sm z-50">
-                    {/* My Profile link */}
-                    <Link
-                      href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
-                      className="flex px-4 py-2 hover:bg-gray-100"
-                    >
-                      My Profile
-                    </Link>
-
-                    {/* ▼ Vendor-specific links (only visible for vendors) */}
-                    {userRole === "vendor" && (
-                      <>
-                        <Link
-                          href="/vendor/products"
-                          className="flex px-4 py-2 hover:bg-gray-100"
-                        >
-                          Products
-                        </Link>
-                        <Link
-                          href="/vendor/enquiry"
-                          className="flex px-4 py-2 hover:bg-gray-100"
-                        >
-                          Enquiries
-                        </Link>
-                        <Link
-                          href="/vendor/subscription"
-                          className="flex px-4 py-2 hover:bg-gray-100"
-                        >
-                          Subscription
-                        </Link>
-                      </>
-                    )}
-
-                    {/* Logout button */}
-                    <button
-                      onClick={logout}
-                      className="flex w-full px-4 py-2 hover:bg-gray-100 text-left"
-                    >
-                      <LogOut size={16} className="mr-2" /> Logout
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-          </nav>
+              )}
+            </div>
+          </div>
         </div>
       </header>
+
 
       {/* -------------------- LOGIN POPUP ------------------------ */}
       {showLoginPopup && (
@@ -660,8 +634,28 @@ export default function UserFeed() {
               </div>
             </div>
           </div>
+
+        </div>
+
+      )}
+      {showVendorPopup && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+
+          {/* Dark background */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowVendorPopup(false)}
+          />
+
+          {/* Form only (no white box) */}
+          <div className="relative z-10 w-full max-w-lg px-4">
+            <VendorRegisterForm onSuccess={() => setShowVendorPopup(false)} />
+          </div>
+
         </div>
       )}
+
+
     </div>
   );
 }

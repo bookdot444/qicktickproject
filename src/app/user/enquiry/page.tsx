@@ -15,7 +15,9 @@ import {
   ShieldAlert, 
   History,
   Calendar,
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  Quote
 } from "lucide-react";
 
 interface Enquiry {
@@ -32,6 +34,7 @@ export default function EnquiryPage() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -44,11 +47,39 @@ export default function EnquiryPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
+    checkUser();
     fetchEnquiries();
   }, []);
+
+  const checkUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user);
+
+    if (!data.user) return;
+
+    // Check if user is a vendor
+    const { data: vendor } = await supabase
+      .from("vendor_register")
+      .select("subscription_plan, subscription_expiry")
+      .eq("user_id", data.user.id)
+      .single();
+
+    if (vendor) {
+      // For vendors, check if subscription_plan exists and subscription_expiry is in future
+      const hasActiveVendorSub = vendor.subscription_plan && vendor.subscription_expiry && new Date(vendor.subscription_expiry) > new Date();
+      setHasSubscription(!!hasActiveVendorSub);
+    } else {
+      // For regular users, check user_subscriptions
+      const { data: sub } = await supabase
+        .from("user_subscriptions")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .eq("status", "active")
+        .single();
+
+      setHasSubscription(!!sub);
+    }
+  };
 
   const fetchEnquiries = async () => {
     const { data, error } = await supabase
@@ -95,93 +126,95 @@ export default function EnquiryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F9F9F9] text-slate-900 pb-20 font-sans">
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #eab308; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D80000; border-radius: 10px; }
       `}</style>
 
-      {/* --- YELLOW HERO SECTION --- */}
-      <div className="bg-[#FFD700] pt-20 pb-32 px-6">
-        <div className="max-w-6xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center mb-6">
-            <div className="bg-white/40 p-4 rounded-3xl backdrop-blur-md border border-white/50 shadow-sm">
-              <MessageSquare size={40} className="text-slate-900" />
+      {/* --- BRAND HERO SECTION --- */}
+      <div className="bg-[#D80000] pt-24 pb-44 px-6 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#FFD700] rounded-full blur-[120px] opacity-10 -mr-48 -mt-48" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-black rounded-full blur-[100px] opacity-20 -ml-24 -mb-24" />
+
+        <div className="max-w-6xl mx-auto text-center relative z-10">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-8">
+            <div className="bg-white/10 p-5 rounded-[2rem] backdrop-blur-md border border-white/20 shadow-2xl">
+              <MessageSquare size={44} className="text-[#FFD700]" />
             </div>
           </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-6xl font-black mb-4 tracking-tight text-slate-900">
-            Need Some Help?
+          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white">
+            Support <span className="text-[#FFD700]">Center</span>
           </motion.h1>
-          <p className="text-slate-800 text-lg max-w-2xl mx-auto opacity-90 font-semibold flex items-center justify-center gap-2">
-            <Sparkles size={18} className="text-amber-600" />
-            Drop us an enquiry and we'll get back to you shortly.
+          <p className="text-white/80 text-lg max-w-2xl mx-auto font-medium">
+            Have questions about our verified listings or services? Our team is 
+            <span className="text-white font-bold italic ml-1 underline decoration-[#FFD700] underline-offset-4">standing by.</span>
           </p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 -mt-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
           {/* --- ENQUIRY FORM --- */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-7 bg-white shadow-2xl shadow-yellow-900/5 rounded-[2.5rem] overflow-hidden border border-slate-100"
+            className="lg:col-span-7 bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-100"
           >
-            <div className="p-8 md:p-10">
-              <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 text-slate-800">
-                <Send className="text-amber-500" size={24} />
-                Send Enquiry
-              </h2>
+            <div className="p-8 md:p-12">
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
+                   <Send className="text-[#D80000]" size={22} />
+                </div>
+                <div>
+                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">Direct Message</h2>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Response within 24 hours</p>
+                </div>
+              </div>
 
               <AnimatePresence mode="wait">
                 {formError && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium mb-6 border border-red-100">
-                    <ShieldAlert size={18} className="inline mr-2" /> {formError}
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-red-50 text-[#D80000] p-5 rounded-2xl text-sm font-bold mb-8 border border-red-100 flex items-center gap-3">
+                    <ShieldAlert size={20} /> {formError}
                   </motion.div>
                 )}
                 {formSuccess && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-emerald-50 text-emerald-700 p-4 rounded-xl text-sm font-bold mb-6 border border-emerald-100">
-                    {formSuccess}
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-emerald-50 text-emerald-700 p-5 rounded-2xl text-sm font-bold mb-8 border border-emerald-100 flex items-center gap-3">
+                    <Sparkles size={20} className="text-emerald-500" /> {formSuccess}
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormInput label="Name *" name="name" icon={<UserIcon size={18}/>} value={formData.name} onChange={handleFormChange} placeholder="John Doe" />
-                  <FormInput label="Email *" name="email" type="email" icon={<Mail size={18}/>} value={formData.email} onChange={handleFormChange} placeholder="john@example.com" />
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormInput label="Full Name *" name="name" icon={<UserIcon size={16}/>} value={formData.name} onChange={handleFormChange} placeholder="John Doe" />
+                  <FormInput label="Email Address *" name="email" type="email" icon={<Mail size={16}/>} value={formData.email} onChange={handleFormChange} placeholder="john@qicktick.com" />
                 </div>
 
-                <FormInput label="Phone" name="phone" icon={<Phone size={18}/>} value={formData.phone} onChange={handleFormChange} placeholder="+91 00000 00000" />
+                <FormInput label="Phone Number" name="phone" icon={<Phone size={16}/>} value={formData.phone} onChange={handleFormChange} placeholder="+91" />
 
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 ml-1">
-                    <MessageSquare size={14}/> Message *
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2 ml-1">
+                    <MessageSquare size={14} className="text-[#D80000]"/> Inquiry Details *
                   </label>
                   <textarea
                     name="message"
                     value={formData.message}
                     onChange={handleFormChange}
                     rows={5}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-amber-400 outline-none transition-all text-sm font-semibold placeholder:text-slate-300 resize-none"
-                    placeholder="Tell us what you need..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-6 focus:ring-2 focus:ring-[#D80000]/20 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300 resize-none"
+                    placeholder="Describe your requirement or question..."
                   />
                 </div>
 
                 <button
                   onClick={handleFormSubmit}
                   disabled={formLoading}
-                  className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-[#FFD700] py-5 rounded-2xl font-black transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-3 group active:scale-[0.98]"
+                  className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-200 text-[#FFD700] py-6 rounded-[1.5rem] font-black transition-all shadow-2xl flex items-center justify-center gap-3 group active:scale-[0.98] text-lg"
                 >
-                  {formLoading ? (
-                    <Loader className="animate-spin" size={20} />
-                  ) : (
-                    <>
-                      <Send size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/> 
-                      Send Message
-                    </>
-                  )}
+                  {formLoading ? <Loader className="animate-spin" size={24} /> : "Send My Inquiry"}
                 </button>
               </div>
             </div>
@@ -190,58 +223,85 @@ export default function EnquiryPage() {
           {/* --- SIDE FEED --- */}
           <motion.div 
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-5 space-y-6"
+            className="lg:col-span-5 space-y-8"
           >
-            <div className="flex items-center justify-between mb-2 px-2">
-              <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-                <History className="text-amber-500" size={20} />
-                Latest Inquiries
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xl font-black flex items-center gap-3 text-slate-900 tracking-tight">
+                <History className="text-[#D80000]" size={22} />
+                Recent Inquiries
               </h2>
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Live</span>
+              <div className="bg-white border border-slate-200 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">Verified Community</span>
               </div>
             </div>
 
-            <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-5 max-h-[850px] overflow-y-auto pr-3 custom-scrollbar">
               {loading ? (
-                [1, 2, 3].map((n) => <div key={n} className="h-40 w-full bg-slate-100 animate-pulse rounded-[2rem]" />)
+                [1, 2, 3].map((n) => <div key={n} className="h-44 w-full bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />)
               ) : enquiries.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400 font-bold">No data found</div>
+                <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-slate-400 font-bold tracking-widest uppercase text-xs">No active records</div>
               ) : (
                 enquiries.map((enq, idx) => (
                   <motion.div
                     key={enq.id}
-                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-amber-200 transition-all border-l-4 border-l-[#FFD700]"
+                    className="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all relative group overflow-hidden"
                   >
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <Calendar size={12} className="text-amber-500" />
-                        {new Date(enq.created_at).toLocaleDateString("en-GB")}
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#FFD700] opacity-30 group-hover:bg-[#D80000] group-hover:opacity-100 transition-all" />
+
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-2 bg-[#D80000]/5 px-3 py-1 rounded-full">
+                        <Calendar size={12} className="text-[#D80000]" />
+                        <span className="text-[9px] font-black text-[#D80000] uppercase tracking-widest">{new Date(enq.created_at).toLocaleDateString("en-GB")}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-300">#ENQ-{enq.id}</span>
+                      <span className="text-[10px] font-black text-slate-300 tracking-tighter">QT-ENQ-{enq.id}</span>
                     </div>
 
-                    <div className="mb-5">
-                      <p className="text-sm font-bold text-slate-800 line-clamp-2 mb-1">
+                    <div className="mb-6 relative">
+                      <Quote className="absolute -top-2 -left-2 text-[#D80000]/5" size={40} />
+                      <p className="text-sm font-bold text-slate-700 leading-relaxed relative z-10 line-clamp-3 italic">
                         "{enq.message}"
                       </p>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wide">Sent by {enq.name}</p>
                     </div>
 
-                    <div className="p-4 bg-slate-50 rounded-2xl relative overflow-hidden group/lock border border-slate-100">
-                      <div className="flex flex-col gap-1 opacity-20 select-none">
-                        <div className="flex items-center gap-2"><Lock size={12} /><span className="text-[11px] font-black blur-[4px]">{enq.email}</span></div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-[#FFD700]">
+                        {enq.name.charAt(0).toUpperCase()}
                       </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posted By</p>
+                        <p className="text-xs font-bold text-slate-900">{enq.name}</p>
+                      </div>
+                    </div>
+
+                    {/* Contact Info */}
+                    <div className="space-y-3">
+                      <div className={`flex items-center gap-3 ${!hasSubscription ? 'blur-sm select-none' : ''}`}>
+                        <Mail size={14} className="text-slate-400" />
+                        <span className="text-xs font-black text-slate-600">{enq.email}</span>
+                      </div>
+                      {enq.phone && (
+                        <div className={`flex items-center gap-3 ${!hasSubscription ? 'blur-sm select-none' : ''}`}>
+                          <Phone size={14} className="text-slate-400" />
+                          <span className="text-xs font-black text-slate-600">{enq.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {!hasSubscription && (
                       <button 
                         onClick={() => window.location.href='/user/subscription-plans'}
-                        className="absolute inset-0 w-full h-full bg-slate-900/0 hover:bg-slate-900 transition-all flex items-center justify-center opacity-0 hover:opacity-100 text-[10px] font-black text-[#FFD700] uppercase tracking-widest gap-2"
+                        className="w-full mt-4 bg-slate-50 hover:bg-slate-900 group/btn py-3 rounded-2xl flex items-center justify-center gap-3 transition-all border border-slate-100 shadow-sm"
                       >
-                        <Lock size={12} /> Unlock Details
+                        <Lock size={14} className="text-[#FFD700]" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          Take Subscription to View Details
+                        </span>
+                        <ChevronRight size={14} className="text-slate-300 group-hover/btn:translate-x-1 transition-transform" />
                       </button>
-                    </div>
+                    )}
                   </motion.div>
                 ))
               )}
@@ -255,8 +315,8 @@ export default function EnquiryPage() {
 
 function FormInput({ label, icon, value, onChange, placeholder, name, type = "text" }: any) {
   return (
-    <div className="space-y-2">
-      <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 ml-1">
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2 ml-1">
         {icon} {label}
       </label>
       <input
@@ -265,7 +325,7 @@ function FormInput({ label, icon, value, onChange, placeholder, name, type = "te
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-amber-400 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300"
+        className="w-full bg-slate-50 border border-slate-200 rounded-[1.2rem] p-4.5 p-4 focus:ring-2 focus:ring-[#D80000]/20 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300"
       />
     </div>
   );
