@@ -40,3 +40,12 @@ body {
   animation: slide 20s linear infinite;
 }
 
+ @keyframes infinite-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-33.33%); }
+  }
+  .animate-infinite-scroll {
+    display: flex;
+    width: max-content;
+    animation: infinite-scroll 35s linear infinite;
+  }

@@ -2,331 +2,347 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { User } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  MessageSquare, 
-  User as UserIcon, 
-  Mail, 
-  Phone, 
-  Send, 
-  Loader, 
-  Lock, 
-  ShieldAlert, 
-  History,
-  Calendar,
-  Sparkles,
-  ChevronRight,
-  Quote
+  Mail, Phone, Send, Loader, Lock, History, Activity, 
+  ArrowRight, Clock, AlertCircle, CheckCircle2, X, Sparkles, Zap
 } from "lucide-react";
 
-interface Enquiry {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-  created_at: string;
-  is_subscribed: boolean;
-}
-
 export default function EnquiryPage() {
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    message: "",
-  });
+  // Form States
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    checkUser();
+    checkSubscriptionStatus();
     fetchEnquiries();
+
+    const channel = supabase
+      .channel('public-enquiries')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'enquiries' }, 
+        (payload) => {
+          setEnquiries((prev) => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const checkUser = async () => {
-    const { data } = await supabase.auth.getUser();
-    setUser(data.user);
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.name.trim()) newErrors.name = "Required";
+    if (!formData.email.match(/^\S+@\S+\.\S+$/)) newErrors.email = "Invalid Email";
+    if (formData.phone && !formData.phone.match(/^\d{10,15}$/)) newErrors.phone = "10-15 digits required";
+    if (formData.message.length < 10) newErrors.message = "Too short (min 10 chars)";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    if (!data.user) return;
-
-    // Check if user is a vendor
-    const { data: vendor } = await supabase
-      .from("vendor_register")
-      .select("subscription_plan, subscription_expiry")
-      .eq("user_id", data.user.id)
-      .single();
-
-    if (vendor) {
-      // For vendors, check if subscription_plan exists and subscription_expiry is in future
-      const hasActiveVendorSub = vendor.subscription_plan && vendor.subscription_expiry && new Date(vendor.subscription_expiry) > new Date();
-      setHasSubscription(!!hasActiveVendorSub);
-    } else {
-      // For regular users, check user_subscriptions
-      const { data: sub } = await supabase
-        .from("user_subscriptions")
-        .select("id")
-        .eq("user_id", data.user.id)
-        .eq("status", "active")
-        .single();
-
-      setHasSubscription(!!sub);
-    }
+  const checkSubscriptionStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: vendor } = await supabase.from("vendor_register").select("subscription_expiry").eq("user_id", user.id).maybeSingle();
+    const isVendorActive = vendor?.subscription_expiry && new Date(vendor.subscription_expiry) > new Date();
+    const { data: sub } = await supabase.from("user_subscriptions").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
+    setHasSubscription(!!isVendorActive || !!sub);
   };
 
   const fetchEnquiries = async () => {
-    const { data, error } = await supabase
-      .from("enquiries")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) setEnquiries(data || []);
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    const { data } = await supabase.from("enquiries").select("*").gte('created_at', tenDaysAgo.toISOString()).order("created_at", { ascending: false });
+    if (data) setEnquiries(data);
     setLoading(false);
   };
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => 
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const handleFormSubmit = async () => {
-    if (!formData.name || !formData.email || !formData.message) {
-      setFormError("Please fill in required fields marked with *");
-      return;
-    }
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
 
     setFormLoading(true);
-    setFormError(null);
-    setFormSuccess(null);
+    const { error } = await supabase.from("enquiries").insert([formData]);
 
-    const { error } = await supabase.from("enquiries").insert([
-      {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone || null,
-        message: formData.message,
-        user_id: user?.id ?? null,
-        is_subscribed: false,
-      },
-    ]);
-
-    if (error) {
-      setFormError("Failed to submit enquiry.");
-    } else {
-      setFormSuccess("Your enquiry has been sent successfully!");
+    if (!error) {
       setFormData({ name: "", email: "", phone: "", message: "" });
-      fetchEnquiries();
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      setErrors({});
     }
     setFormLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F9F9] text-slate-900 pb-20 font-sans">
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D80000; border-radius: 10px; }
-      `}</style>
-
-      {/* --- BRAND HERO SECTION --- */}
-      <div className="bg-[#D80000] pt-24 pb-44 px-6 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#FFD700] rounded-full blur-[120px] opacity-10 -mr-48 -mt-48" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-black rounded-full blur-[100px] opacity-20 -ml-24 -mb-24" />
-
-        <div className="max-w-6xl mx-auto text-center relative z-10">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-8">
-            <div className="bg-white/10 p-5 rounded-[2rem] backdrop-blur-md border border-white/20 shadow-2xl">
-              <MessageSquare size={44} className="text-[#FFD700]" />
+    <div className="min-h-screen bg-[#FFFDF5] pb-20 font-sans selection:bg-yellow-200">
+      
+      {/* --- SUCCESS TOAST --- */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }} animate={{ y: -40, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 inset-x-0 z-[9999] flex justify-center px-4 pointer-events-none"
+          >
+            <div className="bg-gray-900 text-white px-8 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-4 pointer-events-auto border border-white/10">
+              <div className="bg-yellow-400 p-2 rounded-full"><Zap className="text-black" size={18} fill="currentColor" /></div>
+              <div className="flex flex-col flex-1">
+                <span className="font-black italic uppercase tracking-widest text-xs">Signal Transmitted</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Broadcast live on feed</span>
+              </div>
+              <button onClick={() => setShowToast(false)} className="text-white/40 hover:text-white p-1"><X size={18} /></button>
             </div>
           </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white">
-            Support <span className="text-[#FFD700]">Center</span>
-          </motion.h1>
-          <p className="text-white/80 text-lg max-w-2xl mx-auto font-medium">
-            Have questions about our verified listings or services? Our team is 
-            <span className="text-white font-bold italic ml-1 underline decoration-[#FFD700] underline-offset-4">standing by.</span>
-          </p>
+        )}
+      </AnimatePresence>
+
+      {/* --- HEADER --- */}
+      <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-44 px-6 relative overflow-hidden border-b border-yellow-100">
+        <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+        
+        <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-1.5 rounded-full mb-6 shadow-sm border border-yellow-300">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-800">Global Pulse Stream</span>
+            </div>
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-gray-900 leading-none">
+              ENQUIRY <br/>
+              <span className="text-red-600 italic">FEED</span>
+            </h1>
+          </div>
+          <div className="hidden lg:block bg-white p-10 rounded-[3.5rem] -rotate-3 shadow-2xl border-2 border-yellow-100 relative">
+             <div className="absolute -top-3 -right-3 bg-gray-900 text-yellow-400 p-4 rounded-3xl animate-pulse">
+                <Activity size={32} />
+             </div>
+             <Sparkles size={70} className="text-yellow-600" />
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
-          {/* --- ENQUIRY FORM --- */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-7 bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-100"
-          >
-            <div className="p-8 md:p-12">
-              <div className="flex items-center gap-4 mb-10">
-                <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
-                   <Send className="text-[#D80000]" size={22} />
-                </div>
-                <div>
-                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">Direct Message</h2>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Response within 24 hours</p>
-                </div>
+          {/* --- LEFT: BROADCAST FORM --- */}
+          <div className="lg:col-span-7">
+            <div className="bg-white p-8 md:p-14 rounded-[3.5rem] shadow-2xl border border-yellow-100">
+              <div className="mb-10">
+                  <h3 className="text-2xl font-black tracking-tighter uppercase italic text-gray-900">Send Enquiry</h3>
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">Your message will be visible to all verified vendors</p>
               </div>
 
-              <AnimatePresence mode="wait">
-                {formError && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-red-50 text-[#D80000] p-5 rounded-2xl text-sm font-bold mb-8 border border-red-100 flex items-center gap-3">
-                    <ShieldAlert size={20} /> {formError}
-                  </motion.div>
-                )}
-                {formSuccess && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-emerald-50 text-emerald-700 p-5 rounded-2xl text-sm font-bold mb-8 border border-emerald-100 flex items-center gap-3">
-                    <Sparkles size={20} className="text-emerald-500" /> {formSuccess}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <div className="space-y-8">
+              <form onSubmit={handleFormSubmit} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <FormInput label="Full Name *" name="name" icon={<UserIcon size={16}/>} value={formData.name} onChange={handleFormChange} placeholder="John Doe" />
-                  <FormInput label="Email Address *" name="email" type="email" icon={<Mail size={16}/>} value={formData.email} onChange={handleFormChange} placeholder="john@qicktick.com" />
-                </div>
-
-                <FormInput label="Phone Number" name="phone" icon={<Phone size={16}/>} value={formData.phone} onChange={handleFormChange} placeholder="+91" />
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2 ml-1">
-                    <MessageSquare size={14} className="text-[#D80000]"/> Inquiry Details *
-                  </label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleFormChange}
-                    rows={5}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-6 focus:ring-2 focus:ring-[#D80000]/20 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300 resize-none"
-                    placeholder="Describe your requirement or question..."
+                  <Input 
+                    label="Full Name" placeholder="IDENTITY..." error={errors.name}
+                    value={formData.name} onChange={(val:string) => setFormData({...formData, name: val})} 
+                  />
+                  <Input 
+                    label="Email Address" type="email" placeholder="CONTACT EMAIL..." error={errors.email}
+                    value={formData.email} onChange={(val:string) => setFormData({...formData, email: val})} 
                   />
                 </div>
+                <Input 
+                  label="Phone Number" placeholder="MOBILE NO..." error={errors.phone}
+                  value={formData.phone} onChange={(val:string) => setFormData({...formData, phone: val})} 
+                />
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 italic">Requirement Details</label>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${formData.message.length < 10 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                      {formData.message.length} chars
+                    </span>
+                  </div>
+                  <textarea 
+                    placeholder="WHAT ARE YOU LOOKING FOR? BE SPECIFIC..."
+                    rows={4} value={formData.message} 
+                    onChange={(e) => setFormData({...formData, message: e.target.value})}
+                    className={`w-full p-6 bg-[#FEF3C7]/20 border-2 rounded-[2rem] focus:border-yellow-400 focus:bg-white outline-none transition-all font-black uppercase text-xs tracking-widest text-gray-700 placeholder:text-yellow-800/30 ${errors.message ? 'border-red-400' : 'border-transparent'}`}
+                  />
+                  {errors.message && <p className="text-[10px] text-red-500 font-black italic flex items-center gap-1 px-2"><AlertCircle size={10}/> {errors.message}</p>}
+                </div>
 
-                <button
-                  onClick={handleFormSubmit}
-                  disabled={formLoading}
-                  className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-200 text-[#FFD700] py-6 rounded-[1.5rem] font-black transition-all shadow-2xl flex items-center justify-center gap-3 group active:scale-[0.98] text-lg"
+                <button 
+                  type="submit" disabled={formLoading}
+                  className="w-full bg-gray-900 hover:bg-red-600 text-white py-7 rounded-[2.5rem] font-black text-xl italic uppercase tracking-tighter transition-all flex items-center justify-center gap-4 shadow-xl active:scale-95 disabled:opacity-50"
                 >
-                  {formLoading ? <Loader className="animate-spin" size={24} /> : "Send My Inquiry"}
+                  {formLoading ? <Loader className="animate-spin" /> : <>Broadcast Signal <Send size={20} /></>}
                 </button>
-              </div>
+              </form>
             </div>
-          </motion.div>
+          </div>
 
-          {/* --- SIDE FEED --- */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-5 space-y-8"
-          >
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-xl font-black flex items-center gap-3 text-slate-900 tracking-tight">
-                <History className="text-[#D80000]" size={22} />
-                Recent Inquiries
+          {/* --- RIGHT: LIVE PULSE FEED --- */}
+          <div className="lg:col-span-5 space-y-8">
+            <div className="flex items-center justify-between px-4">
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-gray-900">
+                <Clock className="text-red-600" size={24} /> Recent Signals
               </h2>
-              <div className="bg-white border border-slate-200 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">Verified Community</span>
-              </div>
+              <span className="bg-yellow-400 text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-tighter shadow-sm">10D History</span>
             </div>
 
-            <div className="space-y-5 max-h-[850px] overflow-y-auto pr-3 custom-scrollbar">
-              {loading ? (
-                [1, 2, 3].map((n) => <div key={n} className="h-44 w-full bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />)
-              ) : enquiries.length === 0 ? (
-                <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-slate-400 font-bold tracking-widest uppercase text-xs">No active records</div>
-              ) : (
-                enquiries.map((enq, idx) => (
-                  <motion.div
-                    key={enq.id}
-                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all relative group overflow-hidden"
+            <div className="space-y-6 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+              <AnimatePresence initial={false}>
+                {enquiries.length === 0 ? (
+                    <div className="bg-white p-20 rounded-[3.5rem] border-2 border-dashed border-yellow-200 text-center shadow-inner">
+                        <History className="mx-auto text-yellow-200 mb-4" size={50} />
+                        <p className="text-yellow-800/40 text-[10px] font-black uppercase italic tracking-widest leading-loose">No transmission detected<br/>in current sector</p>
+                    </div>
+                ) : enquiries.map((enq) => (
+                  <motion.div 
+                    key={enq.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+                    className="bg-white p-8 rounded-[3rem] border-2 border-transparent hover:border-yellow-400 shadow-lg relative group transition-all duration-500"
                   >
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#FFD700] opacity-30 group-hover:bg-[#D80000] group-hover:opacity-100 transition-all" />
-
                     <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center gap-2 bg-[#D80000]/5 px-3 py-1 rounded-full">
-                        <Calendar size={12} className="text-[#D80000]" />
-                        <span className="text-[9px] font-black text-[#D80000] uppercase tracking-widest">{new Date(enq.created_at).toLocaleDateString("en-GB")}</span>
+                      <div className="flex items-center gap-2">
+                         <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                         <span className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] italic">Active Lead</span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-300 tracking-tighter">QT-ENQ-{enq.id}</span>
+                      <span className="text-[10px] font-black text-gray-300 uppercase italic">{new Date(enq.created_at).toLocaleDateString()}</span>
                     </div>
 
-                    <div className="mb-6 relative">
-                      <Quote className="absolute -top-2 -left-2 text-[#D80000]/5" size={40} />
-                      <p className="text-sm font-bold text-slate-700 leading-relaxed relative z-10 line-clamp-3 italic">
-                        "{enq.message}"
-                      </p>
+                    <div className="relative mb-8">
+                       <span className="absolute -top-4 -left-2 text-6xl text-yellow-400/20 font-serif">“</span>
+                       <p className="text-[13px] font-bold text-gray-600 italic leading-relaxed uppercase tracking-tight relative z-10">
+                         {enq.message}
+                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-[#FFD700]">
-                        {enq.name.charAt(0).toUpperCase()}
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="w-10 h-10 rounded-2xl bg-gray-900 text-yellow-400 flex items-center justify-center font-black text-xs shadow-xl rotate-3">
+                        {enq.name?.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posted By</p>
-                        <p className="text-xs font-bold text-slate-900">{enq.name}</p>
-                      </div>
+                      <p className="text-xs font-black text-gray-900 uppercase italic tracking-tighter">{enq.name}</p>
                     </div>
 
-                    {/* Contact Info */}
-                    <div className="space-y-3">
-                      <div className={`flex items-center gap-3 ${!hasSubscription ? 'blur-sm select-none' : ''}`}>
-                        <Mail size={14} className="text-slate-400" />
-                        <span className="text-xs font-black text-slate-600">{enq.email}</span>
+                    {/* PRIVATE DATA BOX */}
+                    <div className="relative rounded-[2rem] bg-gray-900 p-6 overflow-hidden">
+                      <div className={`space-y-3 transition-all duration-1000 ${!hasSubscription ? 'blur-md select-none pointer-events-none opacity-20' : ''}`}>
+                        <div className="flex items-center gap-3 text-[11px] font-black text-white uppercase tracking-widest italic">
+                          <Mail size={14} className="text-yellow-400" /> {enq.email}
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] font-black text-white uppercase tracking-widest italic">
+                          <Phone size={14} className="text-yellow-400" /> {enq.phone || "HIDDEN"}
+                        </div>
                       </div>
-                      {enq.phone && (
-                        <div className={`flex items-center gap-3 ${!hasSubscription ? 'blur-sm select-none' : ''}`}>
-                          <Phone size={14} className="text-slate-400" />
-                          <span className="text-xs font-black text-slate-600">{enq.phone}</span>
+
+                      {!hasSubscription && (
+                        <div 
+                          onClick={() => window.location.href='/user/subscription-plans'}
+                          className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-900/40 backdrop-blur-sm cursor-pointer group/lock"
+                        >
+                          <div className="bg-yellow-400 text-black p-3 rounded-2xl shadow-2xl mb-2 group-hover/lock:scale-110 transition-transform">
+                            <Lock size={16} />
+                          </div>
+                          <span className="text-[10px] font-black uppercase text-yellow-400 tracking-widest italic">Access Contact</span>
                         </div>
                       )}
                     </div>
-
-                    {!hasSubscription && (
-                      <button 
-                        onClick={() => window.location.href='/user/subscription-plans'}
-                        className="w-full mt-4 bg-slate-50 hover:bg-slate-900 group/btn py-3 rounded-2xl flex items-center justify-center gap-3 transition-all border border-slate-100 shadow-sm"
-                      >
-                        <Lock size={14} className="text-[#FFD700]" />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                          Take Subscription to View Details
-                        </span>
-                        <ChevronRight size={14} className="text-slate-300 group-hover/btn:translate-x-1 transition-transform" />
-                      </button>
-                    )}
                   </motion.div>
-                ))
-              )}
+                ))}
+              </AnimatePresence>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
+     
+     {/* --- HOW IT WORKS: PREMIUM WHITE CARD VERSION --- */}
+      <div className="max-w-7xl mx-auto px-6 mt-32 mb-20">
+        <div className="bg-white rounded-[4rem] p-12 md:p-24 relative overflow-hidden border border-yellow-100 shadow-[0_40px_100px_-20px_rgba(251,191,36,0.15)]">
+          {/* Decorative Pattern */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-50 rounded-full blur-3xl opacity-60 -mr-32 -mt-32" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-50 rounded-full blur-3xl opacity-40 -ml-32 -mb-32" />
+
+          <div className="relative z-10 flex flex-col items-center mb-20">
+            <div className="bg-gray-900 text-yellow-400 text-[10px] font-black px-6 py-2 rounded-full uppercase tracking-[0.4em] mb-6 shadow-xl">
+              Protocol flow
+            </div>
+            <h2 className="text-4xl md:text-7xl font-black text-gray-900 italic uppercase tracking-tighter text-center leading-none">
+              How the <span className="text-red-600">Ecosystem</span> Works
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10">
+            {/* Step 1 */}
+            <div className="relative group">
+              <div className="mb-8 relative">
+                <span className="absolute -top-6 -left-4 text-8xl font-black text-yellow-100/80 italic z-0 select-none">01</span>
+                <div className="w-24 h-24 rounded-3xl bg-yellow-400 flex items-center justify-center text-black shadow-2xl relative z-10 rotate-3 group-hover:rotate-6 transition-transform duration-500">
+                  <Send size={40} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-gray-900 font-black italic uppercase tracking-widest text-xl">Broadcast Signal</h4>
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed uppercase tracking-wider">
+                  Post your specific needs via our encrypted form. Your enquiry is instantly tagged and pushed to the global live feed.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative group">
+              <div className="mb-8 relative">
+                <span className="absolute -top-6 -left-4 text-8xl font-black text-red-100/80 italic z-0 select-none">02</span>
+                <div className="w-24 h-24 rounded-3xl bg-red-600 flex items-center justify-center text-white shadow-2xl relative z-10 -rotate-3 group-hover:-rotate-6 transition-transform duration-500">
+                  <Activity size={40} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-gray-900 font-black italic uppercase tracking-widest text-xl">Live Processing</h4>
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed uppercase tracking-wider">
+                  Our network of verified vendors monitors the pulse stream. Your request remains highlighted and active for 10 days of prime visibility.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative group">
+              <div className="mb-8 relative">
+                <span className="absolute -top-6 -left-4 text-8xl font-black text-gray-100 italic z-0 select-none">03</span>
+                <div className="w-24 h-24 rounded-3xl bg-gray-900 flex items-center justify-center text-yellow-400 shadow-2xl relative z-10 rotate-3 group-hover:rotate-6 transition-transform duration-500">
+                  <Zap size={40} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-gray-900 font-black italic uppercase tracking-widest text-xl">Direct Connection</h4>
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed uppercase tracking-wider">
+                  Verified partners unlock your contact bridge. You receive direct, competitive proposals from the best in the industry.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
 
-function FormInput({ label, icon, value, onChange, placeholder, name, type = "text" }: any) {
+function Input({ label, value, onChange, type = "text", placeholder, error }: any) {
   return (
-    <div className="space-y-3">
-      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2 ml-1">
-        {icon} {label}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="w-full bg-slate-50 border border-slate-200 rounded-[1.2rem] p-4.5 p-4 focus:ring-2 focus:ring-[#D80000]/20 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300"
-      />
+    <div className="space-y-3 w-full">
+      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 ml-2 italic">{label}</label>
+      <div className="relative">
+          <input
+            type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+            className={`w-full p-6 bg-[#FEF3C7]/20 border-2 rounded-[2rem] focus:border-yellow-400 focus:bg-white outline-none transition-all font-black uppercase text-xs tracking-widest text-gray-700 placeholder:text-yellow-800/30 ${error ? 'border-red-400 shadow-sm' : 'border-transparent'}`}
+          />
+          {error && (
+            <div className="absolute -bottom-6 left-4 flex items-center gap-1">
+               <AlertCircle size={10} className="text-red-500"/>
+               <span className="text-[10px] text-red-500 font-black italic uppercase tracking-tighter">{error}</span>
+            </div>
+          )}
+      </div>
     </div>
   );
 }

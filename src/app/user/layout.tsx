@@ -5,7 +5,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <UserHeader />
-      <main className="min-h-screen">{children}</main>
+      {/* Remove default spacing */}
+      <main className="min-h-screen pt-0">
+        {children}
+      </main>
       <Footer />
     </>
   )

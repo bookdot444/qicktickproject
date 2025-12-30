@@ -2,125 +2,141 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation"; // Added for active state
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   HiOutlineHome, HiOutlineOfficeBuilding, HiOutlineClipboardList,
   HiOutlineLogout, HiOutlinePhotograph, HiOutlineTemplate, HiOutlineShieldCheck
 } from "react-icons/hi";
-import { FaUserTie, FaUserFriends, FaTruckMoving, FaMoneyCheckAlt, FaPodcast } from "react-icons/fa";
+import { FaUserTie, FaUserFriends, FaTruckMoving, FaPodcast } from "react-icons/fa";
 
 export default function AdminSidebar() {
-  // 1. Change the initial state to include a 'loading' or default value
   const [role, setRole] = useState<"admin" | "subadmin" | "loading">("loading");
   const pathname = usePathname();
 
   useEffect(() => {
     const savedRole = localStorage.getItem("user_role");
-    // 2. Fallback to 'admin' for now if you just want to see it while coding
-    setRole((savedRole as any) || "admin"); 
+    setRole((savedRole as any) || "admin");
   }, []);
 
-  // 3. Remove this or change it to a loader
   if (role === "loading") {
-    return <aside className="w-72 h-screen bg-[#0F172A] animate-pulse" />;
+    return <aside className="w-72 h-screen bg-[#0F172A] border-r border-slate-800 animate-pulse" />;
   }
 
-  if (!role) return null;
-
-  // Helper for active link styling
   const isActive = (path: string) => pathname === path;
 
-  const NavLink = ({ href, icon: Icon, children }: any) => (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive(href)
-        ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
-        : "text-slate-400 hover:bg-slate-800 hover:text-white"
-        }`}
-    >
-      <Icon size={22} className={isActive(href) ? "text-white" : "group-hover:text-red-500"} />
-      <span className="font-medium text-sm">{children}</span>
-    </Link>
-  );
+  const NavLink = ({ href, icon: Icon, children }: any) => {
+    const active = isActive(href);
+    return (
+      <Link href={href} className="block group px-3">
+        <div className={`
+          flex items-center justify-between gap-3 px-4 py-3 rounded-2xl transition-all duration-300
+          ${active
+            ? "bg-yellow-500 text-black shadow-lg shadow-yellow-500/20" // Yellow Background when active
+            : "text-slate-400 hover:bg-yellow-500/10 hover:text-yellow-500"} // Yellow Border/Text on hover
+        `}>
+          <div className="flex items-center gap-3">
+            <Icon size={20} className={`${active ? "text-black" : "group-hover:text-yellow-500"}`} />
+            <span className="font-semibold text-[13px] tracking-wide">{children}</span>
+          </div>
+          {/* Dot indicator is now black when active to contrast against yellow bg */}
+          {active && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+        </div>
+      </Link>
+    );
+  };
 
   return (
-    <aside className="w-72 h-screen bg-[#0F172A] flex flex-col text-white sticky top-0 overflow-y-auto no-scrollbar border-r border-slate-800">
+    <aside className="w-72 h-screen bg-[#0F172A] flex flex-col text-white sticky top-0 border-r border-slate-800 shadow-2xl">
 
-      {/* Profile/Logo Section */}
-      {/* Profile/Logo Section */}
-      <div className="p-6 flex flex-col items-center border-b border-slate-800/50 mb-4">
-        {/* Adjusted width to w-full (up to 200px) and height to h-24 */}
-        <div className="relative w-full max-w-[200px] h-24 mb-4">
+      {/* 1. STICKY HEADER */}
+      <div className="flex-none p-6 flex flex-col items-center bg-[#0F172A] border-b border-slate-800/50">
+        <div className="flex justify-center mb-6">
           <Image
-            src="/logo.jpg"
-            fill
-            alt="Logo"
-            // Changed object-cover to object-contain to prevent cropping on wider logos
-            className="rounded-xl object-contain p-1"
+            src="/navbar_logo.png"
+            alt="QickTick Logo"
+            width={160}
+            height={50}
             priority
+            className="object-contain"
           />
         </div>
-        <div className="text-center">
-          <h2 className="text-lg font-bold tracking-tight text-white">
-            {role === "admin" ? "Master Admin" : "Staff Panel"}
-          </h2>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 uppercase font-bold tracking-widest border border-slate-700">
-            {role}
-          </span>
+
+        <div className="mt-4 text-center">
+          {/* Changed status badge to yellow theme */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
+              {role} control
+            </span>
+          </div>
         </div>
       </div>
-      {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1">
 
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 mt-4 mb-2">Main Menu</p>
+      {/* 2. SCROLLABLE MIDDLE SECTION */}
+      <div className="flex-1 overflow-y-auto py-6 space-y-8 no-scrollbar scroll-smooth">
 
-        {role === "admin" && <NavLink href="/admin/dashboard" icon={HiOutlineHome}>Dashboard</NavLink>}
-        <NavLink href="/admin/category" icon={HiOutlineOfficeBuilding}>Categories</NavLink>
-        {/* Plan Management - Restricted to Admin */}
-        {role === "admin" && (
-          <NavLink href="/admin/plans" icon={HiOutlineClipboardList}>
-            Subscription Plans
-          </NavLink>
-        )}
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 mt-8 mb-2">Content Manager</p>
-        <div className="space-y-1 bg-slate-900/50 p-2 rounded-2xl border border-slate-800/50">
+        {/* Main Menu */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">Main</p>
+          <NavLink href="/admin/dashboard" icon={HiOutlineHome}>Overview</NavLink>
+          <NavLink href="/admin/category" icon={HiOutlineOfficeBuilding}>Categories</NavLink>
+          {role === "admin" && (
+            <NavLink href="/admin/plans" icon={HiOutlineClipboardList}>Subscription Plans</NavLink>
+          )}
+        </div>
+
+        {/* Content Manager */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">Marketing</p>
           <NavLink href="/admin/site-home/digital-branding" icon={HiOutlineTemplate}>Branding Reels</NavLink>
           <NavLink href="/admin/site-home/digital-banner" icon={HiOutlinePhotograph}>Site Banners</NavLink>
           <NavLink href="/admin/site-home/help-and-earn" icon={HiOutlineShieldCheck}>Help & Earn</NavLink>
           <NavLink href="/admin/site-home/certificates" icon={HiOutlinePhotograph}>Certificates</NavLink>
         </div>
 
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 mt-8 mb-2">Media</p>
-        <NavLink href="/admin/site-home/podcast" icon={FaPodcast}>Podcasts</NavLink>
-        <NavLink href="/admin/site-home/influencers" icon={FaUserFriends}>Influencers</NavLink>
+        {/* Media */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">Media</p>
+          <NavLink href="/admin/site-home/podcast" icon={FaPodcast}>Podcasts</NavLink>
+          <NavLink href="/admin/site-home/influencers" icon={FaUserFriends}>Influencers</NavLink>
+        </div>
 
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-4 mt-8 mb-2">Users & Operations</p>
-        {role === "admin" && <NavLink href="/admin/customers" icon={FaUserFriends}>Customers</NavLink>}
-        <NavLink href="/admin/vendors" icon={FaUserTie}>Vendors</NavLink>
-        <NavLink href="/admin/transportation" icon={FaTruckMoving}>Transportation</NavLink>
-
-        {role === "admin" && (
-          <>
-        {/* <NavLink href="/admin/payment-tracking" icon={FaMoneyCheckAlt}>Payments</NavLink> */}
+        {/* Operations */}
+        <div className="space-y-1 pb-6">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">Operations</p>
+          {role === "admin" && <NavLink href="/admin/customers" icon={FaUserFriends}>Customers</NavLink>}
+          <NavLink href="/admin/vendors" icon={FaUserTie}>Vendors</NavLink>
+          <NavLink href="/admin/transportation" icon={FaTruckMoving}>Transportation</NavLink>
+          {role === "admin" && (
             <NavLink href="/admin/subadmins" icon={FaUserTie}>Staff Access</NavLink>
-          </>
-        )}
-      </nav>
+          )}
+        </div>
+      </div>
 
-      {/* Logout Area */}
-      <div className="p-4 mt-10">
+      {/* 3. STICKY FOOTER */}
+      <div className="flex-none p-6 bg-[#0B1222] border-t border-slate-800/50 shadow-[0_-10px_20px_rgba(0,0,0,0.2)]">
         <button
           onClick={() => {
             localStorage.clear();
             window.location.href = "/adminlogin";
           }}
-          className="w-full group flex items-center justify-center gap-3 bg-slate-800/50 hover:bg-red-600/10 text-slate-300 hover:text-red-500 p-3 rounded-xl transition-all border border-slate-700 hover:border-red-600/30"
+          className="w-full flex items-center justify-center gap-3 bg-red-500/5 hover:bg-red-600 text-red-500 hover:text-white h-12 rounded-xl transition-all duration-300 border border-red-500/20 hover:border-red-600"
         >
-          <HiOutlineLogout size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-semibold text-sm">Sign Out</span>
+          <HiOutlineLogout size={18} />
+          <span className="font-bold text-xs uppercase tracking-widest">Logout System</span>
         </button>
       </div>
+
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </aside>
   );
 }

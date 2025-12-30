@@ -14,8 +14,11 @@ import {
   CheckCircle2,
   Factory,
   ArrowUpRight,
-  ExternalLink,
-  Mail
+  Mail,
+  Zap,
+  Activity,
+  ArrowRight,
+  Filter
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -54,81 +57,77 @@ export default function ServiceCategoryPage() {
 
   const getPlanStyles = (plan: string) => {
     const p = plan?.toLowerCase() || "";
-    if (p.includes("diamond")) return { text: "text-cyan-700", bg: "bg-cyan-50", border: "border-cyan-200", icon: <Gem size={14} /> };
-    if (p.includes("gold")) return { text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", icon: <Award size={14} /> };
-    return { text: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200", icon: <CheckCircle2 size={14} /> };
+    if (p.includes("diamond")) return { color: "text-cyan-500", bg: "bg-cyan-500/10", icon: <Gem size={14} /> };
+    if (p.includes("gold")) return { color: "text-yellow-500", bg: "bg-yellow-500/10", icon: <Award size={14} /> };
+    return { color: "text-red-600", bg: "bg-red-600/10", icon: <Zap size={14} /> };
   };
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-t-[#D80000] rounded-full animate-spin"></div>
+      <div className="h-screen flex items-center justify-center bg-[#FFFDF5]">
+        <div className="flex flex-col items-center gap-4">
+          <Activity className="animate-pulse text-red-600" size={48} />
+          <span className="font-black italic uppercase tracking-[0.3em] text-[10px]">Scanning Network...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans pb-24">
+    <div className="min-h-screen bg-[#FFFDF5] font-sans pb-24 selection:bg-yellow-200">
       
-      {/* ================= DYNAMIC RED HERO BANNER ================= */}
-      <div className="relative bg-[#D80000] pt-24 pb-40 px-6 overflow-hidden">
-        {/* Abstract Background Decoration */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M0 0 L100 0 L100 100 Z" fill="black" />
-          </svg>
-        </div>
-
-        <div className="max-w-6xl mx-auto relative z-10 text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 mb-6"
-          >
-            <Factory size={14} className="text-[#FFD700]" />
-            <span className="text-white text-[10px] font-black uppercase tracking-[0.2em]">Authorized Industry Directory</span>
-          </motion.div>
-
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-black text-white mb-4 tracking-tighter"
-          >
-            {categoryName.toUpperCase()} <span className="text-[#FFD700]">HUB</span>
-          </motion.h1>
-          
-          <p className="text-white/80 max-w-xl mx-auto font-medium text-lg mb-10">
-            Connecting you with verified {categoryName} experts and manufacturing partners.
-          </p>
-
-          {/* Integrated Search Container */}
-          <div className="max-w-2xl mx-auto relative group">
-            <div className="absolute -inset-1 bg-[#FFD700]/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
-            <div className="relative flex items-center bg-white rounded-2xl shadow-2xl overflow-hidden">
-              <Search className="ml-6 text-slate-400" size={20} />
-              <input 
-                type="text" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by company name or keyword..."
-                className="w-full py-6 px-4 outline-none font-bold text-slate-800 placeholder:text-slate-400"
-              />
-              <div className="hidden md:block pr-6">
-                <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-md uppercase">
-                  {filteredVendors.length} Results
-                </span>
-              </div>
+      {/* --- HEADER --- */}
+      <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-44 px-6 relative overflow-hidden border-b border-yellow-100">
+        <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+        
+        <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-1.5 rounded-full mb-6 shadow-sm border border-yellow-300">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-800">Sector Directory Active</span>
             </div>
+            <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-gray-900 leading-[0.85] uppercase">
+              {categoryName} <br/>
+              <span className="text-red-600 italic">HUB</span>
+            </h1>
+          </div>
+          
+          <div className="hidden lg:block bg-white p-10 rounded-[3.5rem] -rotate-3 shadow-2xl border-2 border-yellow-100 relative">
+             <div className="absolute -top-3 -right-3 bg-gray-900 text-yellow-400 p-4 rounded-3xl animate-bounce">
+                <Factory size={32} />
+             </div>
+             <div className="text-right">
+                <p className="text-[40px] font-black text-gray-900 leading-none">{vendors.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Verified Units</p>
+             </div>
           </div>
         </div>
       </div>
 
-      {/* ================= VENDOR CARDS SECTION ================= */}
-      <div className="max-w-6xl mx-auto px-6 -mt-16 relative z-20">
-        <div className="grid grid-cols-1 gap-6">
+      {/* --- SEARCH BAR --- */}
+      <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-30">
+        <div className="bg-gray-900 p-4 rounded-[2.5rem] shadow-2xl flex items-center gap-4 border border-white/10">
+          <div className="pl-6 text-yellow-400"><Search size={20} /></div>
+          <input 
+            type="text" 
+            placeholder="FILTER BY COMPANY NAME..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-transparent border-none outline-none text-white font-black italic uppercase tracking-widest text-xs placeholder:text-gray-500"
+          />
+          <div className="hidden md:flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+            <Filter size={12} className="text-gray-400" />
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Live Filter</span>
+          </div>
+        </div>
+      </div>
+
+      {/* --- VENDOR GRID --- */}
+      <div className="max-w-7xl mx-auto px-6 mt-16 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence mode="popLayout">
             {filteredVendors.length > 0 ? (
               filteredVendors.map((vendor, idx) => {
@@ -138,91 +137,97 @@ export default function ServiceCategoryPage() {
                   <motion.div
                     key={vendor.id}
                     layout
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
+                    className="group bg-white rounded-[3rem] border-2 border-transparent hover:border-yellow-400 shadow-xl transition-all duration-500 overflow-hidden flex flex-col"
                   >
-                    <div className="flex flex-col md:flex-row min-h-[220px]">
-                      
-                      {/* 1. Logo Section */}
-                      <div className="md:w-60 bg-slate-50 flex items-center justify-center p-8 relative border-r border-slate-100">
-                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#D80000] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Header: Logo & Badge */}
+                    <div className="p-8 pb-0 flex justify-between items-start">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
                         {vendor.company_logo ? (
-                          <img 
-                            src={vendor.company_logo} 
-                            alt="Logo" 
-                            className="w-full h-32 object-contain filter grayscale group-hover:grayscale-0 transition-all duration-500" 
-                          />
+                          <img src={vendor.company_logo} alt="logo" className="w-full h-full object-contain" />
                         ) : (
-                          <div className="bg-white w-24 h-24 rounded-3xl flex items-center justify-center shadow-inner">
-                            <Building2 size={40} className="text-slate-200" />
-                          </div>
+                          <Building2 className="text-gray-200" size={28} />
                         )}
                       </div>
-
-                      {/* 2. Main Details */}
-                      <div className="flex-1 p-8">
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
-                          <span className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border ${style.bg} ${style.text} ${style.border} text-[10px] font-black uppercase tracking-widest`}>
-                            {style.icon} {vendor.subscription_plan || "Standard"}
-                          </span>
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
-                            <ShieldCheck size={14} /> Verified Business
-                          </span>
-                        </div>
-
-                        <h2 className="text-3xl font-black text-slate-900 mb-2 group-hover:text-[#D80000] transition-colors tracking-tight">
-                          {vendor.company_name}
-                        </h2>
-
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2 text-slate-500">
-                            <MapPin size={16} className="text-[#D80000]" />
-                            <span className="text-sm font-bold uppercase tracking-tight italic">{vendor.city}, {vendor.state}</span>
-                          </div>
-                          <p className="text-slate-400 text-sm line-clamp-1 font-medium">
-                            Professional industrial solutions and technical support for {categoryName}.
-                          </p>
-                        </div>
+                      <div className={`${style.bg} ${style.color} p-3 rounded-2xl`}>
+                        {style.icon}
                       </div>
+                    </div>
 
-                      {/* 3. Quick Actions */}
-                      <div className="bg-slate-50/50 p-6 md:w-72 flex flex-col justify-center gap-3 border-l border-slate-100">
-                        <button
-                          onClick={() => router.push(`/vendor/view/${vendor.id}`)}
-                          className="w-full h-12 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black transition-all"
-                        >
-                          View Details <ArrowUpRight size={14} />
-                        </button>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <a
-                            href={`tel:${vendor.mobile_number}`}
-                            className="h-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 hover:text-[#D80000] hover:border-[#D80000] transition-all"
-                          >
-                            <Phone size={18} />
-                          </a>
-                          <button
-                            className="h-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 hover:text-[#D80000] hover:border-[#D80000] transition-all"
-                          >
-                            <Mail size={18} />
-                          </button>
-                        </div>
+                    {/* Content */}
+                    <div className="p-8 flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 italic">Registered Partner</span>
                       </div>
+                      
+                      <h2 className="text-2xl font-black text-gray-900 mb-4 group-hover:text-red-600 transition-colors tracking-tighter uppercase leading-tight italic">
+                        {vendor.company_name}
+                      </h2>
 
+                      <div className="space-y-3 border-t border-gray-50 pt-4">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <MapPin size={14} className="text-red-600" />
+                          <span className="text-[10px] font-black uppercase italic">{vendor.city}, {vendor.state}</span>
+                        </div>
+                        <p className="text-gray-400 text-[11px] font-bold uppercase tracking-tight leading-relaxed line-clamp-2 italic">
+                          Technical solutions & industrial support specialized in {categoryName}.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-4 bg-gray-50/50 mt-auto border-t border-gray-50 grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => router.push(`/vendor/view/${vendor.id}`)}
+                        className="col-span-2 bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest italic flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-lg active:scale-95"
+                      >
+                        Access Profile <ArrowRight size={14} />
+                      </button>
+                      <a
+                        href={`tel:${vendor.mobile_number}`}
+                        className="bg-white border-2 border-gray-100 text-gray-900 py-3 rounded-2xl font-black flex items-center justify-center hover:border-yellow-400 transition-all shadow-sm"
+                      >
+                        <Phone size={16} />
+                      </a>
+                      <button
+                        className="bg-white border-2 border-gray-100 text-gray-900 py-3 rounded-2xl font-black flex items-center justify-center hover:border-yellow-400 transition-all shadow-sm"
+                      >
+                        <Mail size={16} />
+                      </button>
                     </div>
                   </motion.div>
                 );
               })
             ) : (
-              <div className="bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 py-32 text-center">
-                <Search size={48} className="mx-auto text-slate-200 mb-4" />
-                <h3 className="text-xl font-black text-slate-400 uppercase tracking-widest">No Vendors Found</h3>
+              <div className="col-span-full py-32 flex flex-col items-center justify-center">
+                <div className="bg-white p-12 rounded-[4rem] border-4 border-dashed border-yellow-100 text-center">
+                  <Search size={64} className="mx-auto text-yellow-200 mb-6" />
+                  <h3 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">No Units Detected</h3>
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Try adjusting your signal filters</p>
+                </div>
               </div>
             )}
           </AnimatePresence>
+        </div>
+      </div>
+
+      {/* --- CTA FOOTER --- */}
+      <div className="max-w-7xl mx-auto px-6 mt-32">
+        <div className="bg-gray-900 rounded-[4rem] p-12 md:p-20 relative overflow-hidden text-center">
+           <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]"></div>
+           <h2 className="text-3xl md:text-5xl font-black text-white italic uppercase tracking-tighter mb-8 relative z-10">
+             Can't find the <span className="text-yellow-400">Right Provider?</span>
+           </h2>
+           <button 
+             onClick={() => router.push('/enquiry')}
+             className="bg-yellow-400 text-black px-12 py-6 rounded-full font-black uppercase italic tracking-widest hover:bg-white transition-all shadow-2xl relative z-10 active:scale-95"
+           >
+             Broadcast Your Requirement
+           </button>
         </div>
       </div>
     </div>

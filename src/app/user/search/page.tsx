@@ -4,7 +4,18 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
-import { Search, Factory } from "lucide-react";
+import { 
+  Search, 
+  ArrowLeft, 
+  Package, 
+  TrendingUp, 
+  ShieldCheck, 
+  Hash, 
+  Award, 
+  ArrowRight,
+  Loader2,
+  Zap
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SearchPage() {
@@ -22,159 +33,172 @@ export default function SearchPage() {
     useEffect(() => {
         const fetchResults = async () => {
             setLoading(true);
-
             let query = supabase
                 .from("vendor_products")
                 .select(`
-    id,
-    vendor_id,
-    product_name,
-    price,
-    product_image,
-    vendor_register (
-      id,
-      company_name,
-      owner_name,
-      city,
-      business_type
-    )
-  `)
+                    id,
+                    vendor_id,
+                    product_name,
+                    price,
+                    product_image,
+                    vendor_register (
+                        id,
+                        company_name,
+                        city,
+                        business_type
+                    )
+                `)
                 .eq("is_active", true);
-
 
             if (q) query = query.ilike("product_name", `%${q}%`);
             if (city) query = query.eq("vendor_register.city", city);
             if (type) query = query.eq("vendor_register.business_type", type);
 
             const { data, error } = await query;
-
             if (!error) setResults(data || []);
             setLoading(false);
         };
-
         fetchResults();
     }, [q, city, type]);
 
+    const handleSearch = () => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (searchText) params.set("q", searchText);
+        else params.delete("q");
+        router.push(`/search?${params.toString()}`);
+    };
+
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-24">
-
-            {/* ================= HERO HEADER ================= */}
-            <div className="relative bg-[#D80000] pt-16 pb-20 px-6 overflow-hidden mb-5"> {/* Added mb-5 here */}
-                {/* Subtle Abstract Background Overlay */}
-                <div className="absolute inset-0 opacity-10">
-                    <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <path d="M0 100 C 20 0 50 0 100 100 Z" fill="black" />
-                    </svg>
-                </div>
-
-                <div className="max-w-6xl mx-auto text-center relative z-10">
-                    {/* Compact Verified Badge */}
-                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 mb-6">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-pulse" />
-                        <span className="text-white text-[10px] font-black uppercase tracking-widest">
-                            Verified Search
-                        </span>
+        <div className="min-h-screen bg-[#FFFDF5] pb-20 font-sans selection:bg-yellow-200">
+            
+            {/* --- HERO HEADER (Inventory Style) --- */}
+            <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-20 pb-32 px-6 relative overflow-hidden border-b border-yellow-200">
+                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+                
+                <div className="max-w-6xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="text-center md:text-left">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="mb-6 inline-flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-gray-900 bg-white px-4 py-2 rounded-lg border-2 border-gray-900 shadow-[4px_4px_0px_#000]"
+                        >
+                            <ArrowLeft size={14} strokeWidth={3} /> Home
+                        </button>
+                        <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 leading-none uppercase">
+                            Search <br/>
+                            <span className="text-red-600 italic">Registry</span>
+                        </h1>
                     </div>
 
-                    {/* Scaled Heading */}
-                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">
-                        SEARCH <span className="text-[#FFD700]">RESULTS</span>
-                    </h1>
-
-                    <p className="text-white/70 max-w-lg mx-auto font-medium text-base md:text-lg">
-                        {results.length} trusted professionals found
-                    </p>
-
-                    {/* Compact Search Bar - Added mb-5 to ensure internal spacing */}
-                    <div className="max-w-xl mx-auto mt-8 relative group mb-5">
-                        <div className="relative flex items-center bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-[#FFD700] transition-all">
-                            {/* Search Icon */}
-                            <Search className="ml-5 text-gray-400" size={18} />
-
-                            <input
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                placeholder="Search services..."
-                                className="w-full py-4 px-4 outline-none font-bold text-gray-800 placeholder:text-gray-400"
-                            />
-
-                            <button className="bg-[#FFD700] text-black font-black text-xs px-6 py-4 hover:bg-yellow-400 transition-colors uppercase">
-                                Find
-                            </button>
+                    <div className="hidden lg:block bg-white p-8 rounded-[2.5rem] rotate-3 shadow-xl border-2 border-yellow-100 relative">
+                        <div className="absolute -top-2 -right-2 bg-red-600 text-white p-2 rounded-xl">
+                            <Zap size={20} fill="currentColor" />
                         </div>
+                        <Search size={60} className="text-yellow-600" />
                     </div>
                 </div>
             </div>
 
-            {/* ================= RESULTS ================= */}
-            <div className="max-w-6xl mx-auto px-6 -mt-20 relative z-20">
-                <AnimatePresence>
+            {/* --- SEARCH & RESULTS --- */}
+            <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20">
+                
+                {/* Search Bar */}
+                <div className="bg-white shadow-2xl rounded-3xl p-3 mb-12 flex flex-col md:flex-row gap-3 border border-yellow-100">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-yellow-600" size={18} />
+                        <input
+                            type="text"
+                            placeholder="SEARCH DATABASE..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            className="w-full pl-12 pr-6 py-4 bg-[#FEF3C7]/20 border-2 border-transparent focus:border-yellow-400 focus:bg-white rounded-xl outline-none transition-all font-black uppercase text-xs tracking-widest"
+                        />
+                    </div>
+                    <button 
+                        onClick={handleSearch}
+                        className="bg-gray-900 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-red-600 transition-colors"
+                    >
+                        Scan Archive
+                    </button>
+                </div>
+
+                {/* Results Grid */}
+                <AnimatePresence mode="wait">
                     {loading ? (
-                        <p className="text-slate-400">Loading services...</p>
-                    ) : results.length === 0 ? (
-                        <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 py-32 text-center">
-                            <Search size={48} className="mx-auto text-slate-200 mb-4" />
-                            <h3 className="text-xl font-black text-slate-400 uppercase tracking-widest">
-                                No Services Found
-                            </h3>
+                        <div className="bg-white p-20 rounded-[3rem] border-4 border-gray-900 text-center flex flex-col items-center">
+                            <Loader2 className="animate-spin text-yellow-600 mb-4" size={40} />
+                            <p className="font-black uppercase tracking-widest text-xs text-gray-400">Syncing Results...</p>
                         </div>
                     ) : (
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {results.map((item, idx) => (
-                                <motion.div
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {results.map((item) => (
+                                <div
                                     key={item.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
                                     onClick={() => router.push(`/vendor/view/${item.vendor_id}`)}
-                                    className="group bg-white rounded-3xl shadow hover:shadow-2xl transition cursor-pointer overflow-hidden"
+                                    className="group bg-white border-2 border-gray-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-[4px_4px_0px_#000] flex flex-col"
                                 >
-                                    <div className="relative h-48 bg-gray-100">
+                                    {/* Small Image Area */}
+                                    <div className="relative h-40 bg-gray-50 border-b-2 border-gray-900">
                                         {item.product_image ? (
                                             <Image
                                                 src={item.product_image}
                                                 alt={item.product_name}
                                                 fill
-                                                className="object-cover group-hover:scale-105 transition"
+                                                className="object-cover"
                                             />
                                         ) : (
-                                            <div className="flex h-full items-center justify-center text-gray-400">
-                                                No Image
+                                            <div className="flex h-full items-center justify-center text-gray-200">
+                                                <Package size={32} />
                                             </div>
                                         )}
-                                    </div>
-
-                                    <div className="p-6">
-                                        <h3 className="font-black text-lg text-slate-900 truncate">
-                                            {item.product_name}
-                                        </h3>
-
-                                        <p className="text-sm font-semibold text-slate-700 mt-1">
-                                            {item.vendor_register?.company_name
-                                                || item.vendor_register?.owner_name}
-                                        </p>
-
-
-
-                                        <p className="text-sm text-slate-500 mt-1">
-                                            {item.vendor_register?.city} · {item.vendor_register?.business_type}
-                                        </p>
-
-                                        <div className="flex justify-between items-center mt-4">
-                                            <span className="text-xl font-extrabold text-[#D80000]">
-                                                ₹{item.price}
-                                            </span>
-                                            <span className="text-xs font-black uppercase tracking-widest text-[#D80000]">
-                                                View →
+                                        <div className="absolute top-3 left-3">
+                                            <span className="bg-white/90 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-gray-900">
+                                                {item.vendor_register?.city || 'Global'}
                                             </span>
                                         </div>
                                     </div>
-                                </motion.div>
+
+                                    {/* Simple Content */}
+                                    <div className="p-5 flex flex-col flex-1">
+                                        <h3 className="font-black text-sm text-gray-900 uppercase italic leading-tight truncate group-hover:text-red-600 transition-colors">
+                                            {item.product_name}
+                                        </h3>
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">
+                                            {item.vendor_register?.company_name}
+                                        </p>
+
+                                        <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
+                                            <span className="text-lg font-black text-gray-900 tracking-tighter">
+                                                ₹{item.price.toLocaleString()}
+                                            </span>
+                                            <div className="bg-gray-100 group-hover:bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors">
+                                                <ArrowRight size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     )}
                 </AnimatePresence>
+
+                {/* --- TRUST FOOTER --- */}
+                <div className="mt-24 grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <TrustCard icon={<ShieldCheck size={18}/>} label="Secure" />
+                    <TrustCard icon={<Hash size={18}/>} label="Tracked" />
+                    <TrustCard icon={<Award size={18}/>} label="Verified" />
+                    <TrustCard icon={<TrendingUp size={18}/>} label="Popular" />
+                </div>
             </div>
         </div>
     );
+}
+
+function TrustCard({ icon, label }: { icon: React.ReactNode, label: string }) {
+    return (
+        <div className="flex flex-col items-center gap-2 opacity-20 hover:opacity-100 transition-opacity">
+            <div className="text-yellow-600">{icon}</div>
+            <span className="font-black uppercase tracking-[0.2em] text-[9px] text-gray-900">{label}</span>
+        </div>
+    )
 }

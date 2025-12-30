@@ -4,7 +4,9 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { 
   Eye, X, MapPin, Calendar, Phone, Package, 
-  ChevronRight, Search, RefreshCw, Loader2, ArrowRightLeft 
+  ChevronRight, Search, RefreshCw, Loader2, 
+  ArrowRightLeft, ShieldCheck, Truck, Weight,
+  Navigation, Hash
 } from "lucide-react";
 
 type TravelRequest = {
@@ -48,90 +50,125 @@ export default function TravelRequestsPage() {
   }, [requests, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-10 font-sans text-slate-900">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
+      
+      {/* --- MASTER YELLOW BANNER --- */}
+      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-          <div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter italic">
-              Travel <span className="text-red-600">Manifest</span>
-            </h1>
-            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mt-1">
-              Logistics & Dispatch Management
-            </p>
-          </div>
-
-          <div className="flex gap-3 w-full md:w-auto">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search by name or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl w-full md:w-72 focus:ring-4 focus:ring-red-500/10 outline-none font-bold text-xs uppercase tracking-widest shadow-sm transition-all"
-              />
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="text-[#e11d48]" size={20} />
+                <span className="text-red-900/60 text-[10px] font-black uppercase tracking-[0.3em]">Logistics Command</span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-black uppercase italic tracking-tighter leading-none">
+                Travel <span className="text-[#e11d48]">Manifest</span>
+              </h1>
+              <p className="text-red-900/80 text-xs mt-3 max-w-sm font-bold uppercase tracking-wide leading-relaxed italic">
+                Dispatch synchronization. Auditing active transit requests and cargo specifications.
+              </p>
             </div>
-            <button 
-              onClick={fetchRequests} 
-              className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 transition-all shadow-sm"
-            >
-              <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-            </button>
+            
+            <div className="flex items-center gap-4">
+              <div className="bg-white/40 backdrop-blur-md p-5 rounded-[2rem] border border-white/50 min-w-[140px] text-center shadow-sm">
+                <p className="text-red-900 text-[9px] font-black uppercase mb-1">Total Loads</p>
+                <p className="text-3xl font-black text-[#e11d48]">{requests.length}</p>
+              </div>
+              <button 
+                onClick={fetchRequests} 
+                className="bg-black hover:bg-red-600 text-white p-5 rounded-2xl transition-all shadow-2xl active:scale-95 group"
+              >
+                <RefreshCw size={24} className={loading ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"} />
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Data Table / List */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+      {/* MAIN CONTENT AREA */}
+      <div className="max-w-7xl mx-auto px-6 md:px-10 -mt-12 relative z-30">
+        
+        {/* SEARCH BAR */}
+        <div className="mb-10">
+           <div className="relative group">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-600 transition-colors" size={20} />
+              <input 
+                type="text"
+                placeholder="SEARCH BY NAME, PHONE, OR ROUTE..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-16 pr-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] focus:border-red-600 outline-none shadow-xl shadow-slate-200/50 font-black text-xs uppercase tracking-[0.2em] transition-all"
+              />
+           </div>
+        </div>
+
+        {/* DATA TABLE CONTAINER */}
+        <div className="bg-white rounded-[3rem] border border-slate-200 shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-50">
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Requestor</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Route</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Purpose</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="p-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Requestor Identity</th>
+                  <th className="p-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Route Navigation</th>
+                  <th className="p-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Schedule</th>
+                  <th className="p-8 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Dispatch Control</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td colSpan={5} className="px-8 py-6 h-20 bg-slate-50/50"></td>
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan={4} className="p-32 text-center">
+                      <Loader2 className="animate-spin text-red-600 mx-auto mb-4" size={40} />
+                      <p className="font-black text-[10px] uppercase tracking-[0.3em] text-slate-300">Syncing manifest...</p>
+                    </td>
+                  </tr>
                 ) : filteredRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-8 py-6">
-                      <div className="font-black text-slate-900 uppercase tracking-tight">{req.name}</div>
-                      <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-1">
-                        <Phone size={10} /> {req.phone}
+                  <tr key={req.id} className="hover:bg-slate-50/80 transition-all group cursor-default">
+                    <td className="p-8">
+                      <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center text-[#facc15] font-black text-lg italic shadow-lg group-hover:scale-110 transition-transform">
+                          {req.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 leading-none mb-1 text-base uppercase italic tracking-tighter">
+                            {req.name}
+                          </h4>
+                          <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-tighter italic">
+                            <Phone size={12} className="text-red-500" /> {req.phone}
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-tighter">
-                        <span className="text-slate-400">{req.pickup_location || "N/A"}</span>
-                        <ChevronRight size={14} className="text-red-500" />
-                        <span className="text-slate-900">{req.drop_location || "N/A"}</span>
+                    <td className="p-8">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Origin</span>
+                           <span className="text-xs font-black text-slate-700 uppercase italic truncate max-w-[120px]">{req.pickup_location || "N/A"}</span>
+                        </div>
+                        <ChevronRight size={16} className="text-red-600 animate-pulse" />
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Destination</span>
+                           <span className="text-xs font-black text-slate-900 uppercase italic truncate max-w-[120px]">{req.drop_location || "N/A"}</span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 font-bold text-xs text-slate-600">
-                        <Calendar size={14} className="text-slate-300" />
-                        {req.travel_date ? new Date(req.travel_date).toLocaleDateString() : "Pending"}
+                    <td className="p-8">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase mb-1">Est. Departure</span>
+                        <div className="flex items-center gap-2 text-slate-700 font-bold text-xs italic">
+                          <Calendar size={14} className="text-red-600" />
+                          {req.travel_date ? new Date(req.travel_date).toLocaleDateString() : "PENDING"}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6 text-xs font-bold text-slate-500 italic">
-                      {req.purpose || "-"}
-                    </td>
-                    <td className="px-8 py-6 text-right">
+                    <td className="p-8 text-right">
                       <button 
                         onClick={() => setSelectedRequest(req)}
-                        className="p-2.5 bg-slate-900 text-white rounded-lg hover:bg-red-600 transition-all shadow-lg active:scale-95"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-black text-[#facc15] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl active:scale-95"
                       >
-                        <Eye size={18} />
+                        <Eye size={14} /> Open Dossier
                       </button>
                     </td>
                   </tr>
@@ -139,103 +176,124 @@ export default function TravelRequestsPage() {
               </tbody>
             </table>
           </div>
-          {!loading && filteredRequests.length === 0 && (
-            <div className="py-20 text-center font-black text-slate-300 uppercase tracking-widest text-sm">
-              No matching requests found
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Modal Redesign */}
-        {selectedRequest && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl relative animate-in zoom-in duration-300">
-              
-              {/* Close Button */}
+      {/* --- INSPECTION MODAL --- */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+          <div className="bg-white w-full max-w-4xl rounded-[3.5rem] overflow-hidden shadow-2xl relative animate-in zoom-in duration-300 flex flex-col md:flex-row h-[85vh]">
+            
+            {/* SIDE PANEL: CARGO STATUS */}
+            <div className="md:w-1/3 bg-[#facc15] p-10 flex flex-col border-r border-black/5">
+              <div className="mb-10">
+                <div className="flex items-center gap-2 text-red-900/60 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                  <Hash size={14} /> ID-{selectedRequest.id}
+                </div>
+                <h2 className="text-4xl font-black text-black uppercase italic leading-[0.8] tracking-tighter mb-4">
+                  Request <br/><span className="text-[#e11d48]">Brief</span>
+                </h2>
+                <div className="w-12 h-1.5 bg-black rounded-full" />
+              </div>
+
+              <div className="space-y-8 mt-auto">
+                <div className="bg-black/5 p-6 rounded-[2rem] border border-black/5">
+                  <p className="text-[9px] font-black text-red-900 uppercase tracking-widest mb-2">Verified Contact</p>
+                  <p className="text-xl font-black text-black italic tracking-tighter">{selectedRequest.name}</p>
+                  <p className="text-sm font-bold text-black/60">{selectedRequest.phone}</p>
+                </div>
+                
+                <div className="flex items-center gap-4 px-2">
+                  <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-[#facc15]">
+                    <Weight size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-red-900 uppercase tracking-widest">Total Payload</p>
+                    <p className="text-2xl font-black text-black italic leading-none">{selectedRequest.weight_kg || "0"} KG</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* MAIN CONTENT: LOGISTICS */}
+            <div className="flex-1 p-12 overflow-y-auto bg-white flex flex-col">
               <button 
-                className="absolute top-8 right-8 p-2 bg-slate-100 rounded-full hover:bg-red-600 hover:text-white transition-all"
+                className="absolute top-8 right-8 p-3 bg-slate-100 rounded-2xl hover:bg-red-600 hover:text-white transition-all z-10"
                 onClick={() => setSelectedRequest(null)}
               >
                 <X size={20} />
               </button>
 
-              <div className="p-10">
-                <div className="flex items-center gap-2 text-red-600 font-bold text-[10px] uppercase tracking-[0.2em] mb-4">
-                  <ArrowRightLeft size={14} /> Request Dossier #{selectedRequest.id}
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic mb-8 border-b pb-4">
-                  {selectedRequest.name}<span className="text-slate-400 font-light">'s Request</span>
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Route Info */}
-                  <div className="space-y-6">
-                    <section>
-                      <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Primary Route</h4>
-                      <div className="space-y-4 relative">
-                        <div className="flex items-start gap-4">
-                          <div className="mt-1 w-2 h-2 rounded-full bg-slate-300 border-4 border-white ring-2 ring-slate-100 shadow-sm" />
-                          <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase">Pickup Location</p>
-                            <p className="text-xs font-bold text-slate-900">{selectedRequest.pickup_location || "Not Specified"}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                          <div className="mt-1 w-2 h-2 rounded-full bg-red-600 border-4 border-white ring-2 ring-red-100 shadow-sm" />
-                          <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase">Drop Location</p>
-                            <p className="text-xs font-bold text-slate-900">{selectedRequest.drop_location || "Not Specified"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    <section>
-                      <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Scheduling</h4>
-                      <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
-                         <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase">Travel Date</p>
-                            <p className="text-xs font-bold text-slate-900 italic">{selectedRequest.travel_date || "Pending"}</p>
-                         </div>
-                         <Calendar className="text-slate-200" size={24} />
-                      </div>
-                    </section>
-                  </div>
-
-                  {/* Cargo Info */}
-                  <div className="bg-slate-900 rounded-[2rem] p-6 text-white">
-                    <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6 border-b border-slate-800 pb-2 flex items-center gap-2">
-                      <Package size={14} className="text-red-500" /> Cargo Specifications
-                    </h4>
-                    
-                    <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden">
+                  <Navigation className="absolute -right-4 -bottom-4 text-slate-100 w-24 h-24 -rotate-12" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                    <Truck size={16} className="text-red-600"/> Transit Route
+                  </h4>
+                  <div className="space-y-6 relative z-10">
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-slate-300 border-2 border-white ring-2 ring-slate-100 mt-1" />
                       <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Goods Description</p>
-                        <p className="text-xs font-bold leading-relaxed">{selectedRequest.goods_description || "No cargo described"}</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase">Pickup Location</p>
+                        <p className="text-sm font-black text-slate-900 uppercase italic tracking-tight">{selectedRequest.pickup_location || "UNDEFINED"}</p>
                       </div>
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Load Weight</p>
-                          <p className="text-2xl font-black italic">{selectedRequest.weight_kg ? `${selectedRequest.weight_kg} kg` : "N/A"}</p>
-                        </div>
-                        <div className="text-[9px] font-black text-slate-600 uppercase">System Verified</div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-red-600 border-2 border-white ring-2 ring-red-100 mt-1" />
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase">Drop Destination</p>
+                        <p className="text-sm font-black text-slate-900 uppercase italic tracking-tight">{selectedRequest.drop_location || "UNDEFINED"}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-100 rounded-lg"><Phone size={14} /></div>
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-900">{selectedRequest.phone}</p>
+                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex flex-col justify-center">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Scheduling Info</h4>
+                  <div className="flex items-center gap-4">
+                    <Calendar className="text-red-600" size={32} />
+                    <div>
+                      <p className="text-2xl font-black text-slate-900 italic tracking-tighter leading-none">
+                        {selectedRequest.travel_date ? new Date(selectedRequest.travel_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : "PENDING"}
+                      </p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Confirmed Deployment</p>
+                    </div>
                   </div>
-                  <p className="text-[10px] font-bold text-slate-400">Created: {selectedRequest.created_at ? new Date(selectedRequest.created_at).toLocaleString() : "-"}</p>
                 </div>
               </div>
+
+              <div className="mb-12 flex-1">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-100 pb-2 italic">Cargo Description & Purpose</h4>
+                <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl">
+                  <div className="flex items-start gap-4 mb-4">
+                    <Package className="text-[#facc15] shrink-0" size={20} />
+                    <p className="text-slate-100 text-sm font-bold leading-relaxed italic uppercase tracking-tight">
+                      {selectedRequest.goods_description || "NO GOODS DESCRIPTION PROVIDED BY REQUESTOR."}
+                    </p>
+                  </div>
+                  <div className="pt-4 border-t border-slate-800">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stated Purpose</p>
+                    <p className="text-xs font-black text-[#facc15] uppercase italic">{selectedRequest.purpose || "GENERAL LOGISTICS"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                   onClick={() => setSelectedRequest(null)}
+                   className="flex-1 py-5 bg-slate-100 text-slate-900 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-all italic active:scale-95"
+                >
+                  Dismiss
+                </button>
+                <button className="flex-2 px-10 py-5 bg-black text-[#facc15] rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] hover:bg-red-600 hover:text-white transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-3 italic">
+                   Initiate Dispatch <ArrowRightLeft size={16}/>
+                </button>
+              </div>
             </div>
+
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

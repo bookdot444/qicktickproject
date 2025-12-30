@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Users, Store, Truck, RefreshCw, ArrowRight } from "lucide-react";
+import { 
+  Users, Store, Truck, RefreshCw, ArrowRight, 
+  ShieldCheck, Activity, CreditCard, LayoutGrid, 
+  Image as ImageIcon, UserPlus
+} from "lucide-react";
 import Link from "next/link";
 
 const supabase = createClient(
@@ -44,92 +48,125 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="p-10 bg-gray-50 min-h-screen text-slate-800">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1">Overview of your platform activities</p>
-        </div>
-        <button 
-          onClick={fetchCounts}
-          disabled={loading}
-          className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-all disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+      {/* --- MASTER YELLOW BANNER --- */}
+      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
-        {/* Customer Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-              <Users size={24} />
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="text-[#e11d48]" size={20} />
+                <span className="text-red-900/60 text-[10px] font-black uppercase tracking-[0.3em]">Central Command</span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-black uppercase italic tracking-tighter leading-none">
+                Admin <span className="text-[#e11d48]">Dashboard</span>
+              </h1>
+              <p className="text-red-900/80 text-xs mt-3 max-w-sm font-bold uppercase tracking-wide leading-relaxed italic">
+                Platform Intelligence Hub. Real-time monitoring of user metrics, vendor partnerships, and logistics.
+              </p>
             </div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Customers</h2>
-          </div>
-          <p className="text-4xl font-extrabold text-gray-900">{totalCustomers}</p>
-          <Link href="/admin/customers" className="flex items-center gap-1 text-blue-600 text-sm font-semibold mt-4 hover:underline">
-            View details <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        {/* Vendor Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-red-50 text-red-600 rounded-xl">
-              <Store size={24} />
-            </div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Vendors</h2>
-          </div>
-          <p className="text-4xl font-extrabold text-gray-900">{totalVendors}</p>
-          <Link href="/admin/vendors" className="flex items-center gap-1 text-red-600 text-sm font-semibold mt-4 hover:underline">
-            View details <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        {/* Transport Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
-              <Truck size={24} />
-            </div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Transport Requests</h2>
-          </div>
-          <p className="text-4xl font-extrabold text-gray-900">{totalTransport}</p>
-          <Link href="/admin/transportation" className="flex items-center gap-1 text-orange-600 text-sm font-semibold mt-4 hover:underline">
-            View details <ArrowRight size={14} />
-          </Link>
-        </div>
-
-      </div>
-
-      {/* Quick Links Section */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-        <h3 className="text-lg font-bold text-gray-900 mb-6 border-b pb-4">Common Management Tasks</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { name: "Manage Categories", href: "/admin/category" },
-            { name: "Website Banners", href: "/admin/site-home/digital-banner" },
-            { name: "Payment Tracking", href: "/admin/payment-tracking" },
-            { name: "Sub Admin Panel", href: "/admin/subadmins" }
-          ].map((task) => (
-            <Link 
-              key={task.name} 
-              href={task.href}
-              className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-sm font-bold text-gray-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all"
+            
+            <button 
+              onClick={fetchCounts}
+              disabled={loading}
+              className="bg-black hover:bg-red-600 text-white flex items-center gap-3 px-8 py-4 rounded-2xl transition-all shadow-2xl active:scale-95 group font-black text-[10px] uppercase tracking-widest italic"
             >
-              {task.name}
-            </Link>
-          ))}
+              <RefreshCw size={18} className={loading ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"} />
+              Sync Data
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* STATS SECTION */}
+      <div className="max-w-7xl mx-auto px-6 md:px-10 -mt-12 relative z-30">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          
+          {/* Total Customers */}
+          <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl group hover:shadow-2xl transition-all flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+              <div className="p-4 bg-slate-900 text-[#facc15] rounded-2xl shadow-lg">
+                <Users size={28} />
+              </div>
+              <Activity className="text-emerald-500 animate-pulse" size={20} />
+            </div>
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated Users</h2>
+            <p className="text-5xl font-black text-slate-900 italic tracking-tighter mb-6">{totalCustomers}</p>
+            <Link href="/admin/customers" className="mt-auto flex items-center justify-center gap-2 py-3 bg-slate-50 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">
+              User Database <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* Total Vendors */}
+          <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl group hover:shadow-2xl transition-all flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+              <div className="p-4 bg-black text-[#facc15] rounded-2xl shadow-lg">
+                <Store size={28} />
+              </div>
+              <ShieldCheck className="text-blue-500" size={20} />
+            </div>
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Partner Network</h2>
+            <p className="text-5xl font-black text-slate-900 italic tracking-tighter mb-6">{totalVendors}</p>
+            <Link href="/admin/vendors" className="mt-auto flex items-center justify-center gap-2 py-3 bg-slate-50 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">
+              Vendor Dossiers <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* Transport Requests */}
+          <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl group hover:shadow-2xl transition-all flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+              <div className="p-4 bg-black text-[#facc15] rounded-2xl shadow-lg">
+                <Truck size={28} />
+              </div>
+              <div className="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black uppercase rounded-lg border border-amber-100 italic">Live Loads</div>
+            </div>
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Transit Requests</h2>
+            <p className="text-5xl font-black text-slate-900 italic tracking-tighter mb-6">{totalTransport}</p>
+            <Link href="/admin/transportation" className="mt-auto flex items-center justify-center gap-2 py-3 bg-slate-50 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">
+              Travel Manifest <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        {/* QUICK MANAGEMENT TASKS */}
+        <div className="bg-white rounded-[3.5rem] border border-slate-200 p-10 shadow-2xl relative overflow-hidden">
+          <div className="flex items-center gap-3 mb-8 border-b border-slate-50 pb-6">
+            <div className="h-8 w-2 bg-[#e11d48] rounded-full" />
+            <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">System Operations</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { name: "Manage Categories", href: "/admin/category", icon: <LayoutGrid size={18}/> },
+              { name: "Website Banners", href: "/admin/site-home/digital-banner", icon: <ImageIcon size={18}/> },
+              { name: "Payment Tracking", href: "/admin/payment-tracking", icon: <CreditCard size={18}/> },
+              { name: "Sub Admin Panel", href: "/admin/subadmins", icon: <UserPlus size={18}/> }
+            ].map((task) => (
+              <Link 
+                key={task.name} 
+                href={task.href}
+                className="group p-6 bg-slate-50 border border-slate-100 rounded-[2rem] flex flex-col items-center text-center transition-all hover:bg-black hover:border-black active:scale-95 shadow-sm"
+              >
+                <div className="mb-4 text-[#e11d48] group-hover:text-[#facc15] transition-colors">
+                  {task.icon}
+                </div>
+                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest group-hover:text-white transition-colors">
+                  {task.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+          
+          {/* System Footer Decorative Element */}
+          <div className="mt-12 flex items-center justify-between text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">
+             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"/> System Online</div>
+             <div className="italic">Authorized Admin Access Only</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

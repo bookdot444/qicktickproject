@@ -3,9 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation"; // Combined imports
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  LogOut,
+  LogOut, PlusCircle,
   UserCircle,
   ChevronDown,
   User as UserIcon,
@@ -55,6 +55,9 @@ export default function UserFeed() {
 
   // NEW: State for dynamic profile icon color (default to yellow)
   const [profileColor, setProfileColor] = useState("#FFD700");
+
+  // Ref for dropdown to handle outside clicks
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Get current logged-in user on load
   useEffect(() => {
@@ -117,6 +120,24 @@ export default function UserFeed() {
 
     return () => {
       authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Close dropdown on pathname change or outside click
+  useEffect(() => {
+    setOpenMenu(null); // Close on navigation
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -220,9 +241,9 @@ export default function UserFeed() {
       setShowLoginPopup(false);
 
       if (vendor) {
-        router.push("/user/feed");
+        router.push("/user");
       } else {
-        router.push("/user/feed");
+        router.push("/user");
       }
     } catch (err: any) {
       setLoginError(err.message);
@@ -269,16 +290,15 @@ export default function UserFeed() {
   };
 
   return (
-    <div className="pt-[88px]">
+    <div className="pt-[60px]">
       {/* ---------------- HEADER ---------------- */}
-      {/* ---------------- HEADER ---------------- */}
-      <header className="fixed top-0 left-0 right-0 z-[9999] bg-white backdrop-blur-md border-b shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-[9999] bg-yellow-100 border-b border-red-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4 ">
 
           {/* 1. Logo Section: Optimized sizing */}
           <Link href="/user/feed" className="flex-shrink-0 transition-transform hover:scale-105">
             <Image
-              src="/logoBlacl.png"
+              src="/navbar_logo.png"
               alt="QickTick"
               width={150}
               height={90}
@@ -291,7 +311,7 @@ export default function UserFeed() {
           {/* 2. Nav Section: Modern typography and interactive links */}
           <nav className="hidden lg:flex items-center space-x-2 font-semibold text-sm">
             {[
-              { name: "Home", href: "/user/feed" },
+              { name: "Home", href: "/user" },
               { name: "Plans", href: "/user/subscription-plans" },
               { name: "Listing", href: "/user/listing" },
               { name: "Video", href: "/user/video" },
@@ -333,9 +353,9 @@ export default function UserFeed() {
             {/* Primary Action Button */}
             <Link
               href="/user/add-business"
-              className="hidden md:block px-5 py-2.5 bg-black text-white text-sm font-bold rounded-full hover:bg-gray-800 transition-all shadow-md active:scale-95"
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-red-700 transition-all shadow-lg shadow-red-200"
             >
-              + Add Business
+              <PlusCircle size={16} /> Add Business
             </Link>
 
             <div className="h-6 w-[1px] bg-gray-200 hidden md:block" />
@@ -386,44 +406,45 @@ export default function UserFeed() {
                 </>
               ) : (
                 /* Profile Dropdown */
-                <div className="relative">
+                <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
                     className="flex items-center space-x-2 p-1 pr-3 rounded-full border border-gray-200 hover:bg-gray-50 transition"
                   >
+                    {/* Enhanced Profile Icon: Better design with gradient, ring, and shadow */}
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-yellow-600 border-4 border-white shadow-lg ring-2 ring-yellow-300"
                       style={{ backgroundColor: profileColor }}
                     >
-                      <UserCircle size={22} className="text-black" />
+                      <UserCircle size={24} className="text-white drop-shadow-md" />
                     </div>
                     <ChevronDown size={14} className="text-gray-400" />
                   </button>
 
                   {openMenu === "profile" && (
-                    <div className="absolute right-0 mt-3 bg-white shadow-2xl rounded-2xl border border-gray-100 py-2 w-56 text-sm z-50 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-4 py-2 mb-1 border-b border-gray-50">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account</p>
+                    <div className="absolute right-0 mt-3 bg-gradient-to-b from-yellow-50 to-yellow-100 border border-yellow-200 shadow-2xl rounded-2xl py-2 w-56 text-sm z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-4 py-2 mb-1 border-b border-yellow-200">
+                        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Account</p>
                       </div>
 
                       <Link
                         href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
-                        className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium"
+                        className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800"
                       >
                         My Profile
                       </Link>
 
                       {userRole === "vendor" && (
                         <>
-                          <Link href="/vendor/products" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700">Products</Link>
-                          <Link href="/vendor/enquiry" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700">Enquiries</Link>
-                          <Link href="/vendor/subscription" className="flex items-center px-4 py-2.5 hover:bg-gray-50 font-medium text-gray-700 border-b border-gray-50">Subscription</Link>
+                          <Link href="/vendor/products" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800">Products</Link>
+                          <Link href="/vendor/enquiry" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800">Enquiries</Link>
+                          <Link href="/vendor/subscription" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800 border-b border-yellow-200">Subscription</Link>
                         </>
                       )}
 
                       <button
                         onClick={logout}
-                        className="flex w-full px-4 py-2.5 hover:bg-red-50 text-left text-red-600 font-bold mt-1"
+                        className="flex w-full px-4 py-2.5 hover:bg-red-100 text-left text-red-600 font-bold mt-1"
                       >
                         Logout
                       </button>
@@ -458,7 +479,7 @@ export default function UserFeed() {
                 <span className="text-xl">✕</span>
               </button>
 
-              <div className="text-center mb-8">
+                        <div className="text-center mb-8">
                 <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome Back</h2>
                 <p className="text-slate-500 font-medium">Enter your email to access your account</p>
               </div>
