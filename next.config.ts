@@ -7,6 +7,12 @@ const nextConfig = {
         hostname: 'hrusjzopebjlgbqeacxy.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      // Added YouTube thumbnail support for Next.js Image component if needed
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        pathname: '/vi/**',
+      },
     ],
   },
 };

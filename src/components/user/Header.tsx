@@ -11,7 +11,7 @@ import {
   User as UserIcon,
   Briefcase
 } from "lucide-react";
-import VendorRegisterForm from "@/components/user/vendorreg";
+import VendorRegister from "@/components/user/vendorreg";
 import { createClient, type User } from "@supabase/supabase-js";
 
 // Supabase
@@ -51,77 +51,81 @@ export default function UserFeed() {
   // Existing states...
   const [userRole, setUserRole] = useState<"user" | "vendor" | null>(null);
   const [openRegisterMenu, setOpenRegisterMenu] = useState(false);
-  const [showVendorPopup, setShowVendorPopup] = useState(false);
-
+  const [openVendor, setOpenVendor] = useState(false);
   // NEW: State for dynamic profile icon color (default to yellow)
   const [profileColor, setProfileColor] = useState("#FFD700");
 
   // Ref for dropdown to handle outside clicks
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Get current logged-in user on load
   useEffect(() => {
     const loadUserAndRole = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        // 1️⃣ Get current logged-in user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      setUser(user);
+        setUser(user);
 
-      if (!user?.id) {  // Use user.id instead of email for accuracy
-        setUserRole(null);
-        setProfileColor("#FFD700");  // Reset to default
-        return;
-      }
-
-      // Check if logged-in user is a vendor
-      const { data: vendor } = await supabase
-        .from("vendor_register")
-        .select("id")
-        .eq("user_id", user.id)  // Use user_id FK for precision
-        .single();
-
-      if (vendor) {
-        setUserRole("vendor");
-
-        // NEW: Fetch subscription plan and color for vendors
-        const { data: vendorData } = await supabase
-          .from("vendor_register")
-          .select("subscription_plan")
-          .eq("user_id", user.id)
-          .single();
-
-        if (vendorData?.subscription_plan) {
-          const { data: plan } = await supabase
-            .from("subscription_plans")
-            .select("color")
-            .eq("name", vendorData.subscription_plan)
-            .single();
-
-          if (plan?.color) {
-            setProfileColor(plan.color);
-          } else {
-            setProfileColor("#FFD700");  // Fallback if no color found
-          }
-        } else {
-          setProfileColor("#FFD700");  // Fallback if no subscription
+        if (!user?.id) {
+          setUserRole(null);
+          setProfileColor("#FFD700"); // default color
+          return;
         }
-      } else {
+
+        // 2️⃣ Fetch vendor info along with subscription plan color
+        const { data: vendor, error } = await supabase
+          .from("vendor_register")
+          .select(`
+          id,
+          subscription_plan_id,
+          subscription_plans!left(color)
+        `)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error fetching vendor:", error);
+          setUserRole("user");
+          setProfileColor("#FFD700");
+          return;
+        }
+
+        // 3️⃣ Set role and profile color
+        if (vendor) {
+          setUserRole("vendor");
+          setProfileColor(vendor.subscription_plans?.color || "#FFD700");
+        } else {
+          setUserRole("user");
+          setProfileColor("#FFD700");
+        }
+      } catch (err) {
+        console.error("Error loading user and role:", err);
         setUserRole("user");
-        setProfileColor("#FFD700");  // Default for non-vendors
+        setProfileColor("#FFD700");
       }
     };
 
     loadUserAndRole();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      loadUserAndRole();
+    // 4️⃣ Subscribe to auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.id) {
+        loadUserAndRole();
+      } else {
+        setUser(null);
+        setUserRole(null);
+        setProfileColor("#FFD700");
+      }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+
 
   // Close dropdown on pathname change or outside click
   useEffect(() => {
@@ -292,7 +296,7 @@ export default function UserFeed() {
   return (
     <div className="pt-[60px]">
       {/* ---------------- HEADER ---------------- */}
-      <header className="fixed top-0 left-0 right-0 z-[9999] bg-yellow-100 border-b border-red-50 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-[9999] bg-white border-b border-red-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4 ">
 
           {/* 1. Logo Section: Optimized sizing */}
@@ -328,8 +332,8 @@ export default function UserFeed() {
                   className={`
           relative px-4 py-2 rounded-full transition-all duration-300 group
           ${isLinkActive
-                      ? "text-black bg-yellow-400/10 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.4)]"
-                      : "text-gray-500 hover:text-black hover:bg-gray-50"}
+                      ? "text-red-400 bg-red-400/10 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.4)]"
+                      : "text-yellow-900 hover:text-yellow hover:bg-yellow-50"}
         `}
                 >
                   {link.name}
@@ -381,24 +385,26 @@ export default function UserFeed() {
                     </button>
 
                     {openRegisterMenu && (
-                      <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="absolute right-0 mt-3 w-56 bg-yellow-100 text-black  border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                         <button
                           onClick={() => { setShowRegisterPopup(true); setOpenRegisterMenu(false); }}
-                          className="w-full text-left px-5 py-3 hover:bg-gray-50 text-sm font-semibold flex items-center space-x-2"
+                          className="w-full text-left px-5 py-3 hover:bg-yellow-100 text-sm font-semibold flex items-center space-x-2"
                         >
                           <UserIcon size={16} /> <span>User Registration</span>
                         </button>
+
                         <button
                           onClick={() => {
-                            router.push("/vendorlogin");
-                            setOpenRegisterMenu(false);
+                            setOpenVendor(true); // Open the popup
+                            setOpenRegisterMenu(false); // Close the dropdown menu
                           }}
-                          className="w-full text-left px-5 py-3 hover:bg-gray-50 text-sm font-semibold 
-             border-t border-gray-50 flex items-center space-x-2"
+                          className="w-full text-left px-5 py-3  hover:bg-yellow-100 text-sm font-semibold border-t border-gray-50 flex items-center space-x-2"
                         >
                           <Briefcase size={16} />
                           <span>Vendor Registration</span>
                         </button>
+
+
 
                       </div>
                     )}
@@ -413,7 +419,7 @@ export default function UserFeed() {
                   >
                     {/* Enhanced Profile Icon: Better design with gradient, ring, and shadow */}
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-yellow-600 border-4 border-white shadow-lg ring-2 ring-yellow-300"
+                      className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-lg ring-2 ring-yellow-300"
                       style={{ backgroundColor: profileColor }}
                     >
                       <UserCircle size={24} className="text-white drop-shadow-md" />
@@ -479,7 +485,7 @@ export default function UserFeed() {
                 <span className="text-xl">✕</span>
               </button>
 
-                        <div className="text-center mb-8">
+              <div className="text-center mb-8">
                 <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome Back</h2>
                 <p className="text-slate-500 font-medium">Enter your email to access your account</p>
               </div>
@@ -659,24 +665,9 @@ export default function UserFeed() {
         </div>
 
       )}
-      {showVendorPopup && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
-
-          {/* Dark background */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowVendorPopup(false)}
-          />
-
-          {/* Form only (no white box) */}
-          <div className="relative z-10 w-full max-w-lg px-4">
-            <VendorRegisterForm onSuccess={() => setShowVendorPopup(false)} />
-          </div>
-
-        </div>
+      {openVendor && (
+        <VendorRegister onClose={() => setOpenVendor(false)} />
       )}
-
-
     </div>
   );
 }

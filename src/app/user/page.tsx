@@ -8,6 +8,7 @@ import { useRef } from "react"; // Add useRef here
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function Home() {
     const [find, setFind] = useState("");
@@ -21,6 +22,9 @@ export default function Home() {
     const router = useRouter();
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [showResults, setShowResults] = useState(false);
+    const [cities, setCities] = useState<string[]>([]);
+    const [businessTypes, setBusinessTypes] = useState<string[]>([]);
+
 
     const [podcasts, setPodcasts] = useState([]);
     const [influencers, setInfluencers] = useState([]);
@@ -45,6 +49,64 @@ export default function Home() {
 
         loadExtraMedia();
     }, []);
+
+    useEffect(() => {
+        if (!find || find.length < 2) {
+            setCities([]);
+            setBusinessTypes([]);
+            return;
+        }
+
+        const loadFiltersByProduct = async () => {
+            // 1️⃣ Get vendors selling this product
+            const { data: products, error: productError } = await supabase
+                .from("vendor_products")
+                .select("vendor_id")
+                .ilike("product_name", `%${find}%`)
+                .eq("is_active", true);
+
+            if (productError || !products?.length) {
+                setCities([]);
+                setBusinessTypes([]);
+                return;
+            }
+
+            const vendorIds = [...new Set(products.map(p => p.vendor_id))];
+
+            // 2️⃣ Fetch vendor details
+            const { data: vendors, error: vendorError } = await supabase
+                .from("vendor_register")
+                .select("city, user_type")
+                .in("id", vendorIds);
+
+            if (vendorError || !vendors) return;
+
+            // 3️⃣ Extract unique cities
+            const uniqueCities = Array.from(
+                new Set(
+                    vendors
+                        .map(v => v.city?.toLowerCase().trim())
+                        .filter(Boolean)
+                )
+            );
+
+            // 4️⃣ Extract unique business types
+            const uniqueBusinessTypes = Array.from(
+                new Set(
+                    vendors.flatMap(v =>
+                        Array.isArray(v.user_type)
+                            ? v.user_type
+                            : [v.user_type]
+                    ).map(t => t?.toLowerCase().trim())
+                )
+            );
+
+            setCities(uniqueCities);
+            setBusinessTypes(uniqueBusinessTypes);
+        };
+
+        loadFiltersByProduct();
+    }, [find]);
 
     useEffect(() => {
         const loadCategories = async () => {
@@ -117,15 +179,26 @@ export default function Home() {
         }
 
         const fetchSearchResults = async () => {
+            // We select product details AND join with vendor_register (aliased via vendor_id)
+            // to get city and user_type
             let query = supabase
                 .from("vendor_products")
-                .select("id, product_name, price")
+                .select(`
+            id, 
+            product_name, 
+            price,
+            vendor_id (
+                area,
+                user_type
+            )
+        `)
                 .eq("is_active", true)
                 .ilike("product_name", `%${find}%`)
                 .limit(5);
 
+            // If a city is selected, we filter by the city field in the JOINED table
             if (near) {
-                query = query.eq("city", near);
+                query = query.filter("vendor_id.area", "eq", near);
             }
 
             const { data, error } = await query;
@@ -133,6 +206,8 @@ export default function Home() {
             if (!error) {
                 setSearchResults(data || []);
                 setShowResults(true);
+            } else {
+                console.error("Search Error:", error);
             }
         };
 
@@ -144,7 +219,7 @@ export default function Home() {
 
         const params = new URLSearchParams();
         if (find) params.append("q", find);
-        if (near) params.append("city", near);
+        if (near) params.append("area", near);
         if (businessType) params.append("type", businessType);
 
         router.push(`/user/search?${params.toString()}`);
@@ -228,9 +303,7 @@ export default function Home() {
 
                                     {/* Search Results Dropdown - Now strictly contained and higher Z-index */}
                                     {showResults && searchResults.length > 0 && (
-                                        <div
-                                            className="absolute left-0 right-0 top-[110%]   bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[180px] overflow-y-auto overscroll-contain"
-                                        >
+                                        <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[300px] overflow-y-auto overscroll-contain">
                                             {searchResults.map((item) => (
                                                 <div
                                                     key={item.id}
@@ -239,13 +312,46 @@ export default function Home() {
                                                         setShowResults(false);
                                                         router.push(`/user/search?q=${item.product_name}`);
                                                     }}
-                                                    className="px-6 py-4 cursor-pointer hover:bg-yellow-500/10 border-b border-gray-800 last:border-none flex justify-between items-center transition-colors"
+                                                    className="px-6 py-4 cursor-pointer hover:bg-yellow-500/10 border-b border-gray-100 last:border-none flex justify-between items-start transition-colors"
                                                 >
-                                                    <div>
-                                                        <p className="font-bold text-black">{item.product_name}</p>
-                                                        <p className="text-sm text-yellow-500/70">₹{item.price}</p>
+                                                    <div className="flex flex-col gap-1 text-left">
+                                                        {/* Product Name */}
+                                                        <p className="font-bold text-black text-base">{item.product_name}</p>
+
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                            {/* Price */}
+                                                            <span className="text-sm font-semibold text-green-700">
+                                                                ₹{item.price}
+                                                            </span>
+
+                                                            {/* Location - Fetched from vendor_id join */}
+                                                            <span className="flex items-center text-xs text-gray-500">
+                                                                <MapPin size={12} className="mr-1 text-red-500" />
+                                                                {item.vendor_id?.area || "Unknown Location"}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Business Type / User Type Badges */}
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {/* Handling both strings and arrays if user_type is multiple */}
+                                                            {Array.isArray(item.vendor_id?.user_type) ? (
+                                                                item.vendor_id.user_type.map((type) => (
+                                                                    <span key={type} className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md border border-yellow-200 uppercase font-bold">
+                                                                        {type}
+                                                                    </span>
+                                                                ))
+                                                            ) : (
+                                                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200 uppercase font-bold">
+                                                                    {item.vendor_id?.user_type || "Service Provider"}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <span className="text-xs font-bold text-yellow-400">View →</span>
+
+                                                    {/* Visual indicator to click */}
+                                                    <span className="text-[10px] font-black text-white bg-gradient-to-r from-yellow-500 to-red-600 px-2 py-1 rounded-lg self-center shadow-sm">
+                                                        VIEW
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>
@@ -264,11 +370,14 @@ export default function Home() {
                                             value={near}
                                             onChange={(e) => setNear(e.target.value)}
                                         >
-                                            <option value="" className="text-black">Select City</option>
-                                            <option value="Delhi" className="text-black">Delhi</option>
-                                            <option value="Mumbai" className="text-black">Mumbai</option>
-                                            <option value="Bangalore" className="text-black">Bangalore</option>
+                                            <option value="" className="text-black">All Cities</option>
+                                            {cities.map((city) => (
+                                                <option key={city} value={city} className="text-black">
+                                                    {city.charAt(0).toUpperCase() + city.slice(1)}
+                                                </option>
+                                            ))}
                                         </select>
+
                                     </div>
                                 </div>
 
@@ -306,6 +415,7 @@ export default function Home() {
                 </div>
             </div>
 
+            {/* HOW IT WORKS – Clean White Background Design */}
             {/* HOW IT WORKS – Clean White Background Design */}
             <section className="py-24 bg-white relative z-0 overflow-hidden">                {/* Soft background accents */}
                 <div className="absolute inset-0 pointer-events-none">
@@ -395,7 +505,6 @@ export default function Home() {
                     </div>
                 </div>
             </section>
-
             {/* POPULAR CATEGORIES - Redesigned with Light Yellow Theme */}
             <section className="py-24 bg-[#FFFBEB] overflow-hidden relative">
                 {/* Decorative Background Elements */}
@@ -494,7 +603,6 @@ export default function Home() {
                     </div>
                 </div>
             </section>
-
             {/* TRUST CTA - Redesigned & Compact with 3 Buttons */}
             <section className="py-16 bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
                 {/* Subtle Pattern Overlay */}

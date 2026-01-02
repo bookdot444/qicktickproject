@@ -9,7 +9,7 @@ import {
   X, Upload, Film, Image as ImageIcon, Trash2, Plus, User, AlertCircle
 } from "lucide-react";
 
-export default function VendorRegister() {
+export default function VendorRegister({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -192,57 +192,57 @@ export default function VendorRegister() {
     rzp.open();
   };
 
-// ... inside your VendorRegister component
+  // ... inside your VendorRegister component
 
-const finalizeRegistration = async (paymentId: string | null = null) => {
-  setLoading(true);
-  try {
-    // STEP 1: Create the User in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    });
+  const finalizeRegistration = async (paymentId: string | null = null) => {
+    setLoading(true);
+    try {
+      // STEP 1: Create the User in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    if (authError) throw authError;
+      if (authError) throw authError;
 
-    const user = authData.user;
-    if (!user) throw new Error("User creation failed.");
+      const user = authData.user;
+      if (!user) throw new Error("User creation failed.");
 
-    // STEP 2: Prepare the data including the new user.id
-    const now = new Date();
-    const expiry = new Date();
-    expiry.setFullYear(now.getFullYear() + 1);
+      // STEP 2: Prepare the data including the new user.id
+      const now = new Date();
+      const expiry = new Date();
+      expiry.setFullYear(now.getFullYear() + 1);
 
-    // We exclude 'password' from the public table insert for security
-    const { password, ...restOfData } = formData;
+      // We exclude 'password' from the public table insert for security
+      const { password, ...restOfData } = formData;
 
-    const submissionData = {
-      ...restOfData,
-      user_id: user.id, // <--- THIS IS THE FIX
-      video_files: videoFilesList,
-      status: formData.subscription_plan ? 'active' : 'pending',
-      payment_id: paymentId,
-      subscription_expiry: expiry.toISOString().split('T')[0],
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-    };
+      const submissionData = {
+        ...restOfData,
+        user_id: user.id, // <--- THIS IS THE FIX
+        video_files: videoFilesList,
+        status: formData.subscription_plan ? 'active' : 'pending',
+        payment_id: paymentId,
+        subscription_expiry: expiry.toISOString().split('T')[0],
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      };
 
-    // STEP 3: Insert into your public vendor_register table
-    const { error: dbError } = await supabase
-      .from("vendor_register")
-      .insert([submissionData]);
+      // STEP 3: Insert into your public vendor_register table
+      const { error: dbError } = await supabase
+        .from("vendor_register")
+        .insert([submissionData]);
 
-    if (dbError) throw dbError;
+      if (dbError) throw dbError;
 
-    alert("Registration Successful! Please check your email for verification.");
-    router.push("/user/feed");
-  } catch (err: any) {
-    setError("Error: " + err.message);
-    setIsDirty(true);
-  } finally {
-    setLoading(false);
-  }
-};
+      alert("Registration Successful! Please check your email for verification.");
+      router.push("/user/feed");
+    } catch (err: any) {
+      setError("Error: " + err.message);
+      setIsDirty(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const inputClass = "w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 focus:bg-white outline-none transition-all text-slate-800 text-sm font-bold";
   const labelClass = "block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-[0.2em]";
@@ -251,10 +251,19 @@ const finalizeRegistration = async (paymentId: string | null = null) => {
     <>
       <Script id="razorpay-checkout-js" src="https://checkout.razorpay.com/v1/checkout.js" />
 
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 md:p-8 font-sans">
-        <div className="max-w-6xl w-full grid md:grid-cols-[280px_1fr] bg-white rounded-[3rem] shadow-2xl shadow-slate-200 overflow-hidden border border-slate-100 min-h-[850px]">
+      {/* NEW: Fixed Overlay Wrapper */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-8">
 
-          <div className="bg-slate-50 p-10 border-r border-slate-100">
+        {/* The Main Modal Container */}
+        <div className="relative max-w-6xl w-full grid md:grid-cols-[280px_1fr] bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100 h-full max-h-[95vh]">
+          <button 
+  type="button" // <--- CRITICAL: Prevents form submission
+  onClick={onClose}
+  className="absolute top-6 right-8 z-50 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+>
+  <X size={24} strokeWidth={3} />
+</button>
+          <div className="bg-slate-50 p-10 border-r border-slate-100 overflow-y-auto hidden md:block">
             <div className="flex items-center gap-3 mb-12">
               <div className="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center shadow-lg shadow-yellow-500/20">
                 <ShieldCheck className="text-white" size={22} />
@@ -273,9 +282,8 @@ const finalizeRegistration = async (paymentId: string | null = null) => {
             </nav>
           </div>
 
-          <div className="p-8 md:p-16 flex flex-col bg-white overflow-y-auto">
+          <div className="p-8 md:p-16 flex flex-col bg-white overflow-y-auto relative">
             <div className="flex-1 max-w-2xl mx-auto w-full">
-
               {step === 1 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-3xl font-black text-slate-900 uppercase italic">01. Access <span className="text-yellow-500">Control</span></h2>

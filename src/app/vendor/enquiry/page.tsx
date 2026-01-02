@@ -68,9 +68,9 @@ export default function VendorEnquiryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 pb-20 font-sans">
+    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 pb-20  font-sans">
       {/* --- PREMIUM HERO SECTION --- */}
-      <div className="bg-[#D80000] pt-24 pb-52 px-6 relative overflow-hidden">
+      <div className="bg-[#ED4337] pt-24 pb-42 px-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#FFD700] rounded-full blur-[140px] opacity-10 -mr-48 -mt-48" />
         <div className="absolute top-1/2 left-0 w-96 h-96 bg-black rounded-full blur-[120px] opacity-20 -ml-48" />
 

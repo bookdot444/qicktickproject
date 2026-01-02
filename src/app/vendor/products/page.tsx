@@ -3,11 +3,13 @@
 import React, { useEffect, useState, ChangeEvent, useMemo } from 'react';
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  X, UploadCloud, Link, Film, Package, PlusCircle, 
-  PackagePlus, Trash2, Pencil, ExternalLink, 
-  Loader, LayoutGrid, Share2 
+import {
+  X, UploadCloud, Link, Film, Package, PlusCircle,
+  PackagePlus, Trash2, Pencil, ExternalLink,
+  Loader, LayoutGrid, Share2
 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef } from "react";
 
 interface Category { id: string; name: string; }
 interface Product {
@@ -21,6 +23,69 @@ interface Product {
   product_video?: string;
   created_at: string;
 }
+type ProductImageSliderProps = {
+  images: string[];
+  isActive: boolean;
+};
+
+const ProductImageSlider: React.FC<ProductImageSliderProps> = ({
+  images,
+  isActive,
+}) => {
+  const [index, setIndex] = useState(0);
+
+  const prev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  };
+
+  const next = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+  };
+
+  return (
+    <div className="relative bg-gray-100 aspect-[4/3] overflow-hidden">
+      {/* IMAGE */}
+      <img
+        src={images[index]}
+        className="w-full h-full object-cover transition-all duration-500"
+        alt=""
+      />
+
+      {/* STATUS BADGE */}
+      <div
+        className={`absolute top-5 left-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-30 shadow-lg ${isActive ? "bg-yellow-400 text-black" : "bg-red-500 text-white"
+          }`}
+      >
+        {isActive ? "Active" : "Draft"}
+      </div>
+
+      {/* NAVIGATION ARROWS */}
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={prev}
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-40 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-xl hover:bg-yellow-400 hover:scale-110 transition-all text-black"
+          >
+            <ChevronLeft size={18} strokeWidth={3} />
+          </button>
+
+          <button
+            type="button"
+            onClick={next}
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-40 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-xl hover:bg-yellow-400 hover:scale-110 transition-all text-black"
+          >
+            <ChevronRight size={18} strokeWidth={3} />
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
 
 export default function VendorInventoryStudio() {
   // --- States ---
@@ -29,13 +94,13 @@ export default function VendorInventoryStudio() {
   const [existingProductNames, setExistingProductNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  
+
   // Edit Mode State
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form States
-  const [images, setImages] = useState<string[]>([]); 
-  const [videoData, setVideoData] = useState<string>(""); 
+  const [images, setImages] = useState<string[]>([]);
+  const [videoData, setVideoData] = useState<string>("");
   const [videoType, setVideoType] = useState<'url' | 'upload'>('url');
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -46,6 +111,16 @@ export default function VendorInventoryStudio() {
     category_id: '',
     is_active: true
   });
+
+  const mediaScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollMedia = (direction: "left" | "right") => {
+    if (!mediaScrollRef.current) return;
+    mediaScrollRef.current.scrollBy({
+      left: direction === "left" ? -200 : 200,
+      behavior: "smooth",
+    });
+  };
 
   // --- Logic & Validation ---
   const isDuplicateProduct = useMemo(() => {
@@ -71,8 +146,8 @@ export default function VendorInventoryStudio() {
     if (!user) return;
     const { data } = await supabase.from('vendor_products').select('*').order('created_at', { ascending: false });
     if (data) {
-        setProducts(data);
-        setExistingProductNames(data.map((p: any) => p.product_name.toLowerCase()));
+      setProducts(data);
+      setExistingProductNames(data.map((p: any) => p.product_name.toLowerCase()));
     }
   }
 
@@ -99,35 +174,35 @@ export default function VendorInventoryStudio() {
     if (!confirm("Remove this product from inventory permanently?")) return;
     const { error } = await supabase.from('vendor_products').delete().eq('id', id);
     if (!error) {
-        setProducts(prev => prev.filter(p => p.id !== id));
-        if (editingId === id) resetForm();
+      setProducts(prev => prev.filter(p => p.id !== id));
+      if (editingId === id) resetForm();
     }
   };
 
   const handleShare = async (item: Product) => {
     const shareUrl = `${window.location.origin}/product/${item.id}`;
     if (navigator.share) {
-        try {
-            await navigator.share({
-                title: item.product_name,
-                text: `Check out ${item.product_name} on our catalog!`,
-                url: shareUrl,
-            });
-        } catch (err) { console.log("Share failed", err); }
+      try {
+        await navigator.share({
+          title: item.product_name,
+          text: `Check out ${item.product_name} on our catalog!`,
+          url: shareUrl,
+        });
+      } catch (err) { console.log("Share failed", err); }
     } else {
-        navigator.clipboard.writeText(shareUrl);
-        alert("Link copied to clipboard!");
+      navigator.clipboard.writeText(shareUrl);
+      alert("Link copied to clipboard!");
     }
   };
 
   const startEdit = (item: Product) => {
     setEditingId(item.id);
     setFormData({
-        product_name: item.product_name,
-        price: item.price.toString(),
-        description: item.description || '',
-        category_id: item.category_id,
-        is_active: item.is_active
+      product_name: item.product_name,
+      price: item.price.toString(),
+      description: item.description || '',
+      category_id: item.category_id,
+      is_active: item.is_active
     });
     setImages(item.product_image ? item.product_image.split('|||') : []);
     setVideoData(item.product_video || "");
@@ -151,7 +226,7 @@ export default function VendorInventoryStudio() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: vendorRecord } = await supabase.from('vendor_register').select('id').eq('user_id', user?.id).single();
-      
+
       if (!vendorRecord) throw new Error("Vendor profile not found");
 
       let finalCatId = formData.category_id;
@@ -191,95 +266,95 @@ export default function VendorInventoryStudio() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F9F9] text-slate-900 pb-20 font-sans">
+    <div className="min-h-screen bg-white text-black pb-20 font-sans">
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D80000; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       `}</style>
 
       {/* --- HERO SECTION --- */}
-      <div className="bg-[#D80000] pt-24 pb-44 px-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFD700] rounded-full blur-[120px] opacity-10 -mr-20 -mt-20" />
+      <div className="bg-red-400 pt-4 pb-44 px-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-66 bg-yellow-400 rounded-full blur-[120px] opacity-20 -mr-20 -mt-20" />
         <div className="max-w-6xl mx-auto text-center relative z-10">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-6">
-            <div className="bg-white/10 p-4 rounded-3xl backdrop-blur-md border border-white/20 shadow-xl text-[#FFD700]">
+            <div className="bg-white p-4 rounded-3xl shadow-xl text-black">
               <PackagePlus size={42} />
             </div>
           </motion.div>
           <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white">
-            Inventory <span className="text-[#FFD700]">Studio</span>
+            Inventory <span className="text-yellow-400">Studio</span>
           </motion.h1>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          
+
           {/* --- CREATE / EDIT FORM --- */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-5 bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-100">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-5 bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-gray-200">
             <div className="p-8 md:p-10">
               <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[#D80000]/5 rounded-2xl flex items-center justify-center">
-                        {editingId ? <Pencil className="text-blue-600" size={24} /> : <PlusCircle className="text-[#D80000]" size={24} />}
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">{editingId ? 'Edit Listing' : 'New Listing'}</h2>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{editingId ? 'Update your product' : 'Product Details & Media'}</p>
-                    </div>
+                  <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
+                    {editingId ? <Pencil className="text-black" size={24} /> : <PlusCircle className="text-black" size={24} />}
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-black tracking-tight">{editingId ? 'Edit Listing' : 'New Listing'}</h2>
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">{editingId ? 'Update your product' : 'Product Details & Media'}</p>
+                  </div>
                 </div>
                 {editingId && (
-                    <button onClick={resetForm} className="text-xs font-black text-red-500 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100">Cancel</button>
+                  <button onClick={resetForm} className="text-xs font-black text-red-400 bg-red-100 px-3 py-1 rounded-full hover:bg-red-200">Cancel</button>
                 )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Product Title *</label>
-                  <input 
+                  <label className="text-[10px] font-black uppercase text-gray-600 ml-1 tracking-widest">Product Title *</label>
+                  <input
                     required
-                    className={`w-full bg-slate-50 border ${isDuplicateProduct ? 'border-red-500' : 'border-slate-200'} rounded-2xl p-4 font-bold outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all`}
+                    className={`w-full bg-gray-50 border ${isDuplicateProduct ? 'border-red-400' : 'border-gray-300'} rounded-2xl p-4 font-bold outline-none focus:ring-4 focus:ring-red-200 transition-all text-black`}
                     value={formData.product_name}
-                    onChange={(e) => setFormData({...formData, product_name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
                     placeholder="e.g. Rolex Datejust 41"
                   />
-                  {isDuplicateProduct && <p className="text-[10px] text-red-500 font-bold ml-1 italic">Title already exists in inventory</p>}
+                  {isDuplicateProduct && <p className="text-[10px] text-red-400 font-bold ml-1 italic">Title already exists in inventory</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Price (₹) *</label>
-                    <input 
+                    <label className="text-[10px] font-black uppercase text-gray-600 ml-1 tracking-widest">Price (₹) *</label>
+                    <input
                       type="number" required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-black outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all"
+                      className="w-full bg-gray-50 border border-gray-300 rounded-2xl p-4 font-black outline-none focus:ring-4 focus:ring-red-200 transition-all text-black"
                       value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       placeholder="0.00"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Category *</label>
-                    <select 
+                    <label className="text-[10px] font-black uppercase text-gray-600 ml-1 tracking-widest">Category *</label>
+                    <select
                       required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold outline-none appearance-none cursor-pointer"
+                      className="w-full bg-gray-50 border border-gray-300 rounded-2xl p-4 font-bold outline-none appearance-none cursor-pointer text-black"
                       value={formData.category_id}
                       onChange={(e) => {
-                        setFormData({...formData, category_id: e.target.value});
+                        setFormData({ ...formData, category_id: e.target.value });
                         setIsOtherSelected(e.target.value === "other");
                       }}
                     >
                       <option value="">Select...</option>
                       {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                      <option value="other" className="text-[#D80000] font-black">+ Create New</option>
+                      <option value="other" className="text-red-400 font-black">+ Create New</option>
                     </select>
                   </div>
                 </div>
 
                 {isOtherSelected && (
-                  <motion.input 
+                  <motion.input
                     initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                    className="w-full bg-[#FFD700]/10 border border-[#FFD700] rounded-2xl p-4 font-bold outline-none"
+                    className="w-full bg-yellow-100 border border-yellow-400 rounded-2xl p-4 font-bold outline-none text-black"
                     placeholder="Type new category name..."
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
@@ -287,37 +362,79 @@ export default function VendorInventoryStudio() {
                 )}
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Description</label>
+                  <label className="text-[10px] font-black uppercase text-gray-600 ml-1 tracking-widest">Description</label>
                   <textarea
                     rows={3}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 font-bold outline-none focus:ring-4 focus:ring-[#D80000]/5 transition-all resize-none text-sm"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-2xl p-5 font-bold outline-none focus:ring-4 focus:ring-red-200 transition-all resize-none text-sm text-black"
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Share features, condition, or story..."
                   />
                 </div>
 
-                <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                   <div className="flex justify-between items-center mb-4">
-                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Media Assets</span>
-                   </div>
-                   <div className="flex gap-3 overflow-x-auto pb-4 custom-scrollbar">
+                <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-200">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black uppercase text-gray-600 tracking-widest">
+                      Media Assets
+                    </span>
+
+                    {/* SHOW ARROWS ONLY IF MORE THAN 2 IMAGES */}
+                    {images.length > 2 && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => scrollMedia("left")}
+                          className="w-7 h-7 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition text-black"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollMedia("right")}
+                          className="w-7 h-7 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition text-black"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SCROLL CONTAINER */}
+                  <div className="w-full overflow-hidden">
+                    <div
+                      ref={mediaScrollRef}
+                      className="flex flex-nowrap gap-3 overflow-x-auto pb-3 scroll-smooth custom-scrollbar"
+                    >
                       {images.map((img, i) => (
-                        <div key={i} className="min-w-[80px] h-[80px] rounded-2xl relative overflow-hidden ring-2 ring-white shadow-lg">
-                          <img src={img} className="w-full h-full object-cover" alt="" />
-                          <button type="button" onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><X size={10}/></button>
+                        <div
+                          key={i}
+                          className="min-w-[80px] h-[80px] rounded-2xl relative overflow-hidden ring-2 ring-gray-200 shadow"
+                        >
+                          <img src={img} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setImages(images.filter((_, idx) => idx !== i))}
+                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"
+                          >
+                            <X size={10} />
+                          </button>
                         </div>
                       ))}
-                      <label className="min-w-[80px] h-[80px] bg-white border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-300 hover:border-[#D80000] hover:text-[#D80000] cursor-pointer transition-all">
+
+                                          {/* UPLOAD BUTTON */}
+                      <label className="min-w-[80px] h-[80px] bg-white border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center text-gray-400 hover:border-red-500 hover:text-red-400 cursor-pointer transition">
                         <UploadCloud size={20} />
                         <input type="file" multiple className="hidden" onChange={handleImageChange} />
                       </label>
-                   </div>
+                    </div>
+                  </div>
+
                 </div>
 
-                <button 
+
+                <button
                   disabled={loading || isDuplicateProduct}
-                  className={`w-full ${editingId ? 'bg-blue-600' : 'bg-slate-900'} hover:opacity-90 disabled:bg-slate-200 text-[#FFD700] py-6 rounded-[1.5rem] font-black transition-all shadow-2xl flex items-center justify-center gap-3 group active:scale-[0.98] text-lg mt-4`}
+                  className={`w-full ${editingId ? 'bg-yellow-400' : 'bg-red-500'} hover:opacity-90 disabled:bg-gray-200 text-white py-6 rounded-[1.5rem] font-black transition-all shadow-2xl flex items-center justify-center gap-3 group active:scale-[0.98] text-lg mt-4`}
                 >
                   {loading ? <Loader className="animate-spin" /> : editingId ? "Update Listing" : "Publish to Catalog"}
                 </button>
@@ -328,68 +445,80 @@ export default function VendorInventoryStudio() {
           {/* --- LIVE INVENTORY LIST --- */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-7 space-y-8">
             <div className="flex items-center justify-between px-2">
-               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-900 tracking-tight">
-                <LayoutGrid className="text-[#D80000]" size={24} /> Live Catalog
+              <h2 className="text-2xl font-black flex items-center gap-3 text-black tracking-tight">
+                <LayoutGrid className="text-red-400" size={24} /> Live Catalog
               </h2>
-              <div className="bg-white border border-slate-200 px-5 py-2 rounded-full shadow-sm flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{products.length} Items</span>
+              <div className="bg-white border border-gray-300 px-5 py-2 rounded-full shadow-sm flex items-center gap-2">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                <span className="text-[10px] text-black font-black uppercase tracking-widest">{products.length} Items</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[1000px] overflow-y-auto pr-2 custom-scrollbar">
-               <AnimatePresence mode='popLayout'>
+              <AnimatePresence mode='popLayout'>
                 {fetching ? (
-                  [1,2,3,4].map(i => <div key={i} className="h-64 bg-white rounded-[3rem] animate-pulse border border-slate-100" />)
+                  [1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-white rounded-[3rem] animate-pulse border border-gray-200" />)
                 ) : products.length === 0 ? (
-                  <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-                    <Package className="mx-auto text-slate-200 mb-4" size={48} />
-                    <p className="text-slate-400 font-bold">Your inventory is empty</p>
+                  <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-300">
+                    <Package className="mx-auto text-gray-400 mb-4" size={48} />
+                    <p className="text-black font-bold">Your inventory is empty</p>
                   </div>
                 ) : (
                   products.map((item, idx) => (
-                    <motion.div 
+                    <motion.div
                       key={item.id}
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all overflow-hidden relative flex flex-col"
+                      className="group bg-white rounded-[2.5rem] border border-gray-200 shadow-sm hover:shadow-2xl transition-all overflow-hidden relative flex flex-col"
                     >
-                      <div className="aspect-[4/3] relative overflow-hidden bg-slate-100">
-                         <img src={item.product_image.split('|||')[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
-                         
-                         <div className={`absolute top-5 left-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-10 shadow-lg ${item.is_active ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white/50'}`}>
-                           {item.is_active ? 'Active' : 'Draft'}
-                         </div>
+                      {/* Find the Image Wrapper in your products.map */}
+                      <div className="aspect-[4/3] relative overflow-hidden bg-gray-100">
+                        <ProductImageSlider
+                          images={item.product_image.split("|||")}
+                          isActive={item.is_active}
+                        />
 
-                         {/* ACTION OVERLAY */}
-                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4">
-                            <button onClick={() => startEdit(item)} title="Edit" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-900 hover:bg-[#FFD700] transition-all transform hover:-translate-y-1">
-                                <Pencil size={18}/>
-                            </button>
-                            <button onClick={() => handleDelete(item.id)} title="Delete" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition-all transform hover:-translate-y-1">
-                                <Trash2 size={18}/>
-                            </button>
-                            <button onClick={() => handleShare(item)} title="Share" className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-900 hover:bg-black hover:text-white transition-all transform hover:-translate-y-1">
-                                <Share2 size={18}/>
-                            </button>
-                         </div>
+                        {/* ACTION OVERLAY - Changed z-index to 20 */}
+                        <div className="absolute inset-0 bg-red-500/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-4 z-20">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startEdit(item); }}
+                            title="Edit"
+                            className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-black hover:bg-yellow-400 transition-all transform hover:-translate-y-1 shadow-xl"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                            title="Delete"
+                            className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-black hover:bg-red-500 hover:text-white transition-all transform hover:-translate-y-1 shadow-xl"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleShare(item); }}
+                            title="Share"
+                            className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-black hover:bg-red-500 hover:text-white transition-all transform hover:-translate-y-1 shadow-xl"
+                          >
+                            <Share2 size={18} />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="p-7">
-                        <h4 className="font-black text-xl text-slate-900 truncate mb-4">{item.product_name}</h4>
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                           <div className="flex flex-col">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Market Price</span>
-                              <span className="text-2xl font-black text-[#D80000]">₹{item.price.toLocaleString()}</span>
-                           </div>
+                        <h4 className="font-black text-xl text-black truncate mb-4">{item.product_name}</h4>
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Market Price</span>
+                            <span className="text-2xl font-black text-red-400">₹{item.price.toLocaleString()}</span>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
                   ))
                 )}
-               </AnimatePresence>
+              </AnimatePresence>
             </div>
           </motion.div>
         </div>
