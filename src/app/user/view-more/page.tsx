@@ -1,12 +1,22 @@
 "use client";
-import Link from "next/link";
-import { motion } from "framer-motion";
 
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
-import { ChevronLeft, PlayCircle, Info, ArrowRight, Layers, ExternalLink, Sparkles, ShieldCheck} from "lucide-react";
+import { 
+  ChevronLeft, 
+  PlayCircle, 
+  Info, 
+  ArrowRight, 
+  Layers, 
+  ExternalLink, 
+  Sparkles, 
+  ShieldCheck,
+  Loader2
+} from "lucide-react";
 
 type PageConfig = {
   title: string;
@@ -20,11 +30,11 @@ const PAGE_CONFIG: Record<string, PageConfig> = {
   podcasts: { title: "Podcasts", table: "podcast_videos" },
   influencers: { title: "Influencers", table: "influencers_videos" },
   certificates: { title: "Certificates", table: "certificates" },
-  // ✅ New mapping for your digital_banners table
   banners: { title: "Digital Banners", table: "digital_banners" }, 
 };
 
-export default function ViewMorePage() {
+// --- SUB-COMPONENT: The actual page content ---
+function ViewMoreContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const type = searchParams.get("type");
@@ -44,7 +54,6 @@ export default function ViewMorePage() {
 
       let query = supabase.from(table).select("*");
 
-      // ✅ Ensure we only fetch items with valid media
       if (type === "categories" || type === "banners") {
         query = query.not("image_url", "is", null);
       }
@@ -117,7 +126,7 @@ export default function ViewMorePage() {
             </div>
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1, rotate: -3 }}
               transition={{ type: "spring", stiffness: 100 }}
               className="hidden lg:block bg-white p-12 rounded-[4rem] shadow-2xl border-2 border-yellow-100 relative"
@@ -139,22 +148,18 @@ export default function ViewMorePage() {
       {/* ---------- GRID SECTION ---------- */}
       <main className="max-w-7xl mx-auto px-6 py-10 relative z-10">
 
-        {loading && (
+        {loading ? (
           <div className="flex flex-col items-center justify-center py-40 space-y-4">
-            <div className="w-10 h-10 border-2 border-gray-200 border-t-yellow-600 rounded-full animate-spin" />
+            <Loader2 className="w-10 h-10 text-yellow-600 animate-spin" />
             <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px] animate-pulse text-center">Decrypting Archives...</p>
           </div>
-        )}
-
-        {!loading && data.length === 0 && (
+        ) : data.length === 0 ? (
           <div className="text-center py-32 rounded-[3rem] border-2 border-dashed border-gray-200">
             <Info className="mx-auto text-gray-300 mb-4" size={48} />
             <p className="text-gray-950 font-black text-xl uppercase tracking-tight">Archives Empty</p>
             <p className="text-gray-400 mt-2 text-sm font-medium">This sector is currently under maintenance.</p>
           </div>
-        )}
-
-        {!loading && data.length > 0 && (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {data.map((item) => (
               <div
@@ -163,7 +168,6 @@ export default function ViewMorePage() {
               >
                 {/* MODERN CARD MEDIA */}
                 <div className="relative aspect-video overflow-hidden rounded-2xl bg-gray-200 shadow-sm transition-all duration-700 group-hover:shadow-2xl group-hover:shadow-yellow-900/20 group-hover:-translate-y-3">
-                  {/* Handle Video for branding/podcasts vs Images for banners/categories */}
                   {(type === "branding" || type === "podcasts" || type === "influencers") && item.video_url ? (
                     <div className="w-full h-full relative">
                       <video
@@ -208,7 +212,7 @@ export default function ViewMorePage() {
                       </p>
                     ) : (
                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                        Asset ID: {item.id.slice(0, 8)}
+                        Asset ID: {item.id?.toString().slice(0, 8)}
                       </p>
                     )}
                   </div>
@@ -228,7 +232,6 @@ export default function ViewMorePage() {
                     </Link>
                   )}
                   
-                  {/* Optional action for Banners */}
                   {type === "banners" && (
                     <div className="flex items-center gap-2 text-yellow-600 font-black text-[10px] uppercase tracking-widest">
                        <Sparkles size={14} /> Ready for Download
@@ -248,5 +251,19 @@ export default function ViewMorePage() {
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[1em] ml-[1em]">END OF SESSION</p>
       </footer>
     </div>
+  );
+}
+
+// --- MAIN EXPORT: The fix for Netlify/Next.js Build ---
+export default function ViewMorePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FFFDF5] flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-yellow-600 mb-4" size={48} />
+        <h2 className="font-black uppercase tracking-widest text-sm text-gray-400 italic">Initializing Directory...</h2>
+      </div>
+    }>
+      <ViewMoreContent />
+    </Suspense>
   );
 }
