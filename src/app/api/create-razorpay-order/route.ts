@@ -14,10 +14,12 @@ export async function POST(req: Request) {
       amount: body.amount * 100, // paise
       currency: "INR",
       receipt: body.receipt ?? `rcpt_${Date.now()}`,
+      payment_capture: true, // <-- fixed here
     });
 
     return NextResponse.json(order);
   } catch (err) {
+    console.error(err);
     return NextResponse.json(
       { error: "Order creation failed" },
       { status: 500 }
