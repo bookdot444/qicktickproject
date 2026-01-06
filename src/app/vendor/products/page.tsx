@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, UploadCloud, Link, Film, Package, PlusCircle,
   PackagePlus, Trash2, Pencil, ExternalLink,
-  Loader, LayoutGrid, Share2
+  Loader, LayoutGrid, Share2, ArrowLeft,Zap,
 } from "lucide-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react";
@@ -274,19 +274,42 @@ export default function VendorInventoryStudio() {
       `}</style>
 
       {/* --- HERO SECTION --- */}
-      <div className="bg-red-400 pt-4 pb-44 px-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-66 bg-yellow-400 rounded-full blur-[120px] opacity-20 -mr-20 -mt-20" />
-        <div className="max-w-6xl mx-auto text-center relative z-10">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex justify-center mb-6">
-            <div className="bg-white p-4 rounded-3xl shadow-xl text-black">
-              <PackagePlus size={42} />
-            </div>
-          </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white">
-            Inventory <span className="text-yellow-400">Studio</span>
-          </motion.h1>
-        </div>
+      {/* --- HERO HEADER (Inventory Studio Style) --- */}
+<div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-20 pb-32 px-6 relative overflow-hidden border-b border-yellow-200">
+  {/* Dot Grid Pattern Overlay */}
+  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+
+  <div className="max-w-6xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+    <div className="text-center md:text-left">
+      {/* Back Button */}
+     
+
+      {/* Main Title */}
+      <motion.h1 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 leading-none uppercase"
+      >
+        Inventory <br />
+        <span className="text-red-600 italic">Studio</span>
+      </motion.h1>
+    </div>
+
+    {/* Decorative Icon Card */}
+    <motion.div 
+      initial={{ opacity: 0, rotate: 0, scale: 0.9 }}
+      animate={{ opacity: 1, rotate: 3, scale: 1 }}
+      className="hidden lg:block bg-white p-8 rounded-[2.5rem] shadow-xl border-2 border-yellow-100 relative"
+    >
+      <div className="absolute -top-2 -right-2 bg-red-600 text-white p-2 rounded-xl shadow-lg">
+        <Zap size={20} fill="currentColor" />
       </div>
+      <div className="text-yellow-600">
+        <PackagePlus size={60} strokeWidth={2.5} />
+      </div>
+    </motion.div>
+  </div>
+</div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">

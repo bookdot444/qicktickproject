@@ -15,7 +15,8 @@ import {
   Clock,
   CheckCircle2,
   FileText,
-  BadgeCheck
+  BadgeCheck,
+  MessageSquareText
 } from "lucide-react";
 
 export default function VendorEnquiryPage() {
@@ -70,24 +71,53 @@ export default function VendorEnquiryPage() {
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-slate-900 pb-20  font-sans">
       {/* --- PREMIUM HERO SECTION --- */}
-      <div className="bg-[#ED4337] pt-24 pb-42 px-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#FFD700] rounded-full blur-[140px] opacity-10 -mr-48 -mt-48" />
-        <div className="absolute top-1/2 left-0 w-96 h-96 bg-black rounded-full blur-[120px] opacity-20 -ml-48" />
+      {/* --- HERO HEADER (Admin Connect Style) --- */}
+<div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-20 pb-32 px-6 relative overflow-hidden border-b border-yellow-200">
+  {/* Dot Grid Pattern Overlay */}
+  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
 
-        <div className="max-w-6xl mx-auto text-center relative z-10">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center mb-6">
-            <span className="bg-black/20 backdrop-blur-md border border-white/10 text-[#FFD700] px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em]">
-              Vendor Priority Access
-            </span>
-          </motion.div>
-          <motion.h1 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-6xl md:text-8xl font-black mb-6 tracking-tighter text-white">
-            Admin <span className="text-[#FFD700]">Connect</span>
-          </motion.h1>
-          <p className="text-white/70 text-xl max-w-xl mx-auto font-medium leading-relaxed">
-            Instant communication channel for verified partners. Our technical team monitors this feed 24/7.
-          </p>
-        </div>
+  <div className="max-w-6xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+    <div className="text-center md:text-left">
+     
+
+      {/* Main Title */}
+      <motion.h1 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 leading-none uppercase mb-6"
+      >
+        Admin <br />
+        <span className="text-red-600 italic">Connect</span>
+      </motion.h1>
+
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="text-gray-600 text-lg max-w-md font-medium leading-tight mb-6"
+      >
+        Instant communication channel for verified partners. Our technical team monitors this feed 24/7.
+      </motion.p>
+    </div>
+
+    {/* Decorative Icon Card */}
+    <motion.div 
+      initial={{ opacity: 0, rotate: 0, scale: 0.9 }}
+      animate={{ opacity: 1, rotate: -3, scale: 1 }}
+      className="hidden lg:block bg-white p-8 rounded-[2.5rem] shadow-xl border-2 border-yellow-100 relative"
+    >
+      {/* 24/7 Status Badge */}
+      <div className="absolute -top-2 -left-2 bg-green-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-lg flex items-center gap-1">
+        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+        Live 24/7
       </div>
+      
+      <div className="text-yellow-600">
+        <MessageSquareText size={60} strokeWidth={2.5} />
+      </div>
+    </motion.div>
+  </div>
+</div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-32 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">

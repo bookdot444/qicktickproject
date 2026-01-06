@@ -51,7 +51,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       
       {/* --- MASTER YELLOW BANNER --- */}
-      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+      <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
         <div className="max-w-7xl mx-auto relative z-10">

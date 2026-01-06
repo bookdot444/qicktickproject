@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, ListPlus, Send, Star, Award, Users, MapPin, Briefcase } from "lucide-react";
+import { Search, ListPlus, Send, Star, Award, ArrowRight, Users, MapPin, Briefcase } from "lucide-react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react"; // Add useRef here
@@ -21,14 +21,157 @@ export default function Home() {
     const [imageBanners, setImageBanners] = useState([]);
     const router = useRouter();
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [showResults, setShowResults] = useState(false);
-    const [cities, setCities] = useState<string[]>([]);
-    const [businessTypes, setBusinessTypes] = useState<string[]>([]);
-
 
     const [podcasts, setPodcasts] = useState([]);
     const [influencers, setInfluencers] = useState([]);
     const [certificates, setCertificates] = useState([]);
+
+    // ... (keep existing imports and other states)
+
+    const [cities, setCities] = useState<string[]>([]);
+    const [businessTypes, setBusinessTypes] = useState<string[]>([]);
+    const [searchFilters, setSearchFilters] = useState<{ locations: string[], types: string[] }>({ locations: [], types: [] }); // New state for dropdown data
+    const [showResults, setShowResults] = useState(false);
+    const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
+
+    // Keep this useEffect as-is (it populates cities and businessTypes based on find)
+    useEffect(() => {
+        if (!find || find.length < 2) {
+            setCities([]);
+            setBusinessTypes([]);
+            return;
+        }
+
+        const loadFiltersByProduct = async () => {
+            const { data: products, error: productError } = await supabase
+                .from("vendor_products")
+                .select("vendor_id")
+                .ilike("product_name", `%${find}%`)
+                .eq("is_active", true);
+
+            if (productError || !products?.length) {
+                setCities([]);
+                setBusinessTypes([]);
+                return;
+            }
+
+            const vendorIds = [...new Set(products.map(p => p.vendor_id))];
+
+            const { data: vendors, error: vendorError } = await supabase
+                .from("vendor_register")
+                .select("area, user_type")
+                .in("id", vendorIds);
+
+            if (vendorError || !vendors) return;
+
+            const uniqueCities = Array.from(
+                new Set(
+                    vendors
+                        .map(v => v.area?.toLowerCase().trim())
+                        .filter(Boolean)
+                )
+            );
+
+            const uniqueBusinessTypes = Array.from(
+                new Set(
+                    vendors.flatMap(v =>
+                        Array.isArray(v.user_type)
+                            ? v.user_type
+                            : [v.user_type]
+                    ).map(t => t?.toLowerCase().trim())
+                )
+            );
+
+            setCities(uniqueCities);
+            setBusinessTypes(uniqueBusinessTypes);
+        };
+
+        loadFiltersByProduct();
+    }, [find]);
+
+    // Replace the existing useEffect for searchResults with this (fetches unique locations and types for dropdown)
+    // Replace the existing useEffect for searchFilters with this (fetches matching product names for autocomplete)
+    useEffect(() => {
+        if (!find || find.length < 2) {
+            setSearchFilters({ products: [] });
+            setShowResults(false);
+            return;
+        }
+
+        const fetchSearchFilters = async () => {
+            // Fetch matching product names from vendor_products
+            const { data, error } = await supabase
+                .from("vendor_products")
+                .select("product_name")
+                .ilike("product_name", `%${find}%`)
+                .eq("is_active", true)
+                .limit(10); // Limit to 10 suggestions for performance
+
+            if (error) {
+                console.error("Filter Fetch Error:", error);
+                setSearchFilters({ products: [] });
+                return;
+            }
+
+            // Extract unique product names
+            const products = Array.from(
+                new Set(
+                    data.map(item => item.product_name?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            setSearchFilters({ products });
+            setShowResults(true);
+        };
+
+        fetchSearchFilters();
+    }, [find]);
+
+    // Check available locations for the selected product when typing in near
+    useEffect(() => {
+        if (!find || find.length < 2 || !near || near.length < 2) {
+            setLocationAvailability({ locations: [] });
+            return;
+        }
+
+        const checkLocationAvailability = async () => {
+            const { data, error } = await supabase
+                .from("vendor_products")
+                .select("vendor_id")
+                .ilike("product_name", `%${find}%`)
+                .eq("is_active", true);
+
+            if (error || !data?.length) {
+                setLocationAvailability({ locations: [] });
+                return;
+            }
+
+            const vendorIds = [...new Set(data.map(p => p.vendor_id))];
+
+            const { data: vendors, error: vendorError } = await supabase
+                .from("vendor_register")
+                .select("area")
+                .in("id", vendorIds)
+                .ilike("area", `%${near}%`); // Filter areas that match the typed location
+
+            if (vendorError) {
+                console.error("Location Check Error:", vendorError);
+                setLocationAvailability({ locations: [] });
+                return;
+            }
+
+            // Extract unique matching areas
+            const locations = Array.from(
+                new Set(
+                    vendors.map(v => v.area?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            setLocationAvailability({ locations });
+        };
+
+        checkLocationAvailability();
+    }, [find, near]);
 
     // Fetch Podcasts & Influencers
     useEffect(() => {
@@ -215,12 +358,18 @@ export default function Home() {
     }, [find, near]);
 
     const handleSearch = () => {
+        if (!find.trim()) {
+            alert("Please enter what you need (e.g., Electrician, Plumber)."); // Or use a toast notification
+            return;
+        }
+
         setShowResults(false);
+        setLocationAvailability({ locations: [] }); // Close any open dropdowns
 
         const params = new URLSearchParams();
         if (find) params.append("q", find);
-        if (near) params.append("area", near);
-        if (businessType) params.append("type", businessType);
+        if (near) params.append("city", near); // Location is optional
+        if (businessType) params.append("type", businessType); // Business type is optional
 
         router.push(`/user/search?${params.toString()}`);
     };
@@ -278,13 +427,11 @@ export default function Home() {
                             <span className="font-semibold text-yellow-300">Your go-to platform for reliable services.</span>
                         </p>
                     </div>
-
-                    {/* Search Bar - Streamlined with glassmorphism effect */}
-                    {/* Search Bar Container - Added relative and z-index to prevent overlap */}
                     <div className="max-w-6xl mx-auto relative z-50">
                         <div className="bg-black/40 backdrop-blur-2xl shadow-2xl p-6 md:p-8 rounded-3xl border border-yellow-500/30">
                             <div className="flex flex-col md:flex-row items-center gap-4 relative">
 
+                                {/* Find Input Wrapper */}
                                 {/* Find Input Wrapper */}
                                 <div className="flex-1 relative group w-full">
                                     <div className="flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all w-full">
@@ -301,89 +448,74 @@ export default function Home() {
                                         </div>
                                     </div>
 
-                                    {/* Search Results Dropdown - Now strictly contained and higher Z-index */}
-                                    {showResults && searchResults.length > 0 && (
+                                    {/* Search Results Dropdown - Shows product suggestions */}
+                                    {showResults && searchFilters.products.length > 0 && (
                                         <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[300px] overflow-y-auto overscroll-contain">
-                                            {searchResults.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={() => {
-                                                        setFind(item.product_name);
-                                                        setShowResults(false);
-                                                        router.push(`/user/search?q=${item.product_name}`);
-                                                    }}
-                                                    className="px-6 py-4 cursor-pointer hover:bg-yellow-500/10 border-b border-gray-100 last:border-none flex justify-between items-start transition-colors"
-                                                >
-                                                    <div className="flex flex-col gap-1 text-left">
-                                                        {/* Product Name */}
-                                                        <p className="font-bold text-black text-base">{item.product_name}</p>
-
-                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                            {/* Price */}
-                                                            <span className="text-sm font-semibold text-green-700">
-                                                                ₹{item.price}
-                                                            </span>
-
-                                                            {/* Location - Fetched from vendor_id join */}
-                                                            <span className="flex items-center text-xs text-gray-500">
-                                                                <MapPin size={12} className="mr-1 text-red-500" />
-                                                                {item.vendor_id?.area || "Unknown Location"}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Business Type / User Type Badges */}
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {/* Handling both strings and arrays if user_type is multiple */}
-                                                            {Array.isArray(item.vendor_id?.user_type) ? (
-                                                                item.vendor_id.user_type.map((type) => (
-                                                                    <span key={type} className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md border border-yellow-200 uppercase font-bold">
-                                                                        {type}
-                                                                    </span>
-                                                                ))
-                                                            ) : (
-                                                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md border border-gray-200 uppercase font-bold">
-                                                                    {item.vendor_id?.user_type || "Service Provider"}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Visual indicator to click */}
-                                                    <span className="text-[10px] font-black text-white bg-gradient-to-r from-yellow-500 to-red-600 px-2 py-1 rounded-lg self-center shadow-sm">
-                                                        VIEW
-                                                    </span>
+                                            <div className="px-6 py-4">
+                                                <p className="font-bold text-black text-base mb-2">Suggested Products</p>
+                                                <div className="flex flex-col gap-2">
+                                                    {searchFilters.products.map((product) => (
+                                                        <span
+                                                            key={product}
+                                                            onClick={() => {
+                                                                setFind(product.charAt(0).toUpperCase() + product.slice(1)); // Fixed: Set product input and capitalize
+                                                                setShowResults(false); // Close dropdown
+                                                            }}
+                                                            className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+                                                        >
+                                                            {product.charAt(0).toUpperCase() + product.slice(1)}
+                                                        </span>
+                                                    ))}
                                                 </div>
-                                            ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
 
-                                {/* Near Select */}
-                                <div className="flex-1 flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all group w-full">
-                                    <MapPin size={24} strokeWidth={2} className="text-red-400 mr-4" />
-                                    <div className="flex flex-col w-full">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Location</span>
-                                        <select
-                                            className="bg-transparent border-none outline-none text-white font-semibold appearance-none cursor-pointer w-full"
-                                            value={near}
-                                            onChange={(e) => setNear(e.target.value)}
-                                        >
-                                            <option value="" className="text-black">All Cities</option>
-                                            {cities.map((city) => (
-                                                <option key={city} value={city} className="text-black">
-                                                    {city.charAt(0).toUpperCase() + city.slice(1)}
-                                                </option>
-                                            ))}
-                                        </select>
-
+                                {/* Near Input - Changed from select to input */}
+                                {/* Near Input - Changed from select to input */}
+                                <div className="flex-1 relative group w-full"> {/* Added relative for dropdown positioning */}
+                                    <div className="flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all w-full">
+                                        <MapPin size={24} strokeWidth={2} className="text-red-400 mr-4" />
+                                        <div className="flex flex-col w-full">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Location</span>
+                                            <input
+                                                className="bg-transparent border-none outline-none text-white font-semibold placeholder:text-gray-300 w-full"
+                                                placeholder="e.g., Mumbai, Delhi..."
+                                                value={near}
+                                                onChange={(e) => setNear(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
 
+                                    {/* Location Suggestions Dropdown */}
+                                    {locationAvailability.locations.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[200px] overflow-y-auto overscroll-contain">
+                                            <div className="px-6 py-4">
+                                                <p className="font-bold text-black text-base mb-2">Available Locations</p>
+                                                <div className="flex flex-col gap-2">
+                                                    {locationAvailability.locations.map((location) => (
+                                                        <span
+                                                            key={location}
+                                                            onClick={() => {
+                                                                setNear(location.charAt(0).toUpperCase() + location.slice(1)); // Correct: Set the location input
+                                                                setLocationAvailability({ locations: [] }); // Close the location dropdown
+                                                            }}
+                                                            className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+                                                        >
+                                                            {location.charAt(0).toUpperCase() + location.slice(1)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
 
-                                {/* Business Type */}
+                                {/* Business Type - Keep as select */}
                                 <div className="flex-1 flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all group w-full">
                                     <Briefcase size={24} strokeWidth={2} className="text-yellow-400 mr-4" />
                                     <div className="flex flex-col w-full">
@@ -574,6 +706,9 @@ export default function Home() {
                                                     <div className="flex items-center justify-between">
                                                         <div>
                                                             <h3 className="text-2xl font-bold text-white mb-1">{cat.name}</h3>
+                                                            {cat.description && (
+                                                                <p className="text-white text-sm mb-2 leading-relaxed">{cat.description}</p>
+                                                            )}
                                                             <p className="text-yellow-400 text-sm font-medium tracking-wide">Explore Services →</p>
                                                         </div>
                                                         <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover/item:bg-yellow-500 transition-colors duration-300">
@@ -626,7 +761,7 @@ export default function Home() {
 
                             {/* Post Requirements Button */}
                             <button
-                                onClick={() => router.push('/user/post-requirement')}
+                                onClick={() => router.push('/user/enquiry')}
                                 className="px-6 py-4 bg-white border-2 border-red-600 text-red-600 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-red-50 transition-all shadow-md active:scale-95"
                             >
                                 Post Your Requirements
@@ -634,7 +769,7 @@ export default function Home() {
 
                             {/* View Enquiry Button */}
                             <button
-                                onClick={() => router.push('/user/enquiries')}
+                                onClick={() => router.push('/user/enquiry')}
                                 className="px-6 py-4 bg-gray-900 text-white rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-black transition-all shadow-md active:scale-95"
                             >
                                 View Enquiry
@@ -778,49 +913,67 @@ export default function Home() {
             </section>
 
             {/* DIGITAL BANNERS - Fixed Image Layout */}
-            <section className="py-24 bg-[#FFFDF5] overflow-hidden relative">
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <div className="mb-20 text-center">
-                        <span className="text-red-600 font-bold tracking-[0.3em] uppercase text-xs mb-4 block">
-                            Visual Showcase
-                        </span>
-                        <h2 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight">
-                            Digital <span className="text-yellow-600">Banners</span>
-                        </h2>
-                        <p className="text-gray-600 mt-6 max-w-2xl mx-auto text-xl font-medium leading-relaxed">
-                            Check out our latest promotional visuals.
-                            <span className="text-red-600"> Eye-catching Designs</span> that drive engagement.
+     <section className="py-24 bg-white relative">
+    <div className="max-w-7xl mx-auto px-6 text-center">
+        {/* ---------- CENTERED HEADER ---------- */}
+        <div className="flex flex-col items-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 uppercase tracking-tighter">
+                Digital <span className="text-yellow-500 italic">Banners</span>
+            </h2>
+            <div className="w-20 h-1.5 bg-yellow-500 mt-4 mb-4 rounded-full" />
+            <p className="text-gray-500 font-medium">
+                Professional curated assets for your digital presence.
+            </p>
+            
+            {/* Desktop View More - Centered below text */}
+            <Link
+                href="/user/view-more?type=banners"
+                className="mt-8 hidden md:block"
+            >
+                <button
+                    className="flex items-center gap-2 bg-gray-900 text-white hover:bg-yellow-500 hover:text-black transition-all px-8 py-3 rounded-full font-bold text-sm shadow-xl hover:shadow-yellow-500/20"
+                >
+                    View All Banners <ArrowRight size={18} />
+                </button>
+            </Link>
+        </div>
+
+        {/* ---------- GRID SECTION ---------- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {imageBanners.slice(0, 3).map((banner: any) => (
+                <div 
+                    key={banner.id} 
+                    className="group relative aspect-video rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+                >
+                    <img 
+                        src={banner.image_url} 
+                        alt={banner.title || "Banner"} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    />
+                    {/* Subtle Overlay on Hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
+                        <p className="text-white font-bold uppercase tracking-widest text-xs">
+                            {banner.title || 'Premium Asset'}
                         </p>
                     </div>
-
-                    <div className="relative">
-                        {/* Added pointer-events-none to gradient overlays so they don't block clicks */}
-                        <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#FFFDF5] to-transparent z-10 pointer-events-none"></div>
-                        <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#FFFDF5] to-transparent z-10 pointer-events-none"></div>
-
-                        <div className="flex gap-8 animate-infinite-scroll py-4 hover:[animation-play-state:paused]">
-                            {[...imageBanners, ...imageBanners, ...imageBanners].map((banner, idx) => (
-                                <div
-                                    key={idx}
-                                    className="min-w-[320px] md:min-w-[480px] h-[220px] md:h-[300px] relative rounded-[2.5rem] overflow-hidden shadow-lg border-[6px] border-white transition-all duration-500 hover:scale-[1.02] flex-shrink-0 bg-white"
-                                >
-                                    {/* FIX: Added 'fill' with 'object-cover' and removed any 
-                          absolute div overlays that might be causing the white bars.
-                        */}
-                                    <Image
-                                        src={banner.image_url}
-                                        alt="Digital Banner"
-                                        fill
-                                        priority={idx < 4}
-                                        className="object-cover"
-                                        sizes="(max-width: 768px) 320px, 480px"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
                 </div>
-            </section>
+            ))}
+        </div>
+
+        {/* ---------- MOBILE VIEW MORE ---------- */}
+        <div className="mt-12 md:hidden">
+            <Link
+                href="/user/view-more?type=banners"
+                className="block w-full"
+            >
+                <button className="w-full py-4 bg-yellow-500 text-black font-black rounded-2xl shadow-lg hover:bg-yellow-600 transition-colors uppercase tracking-[0.2em] text-xs">
+                    View More Banners
+                </button>
+            </Link>
+        </div>
+    </div>
+</section>
+
 
             {/* TRANSPORT BANNER - Amber Premium Design */}
             <section className="py-20 bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
@@ -1048,85 +1201,114 @@ export default function Home() {
                     </div>
                 </div>
             </section>
-
             {/* INFLUENCERS SECTION - Split Media Design (Image & Video) */}
             <section className="py-24 bg-[#FEF3C7] border-t border-yellow-200 relative overflow-hidden">
                 {/* Background Decorative Element */}
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-[#FDE68A]/30 -skew-x-12 translate-x-20 pointer-events-none" />
 
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
+                    {/* HEADER */}
                     <div className="text-center mb-16">
-                        <span className="text-red-600 font-black tracking-[0.4em] uppercase text-xs">Community Voices</span>
+                        <span className="text-red-600 font-black tracking-[0.4em] uppercase text-xs">
+                            Community Voices
+                        </span>
                         <h2 className="text-5xl md:text-6xl font-black text-gray-900 mt-4">
                             Our <span className="text-yellow-600">Influencers</span>
                         </h2>
                         <div className="w-16 h-2 bg-red-600 mx-auto mt-6 rounded-full" />
                     </div>
 
-                    {/* Dual-Media Grid */}
+                    {/* DUAL MEDIA GRID */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
 
-                        {/* LEFT SIDE: Image Influencers (Static Gallery) */}
+                        {/* LEFT SIDE — IMAGES ONLY */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="h-px flex-1 bg-yellow-400/50"></div>
-                                <span className="text-yellow-800 font-black text-sm uppercase tracking-widest">Brand Ambassadors</span>
+                                <span className="text-yellow-800 font-black text-sm uppercase tracking-widest">
+                                    Brand Ambassadors
+                                </span>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                {influencers.filter(inf => inf.image_url && !inf.video_url).slice(0, 4).map((inf) => (
-                                    <div key={inf.id} className="group relative aspect-[3/4] rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl bg-white transition-all duration-500 hover:-rotate-2">
-                                        <Image
-                                            src={inf.image_url}
-                                            alt={inf.name}
-                                            fill
-                                            className="object-cover transition-transform duration-700 group-hover:scale-110"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end">
-                                            <p className="text-white font-bold text-lg">{inf.name}</p>
+                                {influencers
+                                    .filter(inf => inf.media_type === "image")
+                                    .slice(0, 4)
+                                    .map((inf) => (
+                                        <div
+                                            key={inf.id}
+                                            className="group relative aspect-[3/4] rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl bg-white transition-all duration-500 hover:-rotate-2"
+                                        >
+                                            <Image
+                                                src={inf.media_url}
+                                                alt={inf.name}
+                                                fill
+                                                className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                            />
+
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end">
+                                                <p className="text-white font-bold text-lg">{inf.name}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
                         </div>
 
-                        {/* RIGHT SIDE: Video Influencers (Vertical Reels) */}
+                        {/* RIGHT SIDE — VIDEOS ONLY */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-4 mb-4">
-                                <span className="text-yellow-800 font-black text-sm uppercase tracking-widest">Live Stories</span>
+                                <span className="text-yellow-800 font-black text-sm uppercase tracking-widest">
+                                    Live Stories
+                                </span>
                                 <div className="h-px flex-1 bg-yellow-400/50"></div>
                             </div>
 
                             <div className="flex gap-4 overflow-x-auto lg:overflow-visible lg:grid lg:grid-cols-2 scrollbar-hide">
-                                {influencers.filter(inf => inf.video_url).slice(0, 2).map((inf) => (
-                                    <div key={inf.id} className="min-w-[240px] group relative h-[450px] rounded-[3rem] overflow-hidden shadow-2xl border-[6px] border-white bg-black transition-all duration-700 hover:shadow-red-500/20">
-                                        <video
-                                            src={inf.video_url}
-                                            autoPlay muted loop playsInline
-                                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100"
-                                        />
-                                        {/* Content Overlay */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
-                                            <p className="text-white font-black text-2xl mb-1">{inf.name}</p>
-                                            <div className="w-8 h-1 bg-red-600 rounded-full group-hover:w-full transition-all duration-500" />
+                                {influencers
+                                    .filter(inf => inf.media_type === "video")
+                                    .slice(0, 2)
+                                    .map((inf) => (
+                                        <div
+                                            key={inf.id}
+                                            className="min-w-[240px] group relative h-[450px] rounded-[3rem] overflow-hidden shadow-2xl border-[6px] border-white bg-black transition-all duration-700 hover:shadow-red-500/20"
+                                        >
+                                            <video
+                                                src={inf.media_url}
+                                                autoPlay
+                                                muted
+                                                loop
+                                                playsInline
+                                                className="w-full h-full object-cover opacity-90 group-hover:opacity-100"
+                                            />
+
+                                            {/* CONTENT OVERLAY */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+                                                <p className="text-white font-black text-2xl mb-1">
+                                                    {inf.name}
+                                                </p>
+                                                <div className="w-8 h-1 bg-red-600 rounded-full group-hover:w-full transition-all duration-500" />
+                                            </div>
+
+                                            {/* PLAY BADGE */}
+                                            <div className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
+                                                <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[10px] border-l-white border-b-[5px] border-b-transparent ml-1" />
+                                            </div>
                                         </div>
-                                        {/* Video Badge */}
-                                        <div className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
-                                            <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[10px] border-l-white border-b-[5px] border-b-transparent ml-1" />
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
                         </div>
+
                     </div>
 
-                    {/* CENTERED VIEW MORE BUTTON */}
+                    {/* VIEW MORE BUTTON */}
                     <div className="mt-20 flex justify-center">
                         <button
-                            onClick={() => router.push('/user/view-more?type=influencers')}
+                            onClick={() => router.push("/user/view-more?type=influencers")}
                             className="group flex items-center gap-5 bg-gray-900 text-white px-12 py-6 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-[0_20px_40px_rgba(0,0,0,0.2)] hover:-translate-y-1"
                         >
-                            <span className="border-r border-white/10 pr-5">View All Stories</span>
+                            <span className="border-r border-white/10 pr-5">
+                                View All Stories
+                            </span>
                             <div className="bg-red-600 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -1136,6 +1318,7 @@ export default function Home() {
                     </div>
                 </div>
             </section>
+
         </div>
     );
 }

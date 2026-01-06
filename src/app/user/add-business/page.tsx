@@ -77,7 +77,7 @@ export default function AddBusinessPage() {
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-6 -mt-24 relative z-20">
+            <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
                 <form onSubmit={handleSubmit} className="space-y-10">
                     
                     {/* --- SECTION 1: IDENTITY --- */}

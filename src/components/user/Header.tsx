@@ -9,7 +9,9 @@ import {
   UserCircle,
   ChevronDown,
   User as UserIcon,
-  Briefcase
+  Briefcase,
+  Menu,
+  X
 } from "lucide-react";
 import VendorRegister from "@/components/user/vendorreg";
 import { createClient, type User } from "@supabase/supabase-js";
@@ -29,6 +31,7 @@ export default function UserFeed() {
 
   // UI states
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile menu
 
   // Auth
   const [user, setUser] = useState<User | null>(null);
@@ -47,7 +50,7 @@ export default function UserFeed() {
   const [registerStep, setRegisterStep] = useState<"form" | "otp">("form");
   const [otpExpiry, setOtpExpiry] = useState<number | null>(null); // timestamp when OTP expires
   const [otpTimer, setOtpTimer] = useState<string | null>(null); // "mm:ss" display
-
+  const [profileMedal, setProfileMedal] = useState(""); // Add this line
   // Existing states...
   const [userRole, setUserRole] = useState<"user" | "vendor" | null>(null);
   const [openRegisterMenu, setOpenRegisterMenu] = useState(false);
@@ -57,6 +60,8 @@ export default function UserFeed() {
 
   // Ref for dropdown to handle outside clicks
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // New ref for mobile menu
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadUserAndRole = async () => {
@@ -75,13 +80,14 @@ export default function UserFeed() {
         }
 
         // 2️⃣ Fetch vendor info along with subscription plan color
+        // 2️⃣ Fetch vendor info along with subscription plan color AND medals
         const { data: vendor, error } = await supabase
           .from("vendor_register")
           .select(`
-          id,
-          subscription_plan_id,
-          subscription_plans!left(color)
-        `)
+    id,
+    subscription_plan_id,
+    subscription_plans!left(color, medals)
+  `)
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -89,17 +95,22 @@ export default function UserFeed() {
           console.error("Error fetching vendor:", error);
           setUserRole("user");
           setProfileColor("#FFD700");
+          setProfileMedal(""); // Clear medal
           return;
         }
 
-        // 3️⃣ Set role and profile color
+        // 3️⃣ Set role, profile color, and medal
         if (vendor) {
           setUserRole("vendor");
           setProfileColor(vendor.subscription_plans?.color || "#FFD700");
+          setProfileMedal(vendor.subscription_plans?.medals || ""); // Store the medal string
         } else {
           setUserRole("user");
           setProfileColor("#FFD700");
+          setProfileMedal("");
         }
+
+
       } catch (err) {
         console.error("Error loading user and role:", err);
         setUserRole("user");
@@ -125,17 +136,19 @@ export default function UserFeed() {
     };
   }, []);
 
-
-
   // Close dropdown on pathname change or outside click
   useEffect(() => {
     setOpenMenu(null); // Close on navigation
+    setIsMobileMenuOpen(false); // Close mobile menu on navigation
   }, [pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpenMenu(null);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
       }
     };
 
@@ -148,6 +161,7 @@ export default function UserFeed() {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    router.push("/user");
   };
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -157,7 +171,6 @@ export default function UserFeed() {
       [name]: value,
     }));
   };
-
 
   // Login handler
   const sendLoginOtp = async () => {
@@ -215,8 +228,6 @@ export default function UserFeed() {
     }
   };
 
-
-
   const verifyLoginOtp = async () => {
     setLoginLoading(true);
     setLoginError(null);
@@ -256,9 +267,6 @@ export default function UserFeed() {
     }
   };
 
-
-
-
   // Register
   const handleRegisterChange = (e: any) => setRegisterData({ ...registerData, [e.target.name]: e.target.value });
   const sendRegisterOtp = async () => {
@@ -293,14 +301,24 @@ export default function UserFeed() {
     setRegisterLoading(false);
   };
 
+  const navLinks = [
+    { name: "Home", href: "/user" },
+    { name: "Plans", href: "/user/subscription-plans" },
+    { name: "Listing", href: "/user/listing" },
+    { name: "Video", href: "/user/video" },
+    { name: "Transport", href: "/user/transport" },
+    { name: "Enquiry", href: "/user/enquiry" },
+    { name: "Help & Earn", href: "/user/help" },
+  ];
+
   return (
-    <div className="pt-[60px]">
+    <div className="pt-[60px] bg-black">
       {/* ---------------- HEADER ---------------- */}
-      <header className="fixed top-0 left-0 right-0 z-[9999] bg-white border-b border-red-50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4 ">
+      <header className="fixed top-0 left-0 right-0 z-[9999] h-16 bg-black border-b border-red-50 shadow-sm">
+        <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6">
 
           {/* 1. Logo Section: Optimized sizing */}
-          <Link href="/user/feed" className="flex-shrink-0 transition-transform hover:scale-105">
+          <Link href="/user" className="flex-shrink-0 transition-transform hover:scale-105">
             <Image
               src="/navbar_logo.png"
               alt="QickTick"
@@ -312,17 +330,9 @@ export default function UserFeed() {
           </Link>
 
           {/* 2. Nav Section: Modern typography and tighter spacing */}
-          {/* 2. Nav Section: Modern typography and interactive links */}
+          {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center space-x-2 font-semibold text-sm">
-            {[
-              { name: "Home", href: "/user" },
-              { name: "Plans", href: "/user/subscription-plans" },
-              { name: "Listing", href: "/user/listing" },
-              { name: "Video", href: "/user/video" },
-              { name: "Transport", href: "/user/transport" },
-              { name: "Enquiry", href: "/user/enquiry" },
-              { name: "Help & Earn", href: "/user/help" },
-            ].map((link) => {
+            {navLinks.map((link) => {
               const isLinkActive = pathname === link.href;
 
               return (
@@ -330,11 +340,11 @@ export default function UserFeed() {
                   key={link.name}
                   href={link.href}
                   className={`
-          relative px-4 py-2 rounded-full transition-all duration-300 group
-          ${isLinkActive
-                      ? "text-red-400 bg-red-400/10 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.4)]"
-                      : "text-yellow-900 hover:text-yellow hover:bg-yellow-50"}
-        `}
+                    relative px-4 py-2 rounded-full transition-all duration-300 group
+                    ${isLinkActive
+                      ? "text-white bg-red-400/10 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.4)]"
+                      : "text-white hover:text-black hover:bg-yellow-50"}
+                  `}
                 >
                   {link.name}
 
@@ -352,17 +362,25 @@ export default function UserFeed() {
             })}
           </nav>
 
-          {/* 3. Actions Section */}
-          <div className="flex items-center space-x-4">
+          {/* Mobile Menu Button - Three Lines (Hamburger) */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
+          {/* 3. Actions Section - Desktop */}
+          <div className="hidden lg:flex items-center space-x-4">
             {/* Primary Action Button */}
             <Link
               href="/user/add-business"
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+              className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-red-700 transition-all shadow-lg"
             >
               <PlusCircle size={16} /> Add Business
             </Link>
 
-            <div className="h-6 w-[1px] bg-gray-200 hidden md:block" />
+            <div className="h-6 w-[1px] bg-gray-200" />
 
             {/* AUTH SECTION */}
             <div className="flex items-center space-x-3">
@@ -370,7 +388,7 @@ export default function UserFeed() {
                 <>
                   <button
                     onClick={() => setShowLoginPopup(true)}
-                    className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-black transition"
+                    className="px-4 py-2 text-sm font-bold text-white hover:text-black transition"
                   >
                     Login
                   </button>
@@ -385,7 +403,7 @@ export default function UserFeed() {
                     </button>
 
                     {openRegisterMenu && (
-                      <div className="absolute right-0 mt-3 w-56 bg-yellow-100 text-black  border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="absolute right-0 mt-3 w-56 bg-yellow-100 text-black border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                         <button
                           onClick={() => { setShowRegisterPopup(true); setOpenRegisterMenu(false); }}
                           className="w-full text-left px-5 py-3 hover:bg-yellow-100 text-sm font-semibold flex items-center space-x-2"
@@ -398,14 +416,11 @@ export default function UserFeed() {
                             setOpenVendor(true); // Open the popup
                             setOpenRegisterMenu(false); // Close the dropdown menu
                           }}
-                          className="w-full text-left px-5 py-3  hover:bg-yellow-100 text-sm font-semibold border-t border-gray-50 flex items-center space-x-2"
+                          className="w-full text-left px-5 py-3 hover:bg-yellow-100 text-sm font-semibold border-t border-gray-50 flex items-center space-x-2"
                         >
                           <Briefcase size={16} />
                           <span>Vendor Registration</span>
                         </button>
-
-
-
                       </div>
                     )}
                   </div>
@@ -415,16 +430,35 @@ export default function UserFeed() {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
-                    className="flex items-center space-x-2 p-1 pr-3 rounded-full border border-gray-200 hover:bg-gray-50 transition"
+                    className="flex items-center space-x-2 p-1.5 pr-4 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300"
                   >
-                    {/* Enhanced Profile Icon: Better design with gradient, ring, and shadow */}
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-lg ring-2 ring-yellow-300"
-                      style={{ backgroundColor: profileColor }}
-                    >
-                      <UserCircle size={24} className="text-white drop-shadow-md" />
+                    <div className="relative group">
+                      {/* Main Avatar Circle */}
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center border-2 shadow-2xl transition-transform group-hover:scale-105"
+                        style={{
+                          backgroundColor: profileColor,
+                          borderColor: 'rgba(255,255,255,0.8)',
+                          boxShadow: `0 0 15px ${profileColor}40`
+                        }}
+                      >
+                        <UserCircle size={26} className="text-white drop-shadow-md" />
+                      </div>
+
+                      {/* DYNAMIC MEDAL BADGE FROM DATABASE */}
+                      {userRole === "vendor" && profileMedal && (
+                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg border border-gray-100 animate-in zoom-in duration-500">
+                          <span className="text-[10px] leading-none">{profileMedal}</span>
+                        </div>
+                      )}
                     </div>
-                    <ChevronDown size={14} className="text-gray-400" />
+
+                    <div className="flex flex-col items-start ml-2">
+                      <span className="text-xs font-black text-white uppercase tracking-tighter leading-none">
+                        {userRole === "vendor" ? "Pro" : "User"}
+                      </span>
+                      <ChevronDown size={12} className={`text-gray-400 transition-transform ${openMenu === "profile" ? 'rotate-180' : ''}`} />
+                    </div>
                   </button>
 
                   {openMenu === "profile" && (
@@ -444,7 +478,6 @@ export default function UserFeed() {
                         <>
                           <Link href="/vendor/products" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800">Products</Link>
                           <Link href="/vendor/enquiry" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800">Enquiries</Link>
-                          <Link href="/vendor/subscription" className="flex items-center px-4 py-2.5 hover:bg-yellow-200 font-medium text-gray-800 border-b border-yellow-200">Subscription</Link>
                         </>
                       )}
 
@@ -454,6 +487,7 @@ export default function UserFeed() {
                       >
                         Logout
                       </button>
+
                     </div>
                   )}
                 </div>
@@ -461,8 +495,135 @@ export default function UserFeed() {
             </div>
           </div>
         </div>
-      </header>
 
+        {/* Mobile Menu Overlay - Full Screen */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-[10000] bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+            <div ref={mobileMenuRef} className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
+              <div className="flex flex-col h-full">
+                {/* Close Button */}
+                <div className="flex justify-end p-4">
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+
+
+                {/* Auth Section */}
+                <div className="px-6 pb-6 border-t border-gray-200 pt-4">
+                  {!user ? (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          setShowLoginPopup(true);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-3 text-sm font-bold text-gray-700 hover:text-black transition border border-gray-300 rounded-lg"
+                      >
+                        Login
+                      </button>
+
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenRegisterMenu((prev) => !prev)}
+                          className="w-full px-4 py-3 bg-[#FFD700] text-black text-sm rounded-lg font-bold shadow-sm hover:bg-[#f2cc00] transition-all flex items-center justify-center"
+                        >
+                          Register
+                          <ChevronDown size={14} className={`ml-1 transition-transform ${openRegisterMenu ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {openRegisterMenu && (
+                          <div className="absolute bottom-full left-0 right-0 mb-2 bg-yellow-100 text-black border border-gray-100 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                            <button
+                              onClick={() => {
+                                setShowRegisterPopup(true);
+                                setOpenRegisterMenu(false);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className="w-full text-left px-5 py-3 hover:bg-yellow-100 text-sm font-semibold flex items-center space-x-2"
+                            >
+                              <UserIcon size={16} /> <span>User Registration</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setOpenVendor(true);
+                                setOpenRegisterMenu(false);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className="w-full text-left px-5 py-3 hover:bg-yellow-100 text-sm font-semibold border-t border-gray-50 flex items-center space-x-2"
+                            >
+                              <Briefcase size={16} />
+                              <span>Vendor Registration</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-lg">
+                      <div className="relative">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-lg ring-2 ring-yellow-300"
+                          style={{ backgroundColor: profileColor }}
+                        >
+                          <UserCircle size={24} className="text-white drop-shadow-md" />
+                        </div>
+
+                        {/* Mobile Medal */}
+                        {userRole === "vendor" && profileMedal && (
+                          <div className="absolute -bottom-1 -right-1 bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-gray-200 text-[10px]">
+                            {profileMedal}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">Profile</p>
+                        <p className="text-xs text-gray-500">{userRole === "vendor" ? "Vendor" : "User"}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Add Business Button */}
+                <div className="px-6 pb-4">
+                  <Link
+                    href="/user/add-business"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white text-sm font-black uppercase tracking-widest rounded-lg hover:bg-red-700 transition-all shadow-lg w-full"
+                  >
+                    <PlusCircle size={16} /> Add Business
+                  </Link>
+                </div>
+                {/* Navigation Links */}
+                <nav className="flex-1 px-6 py-4">
+                  <ul className="space-y-4">
+                    {navLinks.map((link) => {
+                      const isLinkActive = pathname === link.href;
+                      return (
+                        <li key={link.name}>
+                          <Link
+                            href={link.href}
+                            className={`block px-4 py-3 rounded-lg font-semibold text-sm transition ${isLinkActive
+                              ? "text-red-400 bg-red-50"
+                              : "text-gray-700 hover:bg-gray-100"
+                              }`}
+                          >
+                            {link.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </nav>
+
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* -------------------- LOGIN POPUP ------------------------ */}
       {showLoginPopup && (
@@ -523,9 +684,15 @@ export default function UserFeed() {
                     name="otp"
                     value={loginData.otp}
                     onChange={handleLoginChange}
-                    placeholder="8-digit code"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 outline-none transition-all font-bold tracking-[0.2em] text-center text-lg"
+                    placeholder="Enter OTP"
+                    type="text"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl
+             text-slate-900 placeholder-slate-400
+             focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500
+             outline-none transition-all font-bold tracking-[0.2em]
+             text-center text-lg"
                   />
+
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-2">
@@ -549,7 +716,6 @@ export default function UserFeed() {
           </div>
         </div>
       )}
-
 
       {/* -------------------- REGISTER POPUP ------------------------ */}
       {showRegisterPopup && (
@@ -637,8 +803,18 @@ export default function UserFeed() {
                           value={registerData.otp}
                           onChange={handleRegisterChange}
                           placeholder="Enter Code"
-                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 outline-none transition-all font-bold text-center text-2xl tracking-[0.5em]"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={8}
+                          className="
+    w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl
+    text-slate-900 placeholder-slate-400
+    focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500
+    outline-none transition-all font-bold text-center
+    text-2xl tracking-[0.5em]
+  "
                         />
+
                       </div>
 
                       <button
@@ -661,9 +837,7 @@ export default function UserFeed() {
               </div>
             </div>
           </div>
-
         </div>
-
       )}
       {openVendor && (
         <VendorRegister onClose={() => setOpenVendor(false)} />

@@ -53,7 +53,7 @@ export default function TravelRequestsPage() {
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       
       {/* --- MASTER YELLOW BANNER --- */}
-      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+      <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
         <div className="max-w-7xl mx-auto relative z-10">
@@ -185,7 +185,7 @@ export default function TravelRequestsPage() {
           <div className="bg-white w-full max-w-4xl rounded-[3.5rem] overflow-hidden shadow-2xl relative animate-in zoom-in duration-300 flex flex-col md:flex-row h-[85vh]">
             
             {/* SIDE PANEL: CARGO STATUS */}
-            <div className="md:w-1/3 bg-[#facc15] p-10 flex flex-col border-r border-black/5">
+            <div className="md:w-1/3 bg-yellow-300 p-10 flex flex-col border-r border-black/5">
               <div className="mb-10">
                 <div className="flex items-center gap-2 text-red-900/60 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
                   <Hash size={14} /> ID-{selectedRequest.id}

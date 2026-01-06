@@ -4,11 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { HiOutlineVideoCamera } from "react-icons/hi";
 import {
   HiOutlineHome, HiOutlineOfficeBuilding, HiOutlineClipboardList,
   HiOutlineLogout, HiOutlinePhotograph, HiOutlineTemplate, HiOutlineShieldCheck
 } from "react-icons/hi";
 import { FaUserTie, FaUserFriends, FaTruckMoving, FaPodcast } from "react-icons/fa";
+import { HiOutlineChatAlt2 } from "react-icons/hi";
 
 export default function AdminSidebar() {
   const [role, setRole] = useState<"admin" | "subadmin" | "loading">("loading");
@@ -65,8 +67,8 @@ export default function AdminSidebar() {
         <div className="mt-4 text-center">
           {/* Changed status badge to yellow theme */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-300 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-300">
               {role} control
             </span>
           </div>
@@ -97,10 +99,23 @@ export default function AdminSidebar() {
 
         {/* Media */}
         <div className="space-y-1">
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">Media</p>
-          <NavLink href="/admin/site-home/podcast" icon={FaPodcast}>Podcasts</NavLink>
-          <NavLink href="/admin/site-home/influencers" icon={FaUserFriends}>Influencers</NavLink>
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] px-8 mb-3">
+            Media
+          </p>
+
+          <NavLink href="/admin/site-home/videos" icon={HiOutlineVideoCamera}>
+            Videos
+          </NavLink>
+
+          <NavLink href="/admin/site-home/podcast" icon={FaPodcast}>
+            Podcasts
+          </NavLink>
+
+          <NavLink href="/admin/site-home/influencers" icon={FaUserFriends}>
+            Influencers
+          </NavLink>
         </div>
+
 
         {/* Operations */}
         <div className="space-y-1 pb-6">
@@ -108,6 +123,14 @@ export default function AdminSidebar() {
           {role === "admin" && <NavLink href="/admin/customers" icon={FaUserFriends}>Customers</NavLink>}
           <NavLink href="/admin/vendors" icon={FaUserTie}>Vendors</NavLink>
           <NavLink href="/admin/transportation" icon={FaTruckMoving}>Transportation</NavLink>
+          <NavLink href="/admin/enquiry" icon={HiOutlineChatAlt2}>
+            Enquiries
+          </NavLink>
+
+          <NavLink href="/admin/vendor-enquiry" icon={HiOutlineChatAlt2}>
+            Vendor Enquiries
+          </NavLink>
+
           {role === "admin" && (
             <NavLink href="/admin/subadmins" icon={FaUserTie}>Staff Access</NavLink>
           )}

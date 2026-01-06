@@ -131,7 +131,7 @@ export default function DigitalBanner() {
       )}
 
       {/* --- MASTER YELLOW BANNER --- */}
-      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+      <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
         <div className="max-w-7xl mx-auto relative z-10">
@@ -176,7 +176,7 @@ export default function DigitalBanner() {
                 <div className="relative h-56 bg-slate-100 overflow-hidden">
                   <img src={b.image_url} alt={b.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button onClick={() => openEditModal(b)} className="w-14 h-14 bg-white text-black rounded-2xl hover:bg-[#facc15] transition-all flex items-center justify-center shadow-xl transform translate-y-4 group-hover:translate-y-0 duration-300"><Edit3 size={20} /></button>
+                    <button onClick={() => openEditModal(b)} className="w-14 h-14 bg-white text-black rounded-2xl hover:bg-yellow-300 transition-all flex items-center justify-center shadow-xl transform translate-y-4 group-hover:translate-y-0 duration-300"><Edit3 size={20} /></button>
                     <button onClick={() => setDeleteConfirm(b.id)} className="w-14 h-14 bg-white text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-xl transform translate-y-4 group-hover:translate-y-0 duration-300 delay-75"><Trash2 size={20} /></button>
                   </div>
                 </div>
@@ -217,7 +217,7 @@ export default function DigitalBanner() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setShowModal(false)} />
           <div className="relative w-full max-w-xl bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="bg-[#facc15] p-8 flex items-center justify-between border-b border-yellow-400 text-black">
+            <div className="bg-yellow-300 p-8 flex items-center justify-between border-b border-yellow-400 text-black">
               <h3 className="text-2xl font-black uppercase italic tracking-tighter">{editingBanner ? "Modify Banner" : "Create Asset"}</h3>
               <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center hover:bg-red-600"><X size={18} /></button>
             </div>

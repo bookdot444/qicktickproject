@@ -169,7 +169,7 @@ export default function AdminCategoriesUC() {
       )}
 
       {/* --- MASTER YELLOW BANNER --- */}
-      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+      <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
         <div className="max-w-7xl mx-auto relative z-10">
@@ -234,7 +234,7 @@ export default function AdminCategoriesUC() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
             {filtered.map((cat) => (
               <div key={cat.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group flex flex-col">
-                <div className="bg-[#facc15]/10 p-6 flex items-center gap-5 border-b border-yellow-100">
+                <div className="bg-yellow-300/10 p-6 flex items-center gap-5 border-b border-yellow-100">
                   <div className="w-20 h-20 rounded-2xl bg-white flex-shrink-0 border border-yellow-200 overflow-hidden shadow-inner relative group-hover:border-yellow-400 transition-colors">
                     {cat.image_url ? (
                       <img src={cat.image_url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -255,7 +255,7 @@ export default function AdminCategoriesUC() {
                   </div>
                 </div>
                 <div className="p-6 flex gap-3 mt-auto">
-                  <button onClick={() => handleEdit(cat)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-50 hover:bg-[#facc15] text-slate-500 hover:text-black rounded-[1.25rem] text-[10px] font-black uppercase transition-all shadow-sm">
+                  <button onClick={() => handleEdit(cat)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-50 hover:bg-yellow-300  text-slate-500 hover:text-black rounded-[1.25rem] text-[10px] font-black uppercase transition-all shadow-sm">
                     <Edit2 size={14} /> Edit
                   </button>
                   <button onClick={() => setDeleteId(cat.id)} className="w-14 flex items-center justify-center py-3.5 bg-slate-50 hover:bg-red-600 text-slate-400 hover:text-white rounded-[1.25rem] transition-all shadow-sm">
@@ -272,7 +272,7 @@ export default function AdminCategoriesUC() {
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
-            <div className="bg-[#facc15] px-10 py-7 flex items-center justify-between border-b border-yellow-400">
+            <div className="bg-yellow-300 px-10 py-7 flex items-center justify-between border-b border-yellow-400">
               <div>
                 <p className="text-red-900/60 text-[10px] font-black uppercase tracking-widest mb-1">Category Editor</p>
                 <h3 className="text-2xl font-black text-black uppercase italic tracking-tighter">{editing ? "Modify Entry" : "Add New Entry"}</h3>

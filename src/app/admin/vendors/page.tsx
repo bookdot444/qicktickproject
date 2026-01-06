@@ -75,7 +75,7 @@ export default function VendorsPage() {
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       
       {/* --- MASTER YELLOW BANNER --- */}
-      <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+      <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
         
         <div className="max-w-7xl mx-auto relative z-10">
@@ -191,7 +191,7 @@ export default function VendorsPage() {
               </button>
               
               {/* SIDE PANEL: IDENTITY */}
-              <div className="md:w-1/3 bg-[#facc15] p-12 flex flex-col items-center border-r border-black/5 overflow-y-auto">
+              <div className="md:w-1/3 bg-yellow-300 p-12 flex flex-col items-center border-r border-black/5 overflow-y-auto">
                 <div className="w-40 h-40 bg-white rounded-[3rem] shadow-2xl overflow-hidden mb-8 border-[6px] border-white relative">
                   <Image src={selectedVendor.company_logo || "/placeholder-logo.png"} alt="Logo" fill className="object-cover" />
                 </div>

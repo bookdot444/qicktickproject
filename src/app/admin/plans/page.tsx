@@ -3,18 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { 
-  Trash2, 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
-  ShieldCheck, 
-  Edit3, 
-  X, 
-  Layers, 
-  RefreshCw, 
-  AlertCircle, 
-  Zap,
-  Search
+  Trash2, Plus, CheckCircle2, ShieldCheck, 
+  Edit3, X, RefreshCw, AlertCircle, Zap, Search
 } from "lucide-react";
 
 export default function AdminPlansPage() {
@@ -31,6 +21,7 @@ export default function AdminPlansPage() {
         tax_percent: "",
         duration_months: "",
         color: "#e11d48",
+        medals: "", // Added
     });
     const [benefits, setBenefits] = useState<string[]>([""]);
 
@@ -71,6 +62,7 @@ export default function AdminPlansPage() {
             tax_percent: plan.tax_percent.toString(),
             duration_months: plan.duration_months.toString(),
             color: plan.color || "#e11d48",
+            medals: plan.medals || "", // Added
         });
         setBenefits(plan.benefits && plan.benefits.length > 0 ? plan.benefits : [""]);
         setShowModal(true);
@@ -78,19 +70,24 @@ export default function AdminPlansPage() {
 
     const resetForm = () => {
         setEditingId(null);
-        setForm({ name: "", base_price: "", tax_percent: "", duration_months: "", color: "#e11d48" });
+        setForm({ 
+            name: "", 
+            base_price: "", 
+            tax_percent: "", 
+            duration_months: "", 
+            color: "#e11d48", 
+            medals: "" 
+        });
         setBenefits([""]);
         setShowModal(false);
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // --- COMPULSORY FIELD VALIDATION ---
         const filteredBenefits = benefits.filter((b) => b.trim() !== "");
         
         if (!form.name.trim() || !form.base_price || !form.duration_months || filteredBenefits.length === 0) {
-            showToast("All fields (Name, Price, Duration, and at least 1 Benefit) are required", "error");
+            showToast("Required fields missing", "error");
             return;
         }
 
@@ -102,16 +99,12 @@ export default function AdminPlansPage() {
             duration_months: Number(form.duration_months),
             color: form.color,
             benefits: filteredBenefits,
+            medals: form.medals.trim(), // Added
         };
 
-        let error;
-        if (editingId) {
-            const res = await supabase.from("subscription_plans").update(payload).eq("id", editingId);
-            error = res.error;
-        } else {
-            const res = await supabase.from("subscription_plans").insert(payload);
-            error = res.error;
-        }
+        const { error } = editingId 
+            ? await supabase.from("subscription_plans").update(payload).eq("id", editingId)
+            : await supabase.from("subscription_plans").insert(payload);
 
         if (error) {
             showToast(error.message, "error");
@@ -124,19 +117,14 @@ export default function AdminPlansPage() {
     };
 
     const handleDeletePlan = async (planId: number) => {
-        if (!confirm("Are you sure you want to delete this plan?")) return;
+        if (!confirm("Are you sure?")) return;
         const { error } = await supabase.from("subscription_plans").delete().eq("id", planId);
-        if (error) {
-            showToast(error.message, "error");
-        } else {
-            showToast("Plan deleted", "success");
-            fetchPlans();
-        }
+        if (error) showToast(error.message, "error");
+        else { showToast("Plan deleted", "success"); fetchPlans(); }
     };
 
     return (
         <div className="min-h-screen bg-[#f8fafc] font-sans pb-20">
-            
             {/* TOAST SYSTEM */}
             {toast && (
                 <div className={`fixed top-6 right-6 z-[200] flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl border animate-in fade-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-white border-yellow-400 text-slate-800' : 'bg-red-600 border-red-700 text-white'}`}>
@@ -146,9 +134,7 @@ export default function AdminPlansPage() {
             )}
 
             {/* --- MASTER YELLOW BANNER --- */}
-            <div className="bg-[#facc15] pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
-                
+            <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
@@ -159,16 +145,10 @@ export default function AdminPlansPage() {
                             <h1 className="text-4xl md:text-6xl font-black text-black uppercase italic tracking-tighter">
                                 Subscription <span className="text-[#e11d48]">Plans</span>
                             </h1>
-                            <p className="text-red-900/80 text-xs mt-3 max-w-sm font-bold uppercase tracking-wide leading-relaxed">
-                                Manage pricing tiers and duration logic. Plans are automatically sorted by total value.
-                            </p>
                         </div>
-                        
-                        <div className="flex gap-4">
-                            <div className="bg-white/40 backdrop-blur-md p-5 rounded-[2rem] border border-white/50 min-w-[120px] text-center shadow-sm">
-                                <p className="text-red-900 text-[9px] font-black uppercase mb-1">Total Tiers</p>
-                                <p className="text-3xl font-black text-[#e11d48]">{plans.length}</p>
-                            </div>
+                        <div className="bg-white/40 backdrop-blur-md p-5 rounded-[2rem] border border-white/50 text-center shadow-sm">
+                            <p className="text-red-900 text-[9px] font-black uppercase mb-1">Total Tiers</p>
+                            <p className="text-3xl font-black text-[#e11d48]">{plans.length}</p>
                         </div>
                     </div>
                 </div>
@@ -179,17 +159,9 @@ export default function AdminPlansPage() {
                 <div className="bg-white p-4 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row gap-4 items-center border border-slate-100">
                     <div className="relative flex-1 w-full">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input 
-                            type="text" 
-                            disabled
-                            placeholder="Plans are sorted by price automatically..." 
-                            className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] outline-none text-sm font-bold opacity-60 cursor-not-allowed"
-                        />
+                        <input type="text" disabled placeholder="Plans are sorted by price automatically..." className="w-full pl-14 pr-6 py-4 bg-slate-50 rounded-[1.5rem] outline-none text-sm font-bold opacity-60 cursor-not-allowed" />
                     </div>
-                    <button 
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="w-full md:w-auto bg-[#e11d48] hover:bg-black text-white px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl active:scale-95"
-                    >
+                    <button onClick={() => { resetForm(); setShowModal(true); }} className="w-full md:w-auto bg-[#e11d48] hover:bg-black text-white px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl">
                         <Plus size={18} strokeWidth={3} /> Create New Plan
                     </button>
                 </div>
@@ -208,16 +180,17 @@ export default function AdminPlansPage() {
                             const total = plan.base_price * (1 + (plan.tax_percent || 0) / 100);
                             return (
                                 <div key={plan.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group flex flex-col relative">
-                                    {/* Accent strip */}
                                     <div className="h-3 w-full" style={{ backgroundColor: plan.color || '#e11d48' }} />
-                                    
                                     <div className="p-8">
                                         <div className="flex justify-between items-start mb-6">
                                             <div>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Plan Name</p>
-                                                <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tight leading-none">{plan.name}</h3>
+                                                <h3 className="font-black text-slate-900 uppercase italic text-2xl tracking-tight leading-none flex items-center gap-2">
+                                                    {plan.name} 
+                                                    {plan.medals && <span className="not-italic">{plan.medals}</span>}
+                                                </h3>
                                             </div>
-                                            <div className="bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                                            <div className="bg-slate-50 p-2 rounded-2xl">
                                                 <Zap size={20} style={{ color: plan.color }} fill="currentColor" />
                                             </div>
                                         </div>
@@ -240,7 +213,7 @@ export default function AdminPlansPage() {
                                         </div>
 
                                         <div className="flex gap-3 pt-6 border-t border-slate-50">
-                                            <button onClick={() => handleEditClick(plan)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-50 hover:bg-[#facc15] text-slate-500 hover:text-black rounded-[1.25rem] text-[10px] font-black uppercase transition-all shadow-sm">
+                                            <button onClick={() => handleEditClick(plan)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-50 hover:bg-yellow-300 text-slate-500 hover:text-black rounded-[1.25rem] text-[10px] font-black uppercase transition-all shadow-sm">
                                                 <Edit3 size={14} /> Edit
                                             </button>
                                             <button onClick={() => handleDeletePlan(plan.id)} className="w-14 flex items-center justify-center py-3.5 bg-slate-50 hover:bg-red-600 text-slate-400 hover:text-white rounded-[1.25rem] transition-all shadow-sm">
@@ -259,72 +232,71 @@ export default function AdminPlansPage() {
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 my-8 animate-in zoom-in-95 duration-200">
-                        <div className="bg-[#facc15] px-10 py-7 flex items-center justify-between border-b border-yellow-400">
+                        <div className="bg-yellow-300 px-10 py-7 flex items-center justify-between border-b border-yellow-400">
                             <div>
                                 <p className="text-red-900/60 text-[10px] font-black uppercase tracking-widest mb-1">Plan Designer</p>
                                 <h3 className="text-2xl font-black text-black uppercase italic tracking-tighter">{editingId ? "Update Subscription" : "Create New Tier"}</h3>
                             </div>
-                            <button onClick={resetForm} className="w-12 h-12 bg-black/10 hover:bg-black/20 rounded-full flex items-center justify-center transition-colors text-black"><X size={24} /></button>
+                            <button onClick={resetForm} className="w-12 h-12 bg-black/10 hover:bg-black/20 rounded-full flex items-center justify-center text-black"><X size={24} /></button>
                         </div>
                         
                         <form onSubmit={handleSave} className="p-10 space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Name */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Plan Display Name <span className="text-red-500">*</span></label>
-                                    <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold transition-all shadow-sm" placeholder="e.g. Premium Annual" />
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Plan Name <span className="text-red-500">*</span></label>
+                                    <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold" placeholder="e.g. Premium" />
                                 </div>
-                                {/* Color */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Brand Accent</label>
-                                    <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-200">
-                                        <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border-none" />
-                                        <span className="text-xs font-mono font-bold uppercase text-slate-500">{form.color}</span>
-                                    </div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Medal (Emoji)</label>
+                                    <input value={form.medals} onChange={(e) => setForm({ ...form, medals: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold" placeholder="e.g. 🏆" />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {/* Base Price */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Base Price (₹) <span className="text-red-500">*</span></label>
-                                    <input required type="number" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold transition-all shadow-sm" />
+                                    <input required type="number" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
                                 </div>
-                                {/* Tax */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tax (%)</label>
-                                    <input type="number" value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold transition-all shadow-sm" />
+                                    <input type="number" value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
                                 </div>
-                                {/* Duration */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Months <span className="text-red-500">*</span></label>
-                                    <input required type="number" value={form.duration_months} onChange={(e) => setForm({ ...form, duration_months: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold transition-all shadow-sm" />
+                                    <input required type="number" value={form.duration_months} onChange={(e) => setForm({ ...form, duration_months: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
                                 </div>
                             </div>
 
-                            {/* Benefits */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Brand Color</label>
+                                <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+                                    <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-xl cursor-pointer" />
+                                    <span className="text-xs font-mono font-bold text-slate-500">{form.color}</span>
+                                </div>
+                            </div>
+
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Included Benefits <span className="text-red-500">*</span></label>
-                                    <button type="button" onClick={() => setBenefits([...benefits, ""])} className="text-[10px] font-black uppercase text-[#e11d48] hover:text-black flex items-center gap-1 transition-colors"><Plus size={14} /> Add Line</button>
+                                    <button type="button" onClick={() => setBenefits([...benefits, ""])} className="text-[10px] font-black text-[#e11d48] flex items-center gap-1"><Plus size={14} /> Add Line</button>
                                 </div>
-                                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                <div className="space-y-3 max-h-48 overflow-y-auto">
                                     {benefits.map((b, idx) => (
                                         <div key={idx} className="flex gap-3">
-                                            <input required placeholder="Feature description..." value={b} onChange={(e) => {
+                                            <input required placeholder="Benefit..." value={b} onChange={(e) => {
                                                 const updated = [...benefits];
                                                 updated[idx] = e.target.value;
                                                 setBenefits(updated);
-                                            }} className="flex-1 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#facc15] outline-none text-xs font-bold transition-all" />
-                                            <button type="button" onClick={() => setBenefits(benefits.filter((_, i) => i !== idx))} className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"><X size={16} /></button>
+                                            }} className="flex-1 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold" />
+                                            <button type="button" onClick={() => setBenefits(benefits.filter((_, i) => i !== idx))} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl"><X size={16} /></button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
                             <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={resetForm} className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all">Discard</button>
-                                <button type="submit" disabled={saving} className="flex-[2] py-4 bg-[#e11d48] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-red-500/20">
+                                <button type="button" onClick={resetForm} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-50 rounded-2xl">Discard</button>
+                                <button type="submit" disabled={saving} className="flex-[2] py-4 bg-[#e11d48] text-white text-[10px] font-black uppercase rounded-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
                                     {saving ? <RefreshCw className="animate-spin" size={18} /> : (editingId ? <Edit3 size={18} /> : <ShieldCheck size={18} />)}
                                     {editingId ? "Update Plan" : "Deploy Plan"}
                                 </button>

@@ -8,7 +8,8 @@ import {
   User, ArrowLeft, MessageSquare, Award, Navigation,
   Info, Layers, Zap, Smartphone, Mail,
   ChevronDown, Image as ImageIcon, ShoppingBag,
-  Clock, Box, Video, Play, ExternalLink, Link as LinkIcon
+  Clock, Box, Video, Play, ExternalLink, Link as LinkIcon,
+  Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,7 +19,7 @@ export default function VendorDetailPage() {
   const [vendor, setVendor] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openSection, setOpenSection] = useState<string | null>("overview");
+  const [openSection, setOpenSection] = useState<string | null>("media");
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -41,61 +42,100 @@ export default function VendorDetailPage() {
   if (loading || !vendor) return <LoadingSpinner />;
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-yellow-100">
+    <div className="w-full bg-white font-sans selection:bg-yellow-100">
 
-      {/* --- HEADER BANNER (YELLOW-400) --- */}
-      {/* Removed the extra "white box" around the logo container and kept it integrated into the header */}
-      <div className="relative bg-yellow-200 pt-12 pb-32 px-6">
+      {/* --- UPDATED HEADER (SMART TRANSPORT STYLE) --- */}
+      <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-12 pb-32 px-6 relative overflow-hidden border-b border-yellow-200">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+
         <div className="max-w-7xl mx-auto relative z-10">
-
           <button
             onClick={() => router.back()}
-            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-black/70 hover:text-black transition"
+            className="mb-12 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-yellow-800 hover:text-black transition group"
           >
-            <ArrowLeft size={18} /> Back to Search
+            <div className="p-2 rounded-full border border-yellow-300 bg-white/50 backdrop-blur-md group-hover:border-yellow-500 transition-colors">
+              <ArrowLeft size={14} />
+            </div>
+            Back to Search
           </button>
 
-          <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
 
-            {/* Logo Container - Simplified without the large white card box */}
-            <div className="w-44 h-44 flex-shrink-0">
-              {vendor.company_logo ? (
-                <img
-                  src={vendor.company_logo}
-                  className="w-full h-full object-contain drop-shadow-md"
-                  alt="Company Logo"
-                />
-              ) : (
-                <div className="w-full h-full bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center border border-black/10">
-                  <Building2 size={64} className="text-black/40" />
+            {/* Left: Logo & Content */}
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8 flex-1">
+              {/* Logo Container */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-44 h-44 flex-shrink-0 bg-white p-4 rounded-[2.5rem] shadow-xl border border-yellow-100 flex items-center justify-center"
+              >
+                {vendor.company_logo ? (
+                  <img
+                    src={vendor.company_logo}
+                    className="w-full h-full object-contain"
+                    alt="Company Logo"
+                  />
+                ) : (
+                  <Building2 size={64} className="text-yellow-600/30" />
+                )}
+              </motion.div>
+
+              {/* Text Info */}
+              <div className="text-center md:text-left">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
+                  <span className="bg-white/80 backdrop-blur-md border border-yellow-300 text-yellow-800 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                    <Sparkles size={10} className="inline mr-1 mb-0.5" /> {vendor.status}
+                  </span>
+                  {vendor.user_type?.map((type: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"
+                    >
+                      {type}
+                    </span>
+                  ))}
+
                 </div>
-              )}
+
+                <motion.h1
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter leading-[0.9] mb-6"
+                >
+                  {vendor.company_name.split(' ')[0]} <br />
+                  <span className="text-red-600 italic">{vendor.company_name.split(' ').slice(1).join(' ')}</span>
+                </motion.h1>
+
+                <div className="flex flex-wrap justify-center md:justify-start gap-6 text-gray-600 font-bold text-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={18} className="text-yellow-600" /> {vendor.city}, {vendor.state}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-red-600" /> GST: {vendor.gst_number || "Verified"}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Company Main Info */}
-            <div className="text-center lg:text-left flex-1">
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
-                <span className="bg-black text-yellow-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-                  {vendor.status}
-                </span>
-                <span className="bg-black/10 text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-                  {vendor.sector}
-                </span>
+            {/* Right: Floating Visual Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+              animate={{ opacity: 1, scale: 1, rotate: 3 }}
+              transition={{ type: "spring", stiffness: 100 }}
+              className="hidden lg:block bg-white p-10 rounded-[4rem] shadow-2xl border-2 border-yellow-100 relative"
+            >
+              <div className="absolute -top-4 -right-4 bg-red-600 text-white p-4 rounded-3xl animate-bounce shadow-xl">
+                <Award size={32} strokeWidth={2.5} />
               </div>
-
-              <h1 className="text-4xl md:text-6xl font-black text-black tracking-tighter mb-4 leading-tight">
-                {vendor.company_name}
-              </h1>
-
-              <div className="flex flex-wrap justify-center lg:justify-start gap-6">
-                <div className="flex items-center gap-2 text-black/70 font-bold text-sm">
-                  <MapPin size={18} className="text-black" /> {vendor.city}, {vendor.state}
-                </div>
-                <div className="flex items-center gap-2 text-black/70 font-bold text-sm">
-                  <ShieldCheck size={18} className="text-black" /> GST: {vendor.gst_number || "Verified"}
-                </div>
+              <div className="bg-yellow-50 p-6 rounded-[2.5rem]">
+                <Layers size={100} className="text-yellow-600" strokeWidth={1.5} />
               </div>
-            </div>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[8px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full whitespace-nowrap">
+                VERIFIED BUSINESS PROFILE
+              </div>
+            </motion.div>
+
           </div>
         </div>
       </div>
@@ -109,13 +149,40 @@ export default function VendorDetailPage() {
 
             {/* Quick Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="Category" value={vendor.user_type || "Vendor"} icon={<Box />} />
+              <StatCard
+                label="Category"
+                value={
+                  <div className="space-y-1">
+                    {vendor.user_type?.map((c: string, i: number) => (
+                      <div key={i}>{c}</div>
+                    ))}
+                  </div>
+                }
+                icon={<Box />}
+              />
               <StatCard label="Catalog" value={`${products.length} Items`} icon={<ShoppingBag />} />
               <StatCard label="Established" value={new Date(vendor.created_at).getFullYear()} icon={<Clock />} />
               <StatCard label="Trust Score" value="A+" icon={<Award />} />
             </div>
 
             <div className="space-y-4">
+
+
+              {/* Media Gallery */}
+              <AccordionSection
+                title="Media Gallery"
+                icon={<ImageIcon size={20} />}
+                isOpen={openSection === "media"}
+                onToggle={() => toggleSection("media")}
+              >
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {vendor.media_files?.map((img: string, i: number) => (
+                    <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100">
+                      <img src={img} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </AccordionSection>
 
               {/* Business Overview Accordion */}
               <AccordionSection
@@ -230,23 +297,6 @@ export default function VendorDetailPage() {
                         </div>
                       </div>
                     </motion.div>
-                  ))}
-                </div>
-              </AccordionSection>
-
-
-              {/* Media Gallery */}
-              <AccordionSection
-                title="Media Gallery"
-                icon={<ImageIcon size={20} />}
-                isOpen={openSection === "media"}
-                onToggle={() => toggleSection("media")}
-              >
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {vendor.media_files?.map((img: string, i: number) => (
-                    <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100">
-                      <img src={img} className="w-full h-full object-cover" />
-                    </div>
                   ))}
                 </div>
               </AccordionSection>
@@ -379,7 +429,7 @@ function AccordionSection({ title, icon, children, isOpen, onToggle }: any) {
 
 function LoadingSpinner() {
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-yellow-400">
+    <div className="h-screen flex flex-col items-center justify-center bg-yellow-100/30">
       <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mb-4" />
       <p className="font-black text-xs uppercase tracking-[0.3em] text-black">Loading Vendor...</p>
     </div>
