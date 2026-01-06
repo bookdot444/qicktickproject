@@ -102,13 +102,17 @@ export default function UserFeed() {
         // 3️⃣ Set role, profile color, and medal
         if (vendor) {
           setUserRole("vendor");
-          setProfileColor(vendor.subscription_plans?.color || "#FFD700");
-          setProfileMedal(vendor.subscription_plans?.medals || ""); // Store the medal string
+
+          const plan = vendor.subscription_plans?.[0];
+
+          setProfileColor(plan?.color ?? "#FFD700");
+          setProfileMedal(plan?.medals ?? "");
         } else {
           setUserRole("user");
           setProfileColor("#FFD700");
           setProfileMedal("");
         }
+
 
 
       } catch (err) {

@@ -9,6 +9,18 @@ import {
   Check, ChevronRight, ChevronLeft, ShieldCheck,
   X, Upload, Film, Image as ImageIcon, Trash2, Plus, User, AlertCircle, Globe
 } from "lucide-react";
+type VideoItem =
+  | {
+    type: "url";
+    url: string;
+    added_at: string;
+  }
+  | {
+    type: "file";
+    url: string;
+    name: string;
+    added_at: string;
+  };
 
 export default function VendorRegister({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -23,7 +35,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
 
   const [videoUrlInput, setVideoUrlInput] = useState("");
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
-  const [videoFilesList, setVideoFilesList] = useState<{ url: string, added_at: string }[]>([]);
+  const [videoFilesList, setVideoFilesList] = useState<VideoItem[]>([]);
   const [showPlans, setShowPlans] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
 
@@ -122,12 +134,14 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const newVideo = {
-        type: 'file',
-        url: reader.result as string,
-        name: file.name,
-        added_at: new Date().toISOString()
-      };
+     const newVideo: VideoItem = {
+  type: "file",
+  url: reader.result as string,
+  name: file.name,
+  added_at: new Date().toISOString()
+};
+
+
       const newList = [...videoFilesList, newVideo];
       setVideoFilesList(newList);
       setFormData(prev => ({ ...prev, video_files: newList }));
@@ -138,11 +152,12 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
   // Function to handle Video URL (YouTube/Vimeo)
   const addVideoUrl = () => {
     if (!videoUrlInput.trim()) return;
-    const newVideo = {
-      type: 'url',
-      url: videoUrlInput.trim(),
-      added_at: new Date().toISOString()
-    };
+    const newVideo: VideoItem = {
+  type: "url",
+  url: videoUrlInput.trim(),
+  added_at: new Date().toISOString()
+};
+
     const newList = [...videoFilesList, newVideo];
     setVideoFilesList(newList);
     setFormData(prev => ({ ...prev, video_files: newList }));
@@ -168,7 +183,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
       case 1:
         if (!formData.email.includes("@")) return "A valid Email is required";
         if (formData.password.length < 6) return "Password must be at least 6 characters";
-        if (formData.user_type.length === 0)return "Please select at least one business sector";
+        if (formData.user_type.length === 0) return "Please select at least one business sector";
         return null;
       case 2:
         if (!formData.first_name.trim()) return "First name is required";
@@ -729,12 +744,24 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                         <div key={i} className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl text-white group animate-in slide-in-from-top-2">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                              {v.type === 'url' ? <Film size={18} className="text-yellow-600" /> : <Upload size={18} className="text-yellow-600" />}
+                              {v.type === 'url'
+                                ? <Film size={18} className="text-yellow-600" />
+                                : <Upload size={18} className="text-yellow-600" />
+                              }
+
+                              <p className="text-sm font-bold truncate max-w-[250px]">
+                                {v.type === "file" ? v.name : v.url}
+                              </p>
                             </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-600">{v.type}</p>
-                              <p className="text-sm font-bold truncate max-w-[250px]">{v.name || v.url}</p>
-                            </div>
+                           <div>
+  <p className="text-[10px] font-black uppercase tracking-widest text-yellow-600">
+    {v.type}
+  </p>
+  <p className="text-sm font-bold truncate max-w-[250px]">
+    {v.type === "file" ? v.name : v.url}
+  </p>
+</div>
+
                           </div>
                           <button onClick={() => removeVideo(i)} className="p-2 hover:bg-red-600 rounded-lg transition-colors">
                             <Trash2 size={18} />

@@ -10,76 +10,89 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
+// Define types for better type safety (adjust based on your Supabase schema)
+type Podcast = {
+    id: string;
+    title?: string;
+    name?: string;
+    video_url: string;
+    created_at: string;
+    // Add other fields as needed
+};
+
+type Influencer = {
+    id: string;
+    name: string;
+    media_url: string;
+    media_type: "image" | "video";
+    created_at: string;
+    // Add other fields as needed
+};
+
+type Category = {
+    id: string;
+    name: string;
+    image_url: string;
+    description?: string;
+    // Add other fields as needed
+};
+
+type BrandingVideo = {
+    id: string;
+    video_url: string;
+    created_at: string;
+    // Add other fields as needed (e.g., title, description)
+};
+
+type ImageBanner = {
+    id: string;
+    image_url: string;
+    title?: string;
+    created_at: string;
+    // Add other fields as needed
+};
+
+type HelpAndEarn = {
+    id: string;
+    name: string;
+    image_url?: string;
+    // Add other fields as needed
+};
+
+type Certificate = {
+    id: string;
+    name: string;
+    image_url: string;
+    created_at: string;
+    // Add other fields as needed
+};
+
 export default function Home() {
     const [find, setFind] = useState("");
     const [near, setNear] = useState("");
-    const [categories, setCategories] = useState([]);
-    const [helpAndEarn, setHelpAndEarn] = useState([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [helpAndEarn, setHelpAndEarn] = useState<HelpAndEarn[]>([]);
     const [loading, setLoading] = useState(true);
     const [businessType, setBusinessType] = useState("");
-    const [brandingVideos, setBrandingVideos] = useState([]);
-    const [imageBanners, setImageBanners] = useState([]);
+    const [brandingVideos, setBrandingVideos] = useState<BrandingVideo[]>([]);
+    const [imageBanners, setImageBanners] = useState<ImageBanner[]>([]);
     const router = useRouter();
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [podcasts, setPodcasts] = useState([]);
-    const [influencers, setInfluencers] = useState([]);
-    const [certificates, setCertificates] = useState([]);
-
-    // ... (keep existing imports and other states)
+    const [certificates, setCertificates] = useState<Certificate[]>([]);
 
     const [cities, setCities] = useState<string[]>([]);
     const [businessTypes, setBusinessTypes] = useState<string[]>([]);
     const [showResults, setShowResults] = useState(false);
     const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
 
-    // ... (keep existing imports and other states)
+    // Update state declarations with proper types
+    const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+    const [influencers, setInfluencers] = useState<Influencer[]>([]);
 
     // Update the searchFilters state to only include products
     const [searchFilters, setSearchFilters] = useState<{ products: string[] }>({ products: [] });
 
-    // ... (keep other states like cities, businessTypes, etc.)
-
-    // Remove the duplicate useEffect and replace with this single, updated one
-    useEffect(() => {
-        if (!find || find.length < 2) {
-            setSearchFilters({ products: [] });
-            setShowResults(false);
-            return;
-        }
-
-        const fetchSearchFilters = async () => {
-            // Fetch matching product names from vendor_products
-            const { data, error } = await supabase
-                .from("vendor_products")
-                .select("product_name")
-                .ilike("product_name", `%${find}%`)
-                .eq("is_active", true)
-                .limit(10); // Limit to 10 suggestions for performance
-
-            if (error) {
-                console.error("Filter Fetch Error:", error);
-                setSearchFilters({ products: [] });
-                return;
-            }
-
-            // Extract unique product names
-            const products = Array.from(
-                new Set(
-                    data.map(item => item.product_name?.toLowerCase().trim()).filter(Boolean)
-                )
-            );
-
-            setSearchFilters({ products });
-            setShowResults(true);
-        };
-
-        fetchSearchFilters();
-    }, [find]);
-
-    // ... (keep the rest of the code unchanged)
-
-    // Replace the existing useEffect for searchResults with this (fetches unique locations and types for dropdown)
-    // Replace the existing useEffect for searchFilters with this (fetches matching product names for autocomplete)
+    // Single useEffect for searchFilters (removed duplicate)
     useEffect(() => {
         if (!find || find.length < 2) {
             setSearchFilters({ products: [] });
@@ -382,7 +395,6 @@ export default function Home() {
         });
     };
 
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 text-white">
             {/* HERO SECTION - Redesigned with yellow/red/black theme */}
@@ -420,7 +432,6 @@ export default function Home() {
                         <div className="bg-black/40 backdrop-blur-2xl shadow-2xl p-6 md:p-8 rounded-3xl border border-yellow-500/30">
                             <div className="flex flex-col md:flex-row items-center gap-4 relative">
 
-                                {/* Find Input Wrapper */}
                                 {/* Find Input Wrapper */}
                                 <div className="flex-1 relative group w-full">
                                     <div className="flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all w-full">
@@ -464,7 +475,6 @@ export default function Home() {
                                 <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
 
                                 {/* Near Input - Changed from select to input */}
-                                {/* Near Input - Changed from select to input */}
                                 <div className="flex-1 relative group w-full"> {/* Added relative for dropdown positioning */}
                                     <div className="flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all w-full">
                                         <MapPin size={24} strokeWidth={2} className="text-red-400 mr-4" />
@@ -502,7 +512,7 @@ export default function Home() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
+                                                               <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
 
                                 {/* Business Type - Keep as select */}
                                 <div className="flex-1 flex items-center px-6 py-4 hover:bg-black/20 rounded-2xl transition-all group w-full">
@@ -536,7 +546,6 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* HOW IT WORKS – Clean White Background Design */}
             {/* HOW IT WORKS – Clean White Background Design */}
             <section className="py-24 bg-white relative z-0 overflow-hidden">                {/* Soft background accents */}
                 <div className="absolute inset-0 pointer-events-none">
@@ -770,7 +779,7 @@ export default function Home() {
                                 className="px-6 py-4 bg-red-600 text-white rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95 flex items-center gap-2"
                             >
                                 <span>Add Business</span>
-                                <svg size={18} fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
                             </button>
 
                         </div>
@@ -962,7 +971,6 @@ export default function Home() {
                     </div>
                 </div>
             </section>
-
 
             {/* TRANSPORT BANNER - Amber Premium Design */}
             <section className="py-20 bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
@@ -1190,9 +1198,10 @@ export default function Home() {
                     </div>
                 </div>
             </section>
+
             {/* INFLUENCERS SECTION - Split Media Design (Image & Video) */}
             <section className="py-24 bg-[#FEF3C7] border-t border-yellow-200 relative overflow-hidden">
-                {/* Background Decorative Element */}
+               
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-[#FDE68A]/30 -skew-x-12 translate-x-20 pointer-events-none" />
 
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
