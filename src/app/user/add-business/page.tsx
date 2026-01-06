@@ -8,8 +8,28 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Type for form data
+type FormData = {
+    name: string;
+    company: string;
+    phone: string;
+    email: string;
+    state: string;
+    city: string;
+    address: string;
+};
+
+// Props type for YellowInput
+type YellowInputProps = {
+    label: string;
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    type?: string;
+};
+
 export default function AddBusinessPage() {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         name: "", company: "", phone: "", email: "", state: "", city: "", address: ""
     });
     const [file, setFile] = useState<File | null>(null);
@@ -20,7 +40,7 @@ export default function AddBusinessPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Logic simulation
+        // Simulate async operation
         setTimeout(() => {
             setIsSubmitting(false);
             setShowToast(true);
@@ -31,29 +51,38 @@ export default function AddBusinessPage() {
     return (
         <div className="min-h-screen bg-[#FFFDF5] pb-20 font-sans selection:bg-yellow-200">
             
-            {/* --- SUCCESS TOAST (Matched to Signal Transmitted style) --- */}
+            {/* --- SUCCESS TOAST --- */}
             <AnimatePresence>
                 {showToast && (
                     <motion.div 
-                        initial={{ y: 100, opacity: 0 }} animate={{ y: -40, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+                        initial={{ y: 100, opacity: 0 }} 
+                        animate={{ y: -40, opacity: 1 }} 
+                        exit={{ y: 100, opacity: 0 }}
                         className="fixed bottom-0 inset-x-0 z-[9999] flex justify-center px-4 pointer-events-none"
                     >
                         <div className="bg-gray-900 text-white px-8 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-4 pointer-events-auto border border-white/10">
-                            <div className="bg-yellow-400 p-2 rounded-full"><Zap className="text-black" size={18} fill="currentColor" /></div>
-                            <div className="flex flex-col flex-1">
-                                <span className="font-black italic uppercase tracking-widest text-xs">Registration Logged</span>
-                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Pending Protocol Verification</span>
+                            <div className="bg-yellow-400 p-2 rounded-full">
+                                <Zap className="text-black" size={18} fill="currentColor" />
                             </div>
-                            <button onClick={() => setShowToast(false)} className="text-white/40 hover:text-white p-1"><X size={18} /></button>
+                            <div className="flex flex-col flex-1">
+                                <span className="font-black italic uppercase tracking-widest text-xs">
+                                    Registration Logged
+                                </span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+                                    Pending Protocol Verification
+                                </span>
+                            </div>
+                            <button onClick={() => setShowToast(false)} className="text-white/40 hover:text-white p-1">
+                                <X size={18} />
+                            </button>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* --- HEADER (Matched to Enquiry Page) --- */}
+            {/* --- HEADER --- */}
             <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-44 px-6 relative overflow-hidden border-b border-yellow-100">
                 <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
-                
                 <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                     <div>
                         <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-1.5 rounded-full mb-6 shadow-sm border border-yellow-300">
@@ -77,9 +106,10 @@ export default function AddBusinessPage() {
                 </div>
             </div>
 
+            {/* --- FORM --- */}
             <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
                 <form onSubmit={handleSubmit} className="space-y-10">
-                    
+
                     {/* --- SECTION 1: IDENTITY --- */}
                     <div className="bg-white p-8 md:p-14 rounded-[3.5rem] shadow-2xl border border-yellow-100">
                         <div className="mb-10">
@@ -94,7 +124,7 @@ export default function AddBusinessPage() {
                             <YellowInput label="Email Address" placeholder="OFFICIAL EMAIL..." value={formData.email} onChange={(v) => setFormData({...formData, email: v})} />
                         </div>
 
-                        {/* File Upload Area */}
+                        {/* File Upload */}
                         <div className="mt-10">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 ml-2 italic mb-3 block">Branding Assets (Logo/Store)</label>
                             <div 
@@ -136,7 +166,7 @@ export default function AddBusinessPage() {
                         </div>
                     </div>
 
-                    {/* --- SUBMIT ACTIONS --- */}
+                    {/* --- SUBMIT --- */}
                     <div className="flex flex-col items-center gap-6 pt-10 pb-20">
                         <button 
                             type="submit" disabled={isSubmitting}
@@ -152,7 +182,7 @@ export default function AddBusinessPage() {
                 </form>
             </div>
 
-            {/* --- FOOTER DECORATION --- */}
+            {/* --- FOOTER --- */}
             <div className="max-w-7xl mx-auto px-6 mb-20">
                 <div className="bg-gray-900 rounded-[4rem] p-12 relative overflow-hidden text-center">
                     <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
@@ -164,13 +194,16 @@ export default function AddBusinessPage() {
     );
 }
 
-// --- REUSABLE COMPONENT (Matched to previous design) ---
-function YellowInput({ label, value, onChange, placeholder, type = "text" }: any) {
+// --- REUSABLE COMPONENT ---
+function YellowInput({ label, value, onChange, placeholder, type = "text" }: YellowInputProps) {
     return (
         <div className="space-y-3 w-full">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 ml-2 italic">{label}</label>
             <input
-                type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
                 className="w-full p-6 bg-[#FEF3C7]/20 border-2 border-transparent rounded-[2rem] focus:border-yellow-400 focus:bg-white outline-none transition-all font-black uppercase text-xs tracking-widest text-gray-700 placeholder:text-yellow-800/30"
             />
         </div>

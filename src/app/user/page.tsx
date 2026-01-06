@@ -21,7 +21,6 @@ export default function Home() {
     const [imageBanners, setImageBanners] = useState([]);
     const router = useRouter();
     const [searchResults, setSearchResults] = useState<any[]>([]);
-
     const [podcasts, setPodcasts] = useState([]);
     const [influencers, setInfluencers] = useState([]);
     const [certificates, setCertificates] = useState([]);
@@ -30,64 +29,54 @@ export default function Home() {
 
     const [cities, setCities] = useState<string[]>([]);
     const [businessTypes, setBusinessTypes] = useState<string[]>([]);
-    const [searchFilters, setSearchFilters] = useState<{ locations: string[], types: string[] }>({ locations: [], types: [] }); // New state for dropdown data
     const [showResults, setShowResults] = useState(false);
     const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
 
-    // Keep this useEffect as-is (it populates cities and businessTypes based on find)
+    // ... (keep existing imports and other states)
+
+    // Update the searchFilters state to only include products
+    const [searchFilters, setSearchFilters] = useState<{ products: string[] }>({ products: [] });
+
+    // ... (keep other states like cities, businessTypes, etc.)
+
+    // Remove the duplicate useEffect and replace with this single, updated one
     useEffect(() => {
         if (!find || find.length < 2) {
-            setCities([]);
-            setBusinessTypes([]);
+            setSearchFilters({ products: [] });
+            setShowResults(false);
             return;
         }
 
-        const loadFiltersByProduct = async () => {
-            const { data: products, error: productError } = await supabase
+        const fetchSearchFilters = async () => {
+            // Fetch matching product names from vendor_products
+            const { data, error } = await supabase
                 .from("vendor_products")
-                .select("vendor_id")
+                .select("product_name")
                 .ilike("product_name", `%${find}%`)
-                .eq("is_active", true);
+                .eq("is_active", true)
+                .limit(10); // Limit to 10 suggestions for performance
 
-            if (productError || !products?.length) {
-                setCities([]);
-                setBusinessTypes([]);
+            if (error) {
+                console.error("Filter Fetch Error:", error);
+                setSearchFilters({ products: [] });
                 return;
             }
 
-            const vendorIds = [...new Set(products.map(p => p.vendor_id))];
-
-            const { data: vendors, error: vendorError } = await supabase
-                .from("vendor_register")
-                .select("area, user_type")
-                .in("id", vendorIds);
-
-            if (vendorError || !vendors) return;
-
-            const uniqueCities = Array.from(
+            // Extract unique product names
+            const products = Array.from(
                 new Set(
-                    vendors
-                        .map(v => v.area?.toLowerCase().trim())
-                        .filter(Boolean)
+                    data.map(item => item.product_name?.toLowerCase().trim()).filter(Boolean)
                 )
             );
 
-            const uniqueBusinessTypes = Array.from(
-                new Set(
-                    vendors.flatMap(v =>
-                        Array.isArray(v.user_type)
-                            ? v.user_type
-                            : [v.user_type]
-                    ).map(t => t?.toLowerCase().trim())
-                )
-            );
-
-            setCities(uniqueCities);
-            setBusinessTypes(uniqueBusinessTypes);
+            setSearchFilters({ products });
+            setShowResults(true);
         };
 
-        loadFiltersByProduct();
+        fetchSearchFilters();
     }, [find]);
+
+    // ... (keep the rest of the code unchanged)
 
     // Replace the existing useEffect for searchResults with this (fetches unique locations and types for dropdown)
     // Replace the existing useEffect for searchFilters with this (fetches matching product names for autocomplete)
@@ -913,66 +902,66 @@ export default function Home() {
             </section>
 
             {/* DIGITAL BANNERS - Fixed Image Layout */}
-     <section className="py-24 bg-white relative">
-    <div className="max-w-7xl mx-auto px-6 text-center">
-        {/* ---------- CENTERED HEADER ---------- */}
-        <div className="flex flex-col items-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 uppercase tracking-tighter">
-                Digital <span className="text-yellow-500 italic">Banners</span>
-            </h2>
-            <div className="w-20 h-1.5 bg-yellow-500 mt-4 mb-4 rounded-full" />
-            <p className="text-gray-500 font-medium">
-                Professional curated assets for your digital presence.
-            </p>
-            
-            {/* Desktop View More - Centered below text */}
-            <Link
-                href="/user/view-more?type=banners"
-                className="mt-8 hidden md:block"
-            >
-                <button
-                    className="flex items-center gap-2 bg-gray-900 text-white hover:bg-yellow-500 hover:text-black transition-all px-8 py-3 rounded-full font-bold text-sm shadow-xl hover:shadow-yellow-500/20"
-                >
-                    View All Banners <ArrowRight size={18} />
-                </button>
-            </Link>
-        </div>
-
-        {/* ---------- GRID SECTION ---------- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {imageBanners.slice(0, 3).map((banner: any) => (
-                <div 
-                    key={banner.id} 
-                    className="group relative aspect-video rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
-                >
-                    <img 
-                        src={banner.image_url} 
-                        alt={banner.title || "Banner"} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                    />
-                    {/* Subtle Overlay on Hover */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
-                        <p className="text-white font-bold uppercase tracking-widest text-xs">
-                            {banner.title || 'Premium Asset'}
+            <section className="py-24 bg-white relative">
+                <div className="max-w-7xl mx-auto px-6 text-center">
+                    {/* ---------- CENTERED HEADER ---------- */}
+                    <div className="flex flex-col items-center mb-16">
+                        <h2 className="text-3xl md:text-5xl font-black text-gray-900 uppercase tracking-tighter">
+                            Digital <span className="text-yellow-500 italic">Banners</span>
+                        </h2>
+                        <div className="w-20 h-1.5 bg-yellow-500 mt-4 mb-4 rounded-full" />
+                        <p className="text-gray-500 font-medium">
+                            Professional curated assets for your digital presence.
                         </p>
+
+                        {/* Desktop View More - Centered below text */}
+                        <Link
+                            href="/user/view-more?type=banners"
+                            className="mt-8 hidden md:block"
+                        >
+                            <button
+                                className="flex items-center gap-2 bg-gray-900 text-white hover:bg-yellow-500 hover:text-black transition-all px-8 py-3 rounded-full font-bold text-sm shadow-xl hover:shadow-yellow-500/20"
+                            >
+                                View All Banners <ArrowRight size={18} />
+                            </button>
+                        </Link>
+                    </div>
+
+                    {/* ---------- GRID SECTION ---------- */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {imageBanners.slice(0, 3).map((banner: any) => (
+                            <div
+                                key={banner.id}
+                                className="group relative aspect-video rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+                            >
+                                <img
+                                    src={banner.image_url}
+                                    alt={banner.title || "Banner"}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                {/* Subtle Overlay on Hover */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
+                                    <p className="text-white font-bold uppercase tracking-widest text-xs">
+                                        {banner.title || 'Premium Asset'}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* ---------- MOBILE VIEW MORE ---------- */}
+                    <div className="mt-12 md:hidden">
+                        <Link
+                            href="/user/view-more?type=banners"
+                            className="block w-full"
+                        >
+                            <button className="w-full py-4 bg-yellow-500 text-black font-black rounded-2xl shadow-lg hover:bg-yellow-600 transition-colors uppercase tracking-[0.2em] text-xs">
+                                View More Banners
+                            </button>
+                        </Link>
                     </div>
                 </div>
-            ))}
-        </div>
-
-        {/* ---------- MOBILE VIEW MORE ---------- */}
-        <div className="mt-12 md:hidden">
-            <Link
-                href="/user/view-more?type=banners"
-                className="block w-full"
-            >
-                <button className="w-full py-4 bg-yellow-500 text-black font-black rounded-2xl shadow-lg hover:bg-yellow-600 transition-colors uppercase tracking-[0.2em] text-xs">
-                    View More Banners
-                </button>
-            </Link>
-        </div>
-    </div>
-</section>
+            </section>
 
 
             {/* TRANSPORT BANNER - Amber Premium Design */}
