@@ -21,14 +21,18 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
   // ADDED: Track if the user has tried to move forward or touched the form
   const [isDirty, setIsDirty] = useState(false);
 
-  const [videoUrlInput, setVideoUrlInput] = useState("");
-  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const [videoFilesList, setVideoFilesList] = useState<{ url: string, added_at: string }[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const [showPlans, setShowPlans] = useState(false);
+
+  // OTP related states
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpExpiry, setOtpExpiry] = useState<number | null>(null);
+  const [otpTimer, setOtpTimer] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     email: "",
-    password: "",
     first_name: "",
     last_name: "",
     owner_name: "",
@@ -50,7 +54,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     business_keywords: "",
     sector: "",
     address: "",
-    subscription_plan: "",
+    subscription_plan_id: "",
     profile_image: "",
     company_logo: "",
     media_files: [] as string[],
@@ -93,60 +97,92 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string, isMultiple = false) => {
-    const files = e.target.files;
-    if (!files) return;
-    const reader = (file: File) => new Promise((resolve) => {
-      const r = new FileReader();
-      r.onloadend = () => resolve(r.result as string);
-      r.readAsDataURL(file);
-    });
-
-    if (isMultiple) {
-      Array.from(files).forEach(async (file) => {
-        const base64 = await reader(file) as string;
-        setMediaPreviews(prev => [...prev, base64]);
-        setFormData(prev => ({ ...prev, media_files: [...prev.media_files, base64] }));
+  // Upload to Supabase Storage - Improved error handling
+  const uploadToBucket = async (file: File, bucket: string, path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
+        cacheControl: '3600',
+        upsert: false
       });
-    } else {
-      reader(files[0]).then((base64) => {
-        setFormData(prev => ({ ...prev, [field]: base64 }));
-      });
+      if (error) {
+        console.error('Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+      return urlData.publicUrl;
+    } catch (err: any) {
+      console.error('uploadToBucket error:', err);
+      throw err;
     }
   };
 
-  // Function to handle Video File Uploads (converts to Base64 for preview/storage)
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string, isMultiple = false) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      if (isMultiple) {
+        const urls = [];
+        for (const file of Array.from(files)) {
+          // Validate file size (e.g., max 5MB per file)
+          if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
+          }
+          const path = `vendor/media/${Date.now()}-${file.name}`;
+          const url = await uploadToBucket(file, 'media', path); // Ensure 'media' bucket exists in Supabase
+          urls.push(url);
+          setMediaPreviews(prev => [...prev, url]);
+        }
+        setFormData(prev => ({ ...prev, media_files: [...prev.media_files, ...urls] }));
+      } else {
+        const file = files[0];
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
+        }
+        const path = `vendor/logos/${Date.now()}-${file.name}`;
+        const url = await uploadToBucket(file, 'media', path); // Ensure 'media' bucket exists
+        setFormData(prev => ({ ...prev, [field]: url }));
+      }
+      toast.success('File uploaded successfully!');
+    } catch (err: any) {
+      console.error('File upload error:', err);
+      setError(err.message || "File upload failed. Please try again.");
+      setIsDirty(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to handle Video File Uploads (upload to bucket)
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (file.size > 50 * 1024 * 1024) { // Max 50MB for videos
+        throw new Error(`File ${file.name} is too large. Max size is 50MB.`);
+      }
+      const path = `vendor/videos/${Date.now()}-${file.name}`;
+      const url = await uploadToBucket(file, 'media', path);
       const newVideo = {
-        type: 'file',
-        url: reader.result as string,
-        name: file.name,
+        url: url,
         added_at: new Date().toISOString()
       };
       const newList = [...videoFilesList, newVideo];
       setVideoFilesList(newList);
       setFormData(prev => ({ ...prev, video_files: newList }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Function to handle Video URL (YouTube/Vimeo)
-  const addVideoUrl = () => {
-    if (!videoUrlInput.trim()) return;
-    const newVideo = {
-      type: 'url',
-      url: videoUrlInput.trim(),
-      added_at: new Date().toISOString()
-    };
-    const newList = [...videoFilesList, newVideo];
-    setVideoFilesList(newList);
-    setFormData(prev => ({ ...prev, video_files: newList }));
-    setVideoUrlInput("");
+      toast.success('Video uploaded successfully!');
+    } catch (err: any) {
+      console.error('Video upload error:', err);
+      setError(err.message || "Video upload failed. Please try again.");
+      setIsDirty(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Function to remove any video
@@ -155,6 +191,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     setVideoFilesList(newList);
     setFormData(prev => ({ ...prev, video_files: newList }));
   };
+
   const removeMedia = (index: number) => {
     const filtered = formData.media_files.filter((_, i) => i !== index);
     setMediaPreviews(filtered);
@@ -167,7 +204,8 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     switch (currentStep) {
       case 1:
         if (!formData.email.includes("@")) return "A valid Email is required";
-        if (formData.password.length < 6) return "Password must be at least 6 characters";
+        if (!otpSent) return "Please send OTP first";
+        if (!otp) return "OTP is required";
         return null;
       case 2:
         if (!formData.first_name.trim()) return "First name is required";
@@ -199,89 +237,204 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const sendOtp = async () => {
+    if (!formData.email.includes("@")) {
+      setError("Valid email required");
+      setIsDirty(true);
+      return;
+    }
+
+    // Check if email already exists before sending OTP
+    try {
+      const { data: existingUser } = await supabase
+        .from("vendor_register")
+        .select("id")
+        .eq("email", formData.email)
+        .single();
+
+      if (existingUser) {
+        setError("This email is already registered. Please login instead.");
+        setIsDirty(true);
+        return;
+      }
+    } catch (err) {
+      // If error (e.g., no row found), proceed
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: formData.email,
+      });
+      if (error) throw error;
+      setOtpSent(true);
+      setError("OTP sent! Check your email.");
+      const expiryTime = Date.now() + 5 * 60 * 1000;
+      setOtpExpiry(expiryTime);
+      const timer = setInterval(() => {
+        const remaining = expiryTime - Date.now();
+        if (remaining <= 0) {
+          setOtpTimer("00:00");
+          clearInterval(timer);
+        } else {
+          const m = Math.floor(remaining / 60000);
+          const s = Math.floor((remaining % 60000) / 1000);
+          setOtpTimer(`${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+        }
+      }, 1000);
+    } catch (err: any) {
+      setError(err.message);
+      setIsDirty(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!otp) {
+      setError("Enter OTP");
+      setIsDirty(true);
+      return;
+    }
+    if (otpExpiry && Date.now() > otpExpiry) {
+      setError("OTP expired");
+      setIsDirty(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: formData.email,
+        token: otp,
+        type: "email",
+      });
+      if (error) throw error;
+      setStep(2);
+      setError(null);
+      setIsDirty(false);
+    } catch (err: any) {
+      setError(err.message);
+      setIsDirty(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNext = () => {
     const errorMsg = validateStep(step);
     if (errorMsg) {
       setError(errorMsg);
-      setIsDirty(true); // Show error if they try to skip
+      setIsDirty(true);
       return;
     }
     setError(null);
-    setIsDirty(false); // Reset dirty state for the new step
+    setIsDirty(false);
     setStep((s) => Math.min(s + 1, 6));
   };
 
   const handleBack = () => {
     setError(null);
-    setIsDirty(false); // Reset dirty state when going back
+    setIsDirty(false);
     setStep((s) => Math.max(s - 1, 1));
   };
 
   const handlePayment = async () => {
     if (!(window as any).Razorpay) {
-      alert("Payment gateway not loaded. Please refresh.");
+      toast.error("Payment gateway not loaded. Please refresh.");
       return;
     }
 
-    const selectedPlan = plans.find(p => p.name === formData.subscription_plan);
-    const amount = (Number(selectedPlan.base_price) + (Number(selectedPlan.base_price) * (Number(selectedPlan.tax_percent) / 100))) * 100;
+    // FIND THE PLAN
+    const selectedPlan = plans.find(p => p.id.toString() === formData.subscription_plan_id.toString());
 
-    const options = {
-      key: "rzp_test_RpvE2nM5XUTYN7",
-      amount: Math.round(amount),
-      currency: "INR",
-      name: "VendorPro",
-      description: `Subscription for ${formData.subscription_plan}`,
-      handler: function (response: any) {
-        finalizeRegistration(response.razorpay_payment_id);
-      },
-      prefill: {
-        name: formData.owner_name,
-        email: formData.email,
-        contact: formData.mobile_number,
-      },
-      theme: { color: "#EAB308" },
-    };
+    // BUG FIX: Check if plan exists before accessing properties
+    if (!selectedPlan) {
+      toast.error("Please select a subscription plan first.");
+      setStep(6); // Redirect user to the plan selection step
+      return;
+    }
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+    try {
+      const basePrice = Number(selectedPlan.base_price) || 0;
+      const taxPercent = Number(selectedPlan.tax_percent) || 0;
+
+      // Calculate total: (Base + Tax) * 100 (for paise)
+      const amount = (basePrice + (basePrice * (taxPercent / 100))) * 100;
+
+      const options = {
+        key: "rzp_test_RpvE2nM5XUTYN7",
+        amount: Math.round(amount),
+        currency: "INR",
+        name: "VendorPro",
+        description: `Subscription for ${selectedPlan.name}`,
+        handler: function (response: any) {
+          finalizeRegistration(response.razorpay_payment_id);
+        },
+        prefill: {
+          name: formData.owner_name,
+          email: formData.email,
+          contact: formData.mobile_number,
+        },
+        theme: { color: "#EAB308" },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Payment calculation error:", err);
+      toast.error("There was an error processing the plan details.");
+    }
   };
-
-  // ... inside your VendorRegister component
 
   const finalizeRegistration = async (paymentId: string | null = null) => {
     setLoading(true);
     try {
-      // STEP 1: Create the User in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
+      // Get user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
-      if (authError) throw authError;
-
-      const user = authData.user;
-      if (!user) throw new Error("User creation failed.");
-
-      // STEP 2: Prepare the data including the new user.id
       const now = new Date();
       const expiry = new Date();
       expiry.setFullYear(now.getFullYear() + 1);
 
-      // We exclude 'password' from the public table insert for security
-      const { password, ...restOfData } = formData;
-
       const submissionData = {
-        ...restOfData,
-        user_id: user.id, // <--- THIS IS THE FIX
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        owner_name: formData.owner_name,
+        mobile_number: formData.mobile_number,
+        alternate_number: formData.alternate_number,
+        profile_info: formData.profile_info,
+        company_name: formData.company_name,
+        user_type: formData.user_type,
+        gst_number: formData.gst_number,
+        websites: formData.websites,
+        flat_no: formData.flat_no,
+        floor: formData.floor,
+        building: formData.building,
+        street: formData.street,
+        area: formData.area,
+        landmark: formData.landmark,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        business_keywords: formData.business_keywords,
+        sector: formData.sector,
+        address: formData.address,
+        subscription_plan_id: formData.subscription_plan_id ? parseInt(formData.subscription_plan_id) : null,
+        company_logo: formData.company_logo,
+        media_files: formData.media_files,
         video_files: videoFilesList,
-        status: formData.subscription_plan ? 'active' : 'pending',
         payment_id: paymentId,
+        status: formData.subscription_plan_id ? 'active' : 'pending',
         subscription_expiry: expiry.toISOString().split('T')[0],
+        user_id: user.id,
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
       };
-      // Check if vendor already exists
+
+      // Check if vendor already exists (additional check)
       const { data: existingVendor } = await supabase
         .from("vendor_register")
         .select("id")
@@ -295,8 +448,6 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
         return;
       }
 
-
-      // STEP 3: Insert into your public vendor_register table
       const { error: dbError } = await supabase
         .from("vendor_register")
         .insert([submissionData]);
@@ -317,18 +468,12 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
   const labelClass = "block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-[0.2em]";
 
   return (
-
     <>
       <Toaster position="top-right" reverseOrder={false} />
       <Script id="razorpay-checkout-js" src="https://checkout.razorpay.com/v1/checkout.js" />
 
-      {/* NEW: Fixed Overlay Wrapper */}
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 md:p-6">
-
-        {/* The Main Modal Container */}
         <div className="relative max-w-6xl w-full grid md:grid-cols-[300px_1fr] bg-white rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] overflow-hidden border border-yellow-600 h-full max-h-[92vh]">
-
-          {/* CLOSE BUTTON */}
           <button
             type="button"
             onClick={onClose}
@@ -338,21 +483,16 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
           </button>
 
           <div className="bg-slate-50/50 p-10 flex flex-col hidden md:flex border-r border-slate-100">
-
-            {/* BRANDING: Minimal & Strong */}
             <div className="flex items-center gap-3 mb-16">
               <div className="w-11 h-11 bg-yellow-600 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-600/20">
                 <ShieldCheck className="text-white" size={24} />
               </div>
-              <div>
-                <h1 className="text-slate-900 font-black text-xl uppercase tracking-tighter leading-none">
-                  Vendor<span className="text-yellow-600">Pro</span>
-                </h1>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Official Partner</p>
-              </div>
+              <h1 className="text-slate-900 font-black text-xl uppercase tracking-tighter leading-none">
+                Vendor<span className="text-yellow-600">Pro</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Official Partner</p>
             </div>
 
-            {/* NAVIGATION: Clean White Cards for Active State */}
             <nav className="flex-1 space-y-1">
               {["Security", "Personal", "Business", "Location", "Media", "Plan"].map((label, i) => {
                 const isActive = step === i + 1;
@@ -383,7 +523,6 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
               })}
             </nav>
 
-            {/* PROGRESS: Subtle & Integrated */}
             <div className="mt-auto pt-10">
               <div className="px-2">
                 <div className="flex justify-between items-center mb-3">
@@ -416,12 +555,42 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                     <div className="group">
                       <input type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className={`${inputClass} focus:ring-yellow-600 focus:border-yellow-600 py-4 px-6 text-lg rounded-2xl shadow-sm border-slate-200 transition-all`} required />
                     </div>
-                    <input type="password" name="password" placeholder="Secure Password" value={formData.password} onChange={handleChange} className={`${inputClass} py-4 px-6 text-lg rounded-2xl shadow-sm border-slate-200 transition-all`} />
+                    {!otpSent ? (
+                      <button
+                        onClick={sendOtp}
+                        disabled={loading}
+                        className="w-full py-4 bg-slate-900 text-[#FFD700] rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-slate-200 transition-all hover:bg-black hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {loading ? "Sending OTP..." : "Send OTP"}
+                      </button>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">One-Time Password</label>
+                            {otpTimer && <span className="text-xs font-bold text-yellow-600 mb-1">{otpTimer} remaining</span>}
+                          </div>
+                          <input
+                            type="text"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                            placeholder="Enter OTP"
+                            className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 outline-none transition-all font-bold tracking-[0.2em] text-center text-lg"
+                          />
+                        </div>
+                        <button
+                          onClick={verifyOtp}
+                          disabled={loading}
+                          className="w-full py-4 bg-[#FFD700] hover:bg-yellow-400 text-slate-900 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-yellow-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                        >
+                          {loading ? "Verifying..." : "Verify OTP"}
+                        </button>
+                      </>
+                    )}
                     <div className="space-y-3">
                       <label className="text-sm font-semibold text-slate-700">
                         Select Business Sector (Multiple allowed)
                       </label>
-
                       <div className="grid grid-cols-2 gap-3">
                         {[
                           { label: "Manufacturer", value: "manufacturer" },
@@ -459,7 +628,6 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                         ))}
                       </div>
                     </div>
-
                   </div>
                 </div>
               )}
@@ -470,8 +638,6 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                     <span className="text-yellow-600 font-black text-sm tracking-[.4em] uppercase">Step 02</span>
                     <h2 className="text-4xl font-black text-slate-900 uppercase italic leading-none">Personal <span className="text-yellow-600">Identity</span></h2>
                   </div>
-
-                 
 
                   <div className="grid grid-cols-2 gap-4">
                     <input type="text" name="first_name" placeholder="First Name" value={formData.first_name} onChange={handleChange} className={`${inputClass} rounded-2xl`} />
@@ -647,27 +813,6 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
 
                   <div className="space-y-5 pt-4">
                     <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Video Experience</label>
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
-                      <input
-                        type="text"
-                        value={videoUrlInput}
-                        onChange={(e) => setVideoUrlInput(e.target.value)}
-                        placeholder="Paste YouTube or Vimeo URL"
-                        className={`${inputClass} rounded-2xl`}
-                      />
-                      <button
-                        type="button"
-                        onClick={addVideoUrl}
-                        className="bg-yellow-600 text-white px-8 rounded-2xl hover:bg-slate-900 transition-all font-bold uppercase text-xs"
-                      >
-                        Link
-                      </button>
-                    </div>
-
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                      <div className="relative flex justify-center text-xs uppercase font-bold"><span className="bg-white px-4 text-slate-300">Or Upload File</span></div>
-                    </div>
 
                     <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-[2rem] cursor-pointer hover:bg-slate-50 transition-all hover:border-yellow-600 group">
                       <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-yellow-600 group-hover:text-white transition-colors">
@@ -680,15 +825,14 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                     <div className="grid gap-2">
                       {videoFilesList.map((v, i) => (
                         <div key={i} className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl text-white group animate-in slide-in-from-top-2">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                              {v.type === 'url' ? <Film size={18} className="text-yellow-600" /> : <Upload size={18} className="text-yellow-600" />}
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-600">{v.type}</p>
-                              <p className="text-sm font-bold truncate max-w-[250px]">{v.name || v.url}</p>
-                            </div>
+                          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                            <Film size={18} className="text-yellow-600" />
                           </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-yellow-600">Video File</p>
+                            <p className="text-sm font-bold truncate max-w-[250px]">{v.url.split('/').pop()}</p>
+                          </div>
+
                           <button onClick={() => removeVideo(i)} className="p-2 hover:bg-red-600 rounded-lg transition-colors">
                             <Trash2 size={18} />
                           </button>
@@ -701,7 +845,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
 
               {step === 6 && (
                 <div className="space-y-8 animate-in zoom-in-95 duration-500">
-                  {!showPlans && !formData.subscription_plan ? (
+                  {!showPlans && !formData.subscription_plan_id ? (
                     <div className="py-20 text-center">
                       <button
                         onClick={() => setShowPlans(true)}
@@ -723,15 +867,15 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                           <h2 className="text-4xl font-black text-slate-900 uppercase italic leading-none">Growth <span className="text-yellow-600">Plans</span></h2>
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select your professional tier</p>
                         </div>
-                        <button onClick={() => { setShowPlans(false); setFormData({ ...formData, subscription_plan: "" }) }} className="px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all">Clear Choice</button>
+                        <button onClick={() => { setShowPlans(false); setFormData({ ...formData, subscription_plan_id: "" }) }} className="px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all">Clear Choice</button>
                       </div>
 
                       <div className="grid gap-4">
                         {plans.map((p) => {
-                          const isSelected = formData.subscription_plan === p.name;
+                          const isSelected = formData.subscription_plan_id === p.id.toString();
                           const totalPrice = Number(p.base_price) + (Number(p.base_price) * (Number(p.tax_percent) / 100));
                           return (
-                            <div key={p.id} onClick={() => setFormData({ ...formData, subscription_plan: p.name })} className={`group relative overflow-hidden rounded-[2.5rem] transition-all duration-500 cursor-pointer border-4 ${isSelected ? "bg-white border-yellow-600 shadow-2xl -translate-y-1" : "bg-slate-50 border-transparent hover:bg-white hover:border-slate-200"}`}>
+                            <div key={p.id} onClick={() => setFormData({ ...formData, subscription_plan_id: p.id.toString() })} className={`group relative overflow-hidden rounded-[2.5rem] transition-all duration-500 cursor-pointer border-4 ${isSelected ? "bg-white border-yellow-600 shadow-2xl -translate-y-1" : "bg-slate-50 border-transparent hover:bg-white hover:border-slate-200"}`}>
                               <div className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div className="flex items-center gap-6">
                                   <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center transition-all ${isSelected ? "bg-slate-900 text-yellow-600 rotate-12" : "bg-white text-slate-200 shadow-sm"}`}>
@@ -784,7 +928,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                 ) : (
                   <button
                     onClick={() => {
-                      if (formData.subscription_plan) {
+                      if (formData.subscription_plan_id) {
                         handlePayment();
                       } else {
                         finalizeRegistration(null);
@@ -793,7 +937,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
                     disabled={loading || !formData.email}
                     className="bg-yellow-500 text-white px-12 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl disabled:opacity-20 active:scale-95 transition-all"
                   >
-                    {loading ? "Processing..." : formData.subscription_plan ? "Pay & Register" : "Free Registration"}
+                    {loading ? "Processing..." : formData.subscription_plan_id ? "Pay & Register" : "Free Registration"}
                   </button>
                 )}
               </div>
