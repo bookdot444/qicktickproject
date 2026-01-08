@@ -124,7 +124,7 @@ export default function VendorRegister({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       if (isMultiple) {
-        const urls = [];
+const urls: string[] = [];
         for (const file of Array.from(files)) {
           // Validate file size (e.g., max 5MB per file)
           if (file.size > 5 * 1024 * 1024) {
