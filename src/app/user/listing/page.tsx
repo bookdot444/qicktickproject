@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -103,7 +104,7 @@ export default function VendorProductsPage() {
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] pb-20 font-sans selection:bg-yellow-200">
-      
+
       {/* --- HEADER --- */}
       <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-40 px-6 relative overflow-hidden border-b border-yellow-200">
         <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
@@ -124,17 +125,17 @@ export default function VendorProductsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-24 relative z-20">
-        
+
         {/* --- DYNAMIC FILTER BAR --- */}
         <div className="bg-black shadow-2xl p-4 md:p-6 rounded-[2.5rem] border border-yellow-500/30 mb-16">
           <div className="flex flex-col lg:flex-row items-center gap-4">
-            
+
             {/* Input: Name */}
             <div className="flex-[1.5] w-full flex items-center px-6 py-3 bg-white/10 rounded-2xl border border-white/10 focus-within:border-yellow-500 transition-all">
               <Search size={18} className="text-yellow-500 mr-4" />
               <div className="flex flex-col flex-1">
                 <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Product</span>
-                <input 
+                <input
                   value={findInput}
                   onChange={(e) => setFindInput(e.target.value)}
                   className="bg-transparent border-none outline-none text-white font-bold text-sm placeholder:text-gray-600"
@@ -148,7 +149,7 @@ export default function VendorProductsPage() {
               <MapPin size={18} className="text-red-500 mr-4" />
               <div className="flex flex-col flex-1">
                 <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Location</span>
-                <input 
+                <input
                   value={cityInput}
                   onChange={(e) => setCityInput(e.target.value)}
                   className="bg-transparent border-none outline-none text-white font-bold text-sm placeholder:text-gray-600"
@@ -162,7 +163,7 @@ export default function VendorProductsPage() {
               <Briefcase size={18} className="text-yellow-500 mr-4" />
               <div className="flex flex-col flex-1">
                 <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Vendor Category</span>
-                <select 
+                <select
                   value={typeInput}
                   onChange={(e) => setTypeInput(e.target.value)}
                   className="bg-transparent border-none outline-none text-white font-bold text-sm appearance-none cursor-pointer"
@@ -176,7 +177,7 @@ export default function VendorProductsPage() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleUpdateSearch}
               className="w-full lg:w-auto bg-yellow-500 hover:bg-white text-black font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-2xl transition-all active:scale-95 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
             >
@@ -203,41 +204,46 @@ export default function VendorProductsPage() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className="w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.5rem)] max-w-[400px] bg-white rounded-[3rem] border-2 border-transparent hover:border-yellow-400 shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col group"
+                      className="w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.5rem)] max-w-[400px] bg-white rounded-[3rem] border-2 border-transparent hover:border-yellow-400 shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col group cursor-pointer"
                     >
-                      <div className="relative h-64 bg-[#FEF3C7]/20 overflow-hidden">
-                        {product.product_image ? (
-                          <img src={product.product_image} alt={product.product_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-yellow-600/30"><Package size={64} /></div>
-                        )}
-                        <div className="absolute top-6 left-6 flex flex-col gap-2">
-                          <span className="bg-white/90 backdrop-blur-md text-gray-900 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-yellow-100">
-                            {product.vendor?.company_name}
-                          </span>
-                          <span className="bg-black text-white px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest self-start">
-                            {product.vendor?.city}
-                          </span>
-                        </div>
-                      </div>
+                      {/* Wrap everything inside a Link to the Detail Page */}
+                      <Link href={`/vendor/view/${product.vendor_id}`} className="flex flex-col h-full">
 
-                      <div className="p-10 flex flex-col flex-1">
-                        <h3 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-3 line-clamp-1 group-hover:text-red-600 transition-colors">
-                          {product.product_name}
-                        </h3>
-                        <p className="text-gray-500 text-sm mb-6 line-clamp-2">
-                          {product.description || "Premium quality catalog item available for immediate order."}
-                        </p>
-                        <div className="mt-auto flex items-center justify-between pt-8 border-t border-gray-100">
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Market Price</span>
-                            <p className="text-3xl font-black tracking-tighter text-gray-900">₹{Number(product.price).toLocaleString()}</p>
+                        <div className="relative h-64 bg-[#FEF3C7]/20 overflow-hidden">
+                          {product.product_image ? (
+                            <img src={product.product_image} alt={product.product_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-yellow-600/30"><Package size={64} /></div>
+                          )}
+                          <div className="absolute top-6 left-6 flex flex-col gap-2">
+                            <span className="bg-white/90 backdrop-blur-md text-gray-900 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-yellow-100">
+                              {product.vendor?.company_name}
+                            </span>
+                            <span className="bg-black text-white px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest self-start">
+                              {product.vendor?.city}
+                            </span>
                           </div>
-                          <button className="bg-gray-900 hover:bg-red-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg hover:-rotate-12">
-                            <ArrowRight size={24} />
-                          </button>
                         </div>
-                      </div>
+
+                        <div className="p-10 flex flex-col flex-1">
+                          <h3 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-3 line-clamp-1 group-hover:text-red-600 transition-colors">
+                            {product.product_name}
+                          </h3>
+                          <p className="text-gray-500 text-sm mb-6 line-clamp-2">
+                            {product.description || "Premium quality catalog item available for immediate order."}
+                          </p>
+                          <div className="mt-auto flex items-center justify-between pt-8 border-t border-gray-100">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Market Price</span>
+                              <p className="text-3xl font-black tracking-tighter text-gray-900">₹{Number(product.price).toLocaleString()}</p>
+                            </div>
+                            {/* This button now visually acts as part of the Link */}
+                            <div className="bg-gray-900 group-hover:bg-red-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg group-hover:-rotate-12">
+                              <ArrowRight size={24} />
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
                     </motion.div>
                   ))}
                 </AnimatePresence>

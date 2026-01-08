@@ -130,7 +130,7 @@ export default function AdminCategoriesUC() {
         const { error: uploadError } = await supabase.storage.from('category-images').upload(filePath, imageFile);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('category-images').getPublicUrl(filePath);
-        finalImageUrl = urlData.publicUrl;
+finalImageUrl = urlData.publicUrl;
       }
 
       // 3. Save to Database
@@ -211,8 +211,7 @@ export default function AdminCategoriesUC() {
               placeholder="Filter categories..." 
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
-              className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold transition-all"
-            />
+className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold text-black transition-all"            />
           </div>
           <button 
             onClick={() => { setEditing(null); setName(""); setDescription(""); setPreview(null); setImageFile(null); setShowModal(true); }}
@@ -292,7 +291,7 @@ export default function AdminCategoriesUC() {
                 <div className="flex-1 space-y-5">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Display Name <span className="text-red-500">*</span></label>
-                    <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold transition-all shadow-sm" placeholder="e.g. Plumbing" />
+                    <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold text-black transition-all shadow-sm" placeholder="e.g. Plumbing" />
                   </div>
                   <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-yellow-200 transition-all">
                     <input type="checkbox" checked={isActive} onChange={() => setIsActive(!isActive)} className="w-5 h-5 accent-[#e11d48] rounded-lg" />
@@ -303,7 +302,7 @@ export default function AdminCategoriesUC() {
 
               <div>
                 <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Description / Notes <span className="text-red-500">*</span></label>
-                <textarea required value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold resize-none transition-all shadow-sm" placeholder="Please provide a brief description..." />
+                <textarea required value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] focus:bg-white outline-none text-sm font-bold text-black resize-none transition-all shadow-sm" placeholder="Please provide a brief description..." />
               </div>
 
               <div className="flex gap-4 pt-4">

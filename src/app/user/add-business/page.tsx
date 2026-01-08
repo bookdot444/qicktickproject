@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { 
-    Upload, MapPin, User, Building, Phone, Mail, 
-    CheckCircle2, Loader, Briefcase, Sparkles, 
-    Globe, ShieldCheck, ArrowRight, AlertCircle, X, Image as ImageIcon, Zap
+import { supabase } from "@/lib/supabaseClient";
+import {
+  Upload, MapPin, User, Building, Phone, Mail,
+  CheckCircle2, Loader, Briefcase, Sparkles,
+  Globe, ShieldCheck, ArrowRight, AlertCircle, X, Image as ImageIcon, Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,27 +37,68 @@ export default function AddBusinessPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isLoggedIn = true;
+    const [toastData, setToastData] = useState<{
+        title: string;
+        subtitle: string;
+    } | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Simulate async operation
-        setTimeout(() => {
-            setIsSubmitting(false);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 4000);
-        }, 1500);
+
+        const { error } = await supabase
+            .from("businesses")
+            .insert([
+                {
+                    name: formData.name,
+                    company: formData.company,
+                    phone: formData.phone,
+                    email: formData.email || null,
+                    country: "India",
+                    state: formData.state,
+                    city: formData.city,
+                    preferred_address: formData.address,
+                    business_details: "Submitted via add business form",
+                },
+            ]);
+
+        setIsSubmitting(false);
+
+      if (error) {
+  setToastData({
+    title: "Submission Failed",
+    subtitle: error.message,
+  });
+  setShowToast(true);
+  return;
+}
+
+setToastData({
+  title: "Submitted Successfully",
+  subtitle: "Your business has been saved",
+});
+setShowToast(true);
+
+
+        setToastData({
+            title: "Submitted Successfully",
+            subtitle: "Your business has been saved",
+        });
+        setShowToast(true);
     };
+
+
 
     return (
         <div className="min-h-screen bg-[#FFFDF5] pb-20 font-sans selection:bg-yellow-200">
-            
+
             {/* --- SUCCESS TOAST --- */}
             <AnimatePresence>
                 {showToast && (
-                    <motion.div 
-                        initial={{ y: 100, opacity: 0 }} 
-                        animate={{ y: -40, opacity: 1 }} 
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: -40, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
                         className="fixed bottom-0 inset-x-0 z-[9999] flex justify-center px-4 pointer-events-none"
                     >
@@ -66,11 +108,12 @@ export default function AddBusinessPage() {
                             </div>
                             <div className="flex flex-col flex-1">
                                 <span className="font-black italic uppercase tracking-widest text-xs">
-                                    Registration Logged
+                                    {toastData?.title}
                                 </span>
                                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-                                    Pending Protocol Verification
+                                    {toastData?.subtitle}
                                 </span>
+
                             </div>
                             <button onClick={() => setShowToast(false)} className="text-white/40 hover:text-white p-1">
                                 <X size={18} />
@@ -93,15 +136,15 @@ export default function AddBusinessPage() {
                             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-800">Global Vendor Onboarding</span>
                         </div>
                         <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-gray-900 leading-none">
-                            LIST YOUR <br/>
+                            LIST YOUR <br />
                             <span className="text-red-600 italic">BUSINESS</span>
                         </h1>
                     </div>
                     <div className="hidden lg:block bg-white p-10 rounded-[3.5rem] -rotate-3 shadow-2xl border-2 border-yellow-100 relative">
-                         <div className="absolute -top-3 -right-3 bg-gray-900 text-yellow-400 p-4 rounded-3xl animate-pulse">
+                        <div className="absolute -top-3 -right-3 bg-gray-900 text-yellow-400 p-4 rounded-3xl animate-pulse">
                             <Building size={32} />
-                         </div>
-                         <Briefcase size={70} className="text-yellow-600" />
+                        </div>
+                        <Briefcase size={70} className="text-yellow-600" />
                     </div>
                 </div>
             </div>
@@ -118,16 +161,16 @@ export default function AddBusinessPage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <YellowInput label="Full Name" placeholder="OWNER IDENTITY..." value={formData.name} onChange={(v) => setFormData({...formData, name: v})} />
-                            <YellowInput label="Business Name" placeholder="TRADING NAME..." value={formData.company} onChange={(v) => setFormData({...formData, company: v})} />
-                            <YellowInput label="WhatsApp Number" placeholder="CONTACT NO..." value={formData.phone} onChange={(v) => setFormData({...formData, phone: v})} />
-                            <YellowInput label="Email Address" placeholder="OFFICIAL EMAIL..." value={formData.email} onChange={(v) => setFormData({...formData, email: v})} />
+                            <YellowInput label="Full Name" placeholder="OWNER IDENTITY..." value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} />
+                            <YellowInput label="Business Name" placeholder="TRADING NAME..." value={formData.company} onChange={(v) => setFormData({ ...formData, company: v })} />
+                            <YellowInput label="WhatsApp Number" placeholder="CONTACT NO..." value={formData.phone} onChange={(v) => setFormData({ ...formData, phone: v })} />
+                            <YellowInput label="Email Address" placeholder="OFFICIAL EMAIL..." value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} />
                         </div>
 
                         {/* File Upload */}
                         <div className="mt-10">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 ml-2 italic mb-3 block">Branding Assets (Logo/Store)</label>
-                            <div 
+                            <div
                                 onClick={() => fileInputRef.current?.click()}
                                 className="group relative border-2 border-dashed border-yellow-200 rounded-[2.5rem] p-12 flex flex-col items-center justify-center bg-[#FEF3C7]/10 hover:bg-[#FEF3C7]/30 hover:border-yellow-400 transition-all cursor-pointer overflow-hidden"
                             >
@@ -150,16 +193,16 @@ export default function AddBusinessPage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                            <YellowInput label="State" placeholder="REGION..." value={formData.state} onChange={(v) => setFormData({...formData, state: v})} />
-                            <YellowInput label="City" placeholder="SECTOR/CITY..." value={formData.city} onChange={(v) => setFormData({...formData, city: v})} />
+                            <YellowInput label="State" placeholder="REGION..." value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} />
+                            <YellowInput label="City" placeholder="SECTOR/CITY..." value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} />
                         </div>
-                        
+
                         <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-800/60 ml-2 italic">Physical Deployment Address</label>
-                            <textarea 
+                            <textarea
                                 rows={4}
                                 value={formData.address}
-                                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                 className="w-full p-6 bg-[#FEF3C7]/20 border-2 border-transparent rounded-[2rem] focus:border-yellow-400 focus:bg-white outline-none transition-all font-black uppercase text-xs tracking-widest text-gray-700 placeholder:text-yellow-800/30"
                                 placeholder="PLOT NO, STREET, LANDMARK, ZIP..."
                             />
@@ -168,13 +211,13 @@ export default function AddBusinessPage() {
 
                     {/* --- SUBMIT --- */}
                     <div className="flex flex-col items-center gap-6 pt-10 pb-20">
-                        <button 
+                        <button
                             type="submit" disabled={isSubmitting}
                             className="w-full max-w-xl bg-gray-900 hover:bg-red-600 text-white py-8 rounded-[2.5rem] font-black text-2xl italic uppercase tracking-tighter transition-all flex items-center justify-center gap-4 shadow-2xl active:scale-95 disabled:opacity-50"
                         >
                             {isSubmitting ? <Loader className="animate-spin" /> : <>Register Business <Sparkles size={24} /></>}
                         </button>
-                        
+
                         <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-full border border-yellow-100 shadow-sm text-[10px] font-black italic uppercase text-gray-400 tracking-widest">
                             <ShieldCheck size={16} className="text-yellow-500" /> Secure Encryption Verified
                         </div>

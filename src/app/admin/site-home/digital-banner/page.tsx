@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { 
-  ImageIcon, 
-  UploadCloud, 
-  Trash2, 
-  Plus, 
-  X, 
+import {
+  ImageIcon,
+  UploadCloud,
+  Trash2,
+  Plus,
+  X,
   Monitor,
   Calendar,
   Edit3,
@@ -23,17 +23,17 @@ export default function DigitalBanner() {
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
-  
+
   // Modals
   const [showModal, setShowModal] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); 
-  
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
   // Form States
   const [editingBanner, setEditingBanner] = useState<any | null>(null);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
+
   // Feedback States
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -48,7 +48,7 @@ export default function DigitalBanner() {
       .from("digital_banners")
       .select("*")
       .order("created_at", { ascending: false });
-    
+
     if (error) showToast("Failed to sync banners", "error");
     setBanners(data || []);
     setFetchLoading(false);
@@ -79,25 +79,40 @@ export default function DigitalBanner() {
     setLoading(true);
     try {
       let finalImageUrl = editingBanner?.image_url || "";
+
       if (file) {
-        const fileName = `banner-${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-        await supabase.storage.from("digital-banners").upload(fileName, file);
+        // 1. Generate clean filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `banner-${Date.now()}.${fileExt}`;
+
+        // 2. Upload to the correct bucket 'digital-banners'
+        const { error: uploadError } = await supabase.storage
+          .from("digital-banners")
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // 3. Get Public URL
         const { data } = supabase.storage.from("digital-banners").getPublicUrl(fileName);
         finalImageUrl = data.publicUrl;
       }
 
       const payload = { title: title.trim(), image_url: finalImageUrl };
+
       if (editingBanner) {
-        await supabase.from("digital_banners").update(payload).eq("id", editingBanner.id);
+        const { error } = await supabase.from("digital_banners").update(payload).eq("id", editingBanner.id);
+        if (error) throw error;
         showToast("Banner updated", "success");
       } else {
-        await supabase.from("digital_banners").insert(payload);
+        const { error } = await supabase.from("digital_banners").insert(payload);
+        if (error) throw error;
         showToast("Banner published", "success");
       }
+
       setShowModal(false);
       fetchBanners();
     } catch (error: any) {
-      showToast(error.message, "error");
+      showToast(error.message || "Operation failed", "error");
     } finally {
       setLoading(false);
     }
@@ -107,12 +122,26 @@ export default function DigitalBanner() {
     if (!deleteConfirm) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("digital_banners").delete().eq("id", deleteConfirm);
-      if (error) throw error;
-      showToast("Banner removed", "success");
+      // Find the banner to get the exact URL
+      const banner = banners.find(b => b.id === deleteConfirm);
+
+      if (banner?.image_url) {
+        // This extracts "banner-1766916813814-Flex_Prinintg.jpeg" from the URL
+        const fileName = banner.image_url.split('/').pop();
+
+        // Delete actual image from storage
+        await supabase.storage
+          .from("digital-banners")
+          .remove([fileName]);
+      }
+
+      // Delete row from database
+      await supabase.from("digital_banners").delete().eq("id", deleteConfirm);
+
+      showToast("Banner and file removed", "success");
       fetchBanners();
-    } catch (e) {
-      showToast("Delete failed", "error");
+    } catch (error) {
+      showToast("System error during deletion", "error");
     } finally {
       setLoading(false);
       setDeleteConfirm(null);
@@ -121,7 +150,7 @@ export default function DigitalBanner() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
-      
+
       {/* TOAST NOTIFICATION */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[200] flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${toast.type === 'success' ? 'bg-white border-red-500 text-slate-800' : 'bg-red-600 border-red-700 text-white'}`}>
@@ -133,7 +162,7 @@ export default function DigitalBanner() {
       {/* --- MASTER YELLOW BANNER --- */}
       <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-300 rounded-full opacity-40 blur-3xl" />
-        
+
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
@@ -148,7 +177,7 @@ export default function DigitalBanner() {
                 Manage and deploy high-impact visual campaigns to your website's hero section in real-time.
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="bg-white/40 backdrop-blur-md p-5 rounded-[2rem] border border-white/50 min-w-[120px] text-center shadow-sm">
                 <p className="text-red-900 text-[9px] font-black uppercase mb-1">Live Banners</p>
@@ -181,13 +210,13 @@ export default function DigitalBanner() {
                   </div>
                 </div>
                 <div className="p-8">
-                   <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter truncate">{b.title}</h3>
-                   <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-50">
-                      <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase">
-                        <Calendar size={14} className="text-red-600" /> {new Date(b.created_at).toLocaleDateString()}
-                      </div>
-                      <ExternalLink size={16} className="text-slate-200" />
-                   </div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter truncate">{b.title}</h3>
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-50">
+                    <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase">
+                      <Calendar size={14} className="text-red-600" /> {new Date(b.created_at).toLocaleDateString()}
+                    </div>
+                    <ExternalLink size={16} className="text-slate-200" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -205,8 +234,8 @@ export default function DigitalBanner() {
               <h3 className="text-2xl font-black uppercase italic tracking-tighter">Remove Banner?</h3>
             </div>
             <div className="p-8 flex gap-3">
-               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
-               <button onClick={processDelete} className="flex-1 py-4 bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 transition-all">Confirm</button>
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
+              <button onClick={processDelete} className="flex-1 py-4 bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 transition-all">Confirm</button>
             </div>
           </div>
         </div>
@@ -228,16 +257,38 @@ export default function DigitalBanner() {
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Creative Asset</label>
-                <div onClick={() => document.getElementById('bannerFile')?.click()} className={`h-56 border-4 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all ${file ? 'border-red-600 bg-red-50' : 'border-slate-100 bg-slate-50'}`}>
-                   {previewUrl ? (
-                     <img src={previewUrl} className="absolute inset-0 w-full h-full object-contain p-4" alt="Preview" />
-                   ) : (
-                     <div className="text-center"><UploadCloud className="text-slate-300 mx-auto mb-2" size={32} /><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select High-Res Image</p></div>
-                   )}
-                   <input id="bannerFile" type="file" accept="image/*" className="hidden" onChange={(e) => {
-                     const f = e.target.files?.[0];
-                     if(f) { setFile(f); setPreviewUrl(URL.createObjectURL(f)); }
-                   }} />
+                <div
+                  onClick={() => document.getElementById('bannerFile')?.click()}
+                  className={`h-56 border-4 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden ${file || previewUrl ? 'border-red-600 bg-white' : 'border-slate-100 bg-slate-50'}`}
+                >
+                  {previewUrl ? (
+                    <div className="absolute inset-0 w-full h-full bg-white flex items-center justify-center">
+                      <img
+                        src={previewUrl}
+                        className="w-full h-full object-cover"
+                        alt="Preview"
+                      />
+                      {/* Overlay on hover to show 'Change Image' */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <p className="text-white text-[10px] font-black uppercase tracking-widest bg-black/50 px-4 py-2 rounded-full">Change Image</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <UploadCloud className="text-slate-300 mx-auto mb-2" size={32} />
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select High-Res Image</p>
+                    </div>
+                  )}
+                  <input
+                    id="bannerFile"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) { setFile(f); setPreviewUrl(URL.createObjectURL(f)); }
+                    }}
+                  />
                 </div>
               </div>
               <div className="flex gap-4">

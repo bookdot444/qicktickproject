@@ -152,9 +152,9 @@ export default function VendorDetailPage() {
               <StatCard
                 label="Category"
                 value={
-                  <div className="space-y-1">
+                  <div className="flex flex-col">
                     {vendor.user_type?.map((c: string, i: number) => (
-                      <div key={i}>{c}</div>
+                      <span key={i} className="block">{c}</span>
                     ))}
                   </div>
                 }
@@ -385,7 +385,10 @@ function StatCard({ label, value, icon }: any) {
     <div className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:border-yellow-200 transition-colors">
       <div className="text-yellow-500 mb-3">{icon}</div>
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{label}</p>
-      <p className="text-lg font-black text-slate-900 tracking-tight">{value}</p>
+      {/* FIXED: Changed <p> to <div> to allow nested block elements */}
+      <div className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+        {value}
+      </div>
     </div>
   );
 }

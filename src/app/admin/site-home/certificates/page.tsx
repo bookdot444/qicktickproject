@@ -68,27 +68,52 @@ export default function CertificatesPage() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { showToast("Name is required", "error"); return; }
-    setActionLoading(true);
+  if (!name.trim()) { showToast("Name is required", "error"); return; }
+  if (!editingCert && !file) { showToast("Certificate image is required", "error"); return; }
+  
+  setActionLoading(true);
 
-    try {
-      let finalImageUrl = editingCert?.image_url || "";
+  try {
+    let finalImageUrl = editingCert?.image_url || "";
 
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          finalImageUrl = reader.result as string;
-          await commitToDatabase(finalImageUrl);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        await commitToDatabase(finalImageUrl);
-      }
-    } catch (error: any) {
-      showToast(error.message, "error");
-      setActionLoading(false);
+    if (file) {
+      // Create a unique path: vault/17123456789-award.png
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${name.replace(/\s+/g, '_').toLowerCase()}.${fileExt}`;
+      const filePath = `vault/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("certificates")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("certificates")
+        .getPublicUrl(filePath);
+        
+      finalImageUrl = urlData.publicUrl;
     }
-  };
+
+    // Database Payload
+    const payload = { name: name.trim(), image_url: finalImageUrl };
+    
+    if (editingCert) {
+      await supabase.from("certificates").update(payload).eq("id", editingCert.id);
+      showToast("Certificate updated", "success");
+    } else {
+      await supabase.from("certificates").insert(payload);
+      showToast("Certificate published", "success");
+    }
+
+    setShowModal(false);
+    fetchCertificates();
+  } catch (error: any) {
+    showToast(error.message || "Operation failed", "error");
+  } finally {
+    setActionLoading(false);
+  }
+};
 
   const commitToDatabase = async (imageUrl: string) => {
     if (editingCert) {
@@ -105,18 +130,27 @@ export default function CertificatesPage() {
   };
 
   const processDelete = async () => {
-    if (!deleteConfirm) return;
-    setActionLoading(true);
-    try {
-      await supabase.from("certificates").delete().eq("id", deleteConfirm);
-      showToast("Certificate removed", "success");
-      fetchCertificates();
-    } finally {
-      setActionLoading(false);
-      setDeleteConfirm(null);
+  if (!deleteConfirm) return;
+  setActionLoading(true);
+  try {
+    const cert = certificates.find(c => c.id === deleteConfirm);
+    
+    if (cert?.image_url) {
+      // Extract fileName from URL
+      const fileName = cert.image_url.split('/').pop();
+      await supabase.storage.from("certificates").remove([`vault/${fileName}`]);
     }
-  };
 
+    await supabase.from("certificates").delete().eq("id", deleteConfirm);
+    showToast("Removed from vault", "success");
+    fetchCertificates();
+  } catch (error) {
+    showToast("Delete failed", "error");
+  } finally {
+    setActionLoading(false);
+    setDeleteConfirm(null);
+  }
+};
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       

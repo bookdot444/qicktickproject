@@ -14,6 +14,9 @@ export default function AdminPlansPage() {
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [showModal, setShowModal] = useState(false);
+    
+    // --- SEARCH STATE ---
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [form, setForm] = useState({
         name: "",
@@ -21,7 +24,7 @@ export default function AdminPlansPage() {
         tax_percent: "",
         duration_months: "",
         color: "#e11d48",
-        medals: "", // Added
+        medals: "",
     });
     const [benefits, setBenefits] = useState<string[]>([""]);
 
@@ -62,7 +65,7 @@ export default function AdminPlansPage() {
             tax_percent: plan.tax_percent.toString(),
             duration_months: plan.duration_months.toString(),
             color: plan.color || "#e11d48",
-            medals: plan.medals || "", // Added
+            medals: plan.medals || "",
         });
         setBenefits(plan.benefits && plan.benefits.length > 0 ? plan.benefits : [""]);
         setShowModal(true);
@@ -99,7 +102,7 @@ export default function AdminPlansPage() {
             duration_months: Number(form.duration_months),
             color: form.color,
             benefits: filteredBenefits,
-            medals: form.medals.trim(), // Added
+            medals: form.medals.trim(),
         };
 
         const { error } = editingId 
@@ -123,8 +126,12 @@ export default function AdminPlansPage() {
         else { showToast("Plan deleted", "success"); fetchPlans(); }
     };
 
+    const filteredPlans = plans.filter(plan => 
+        plan.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="min-h-screen bg-[#f8fafc] font-sans pb-20">
+        <div className="min-h-screen bg-[#f8fafc] font-sans pb-20 text-slate-900">
             {/* TOAST SYSTEM */}
             {toast && (
                 <div className={`fixed top-6 right-6 z-[200] flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl border animate-in fade-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-white border-yellow-400 text-slate-800' : 'bg-red-600 border-red-700 text-white'}`}>
@@ -157,11 +164,22 @@ export default function AdminPlansPage() {
             {/* --- ACTION BAR --- */}
             <div className="max-w-7xl mx-auto px-6 md:px-10 -mt-10 relative z-30">
                 <div className="bg-white p-4 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row gap-4 items-center border border-slate-100">
-                    <div className="relative flex-1 w-full">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input type="text" disabled placeholder="Plans are sorted by price automatically..." className="w-full pl-14 pr-6 py-4 bg-slate-50 rounded-[1.5rem] outline-none text-sm font-bold opacity-60 cursor-not-allowed" />
+                    <div className="relative flex-1 w-full group">
+                        <Search className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-[#e11d48]' : 'text-slate-400'}`} size={20} />
+                        <input 
+                            type="text" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search plans by name..." 
+                            className="w-full pl-14 pr-6 py-4 bg-slate-50 rounded-[1.5rem] outline-none text-sm font-bold text-slate-900 border border-transparent focus:border-yellow-400 focus:bg-white transition-all hover:bg-slate-100 placeholder:text-slate-400 shadow-inner" 
+                        />
+                        {searchTerm && (
+                            <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full text-slate-400">
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
-                    <button onClick={() => { resetForm(); setShowModal(true); }} className="w-full md:w-auto bg-[#e11d48] hover:bg-black text-white px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl">
+                    <button onClick={() => { resetForm(); setShowModal(true); }} className="w-full md:w-auto bg-[#e11d48] hover:bg-black text-white px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl active:scale-95">
                         <Plus size={18} strokeWidth={3} /> Create New Plan
                     </button>
                 </div>
@@ -174,9 +192,14 @@ export default function AdminPlansPage() {
                         <RefreshCw className="animate-spin text-[#e11d48]" size={48} />
                         <p className="text-slate-400 font-black uppercase text-[10px] tracking-[0.2em]">Synchronizing Tiers</p>
                     </div>
+                ) : filteredPlans.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
+                        <Search size={40} className="text-slate-200 mb-4" />
+                        <p className="text-slate-500 font-bold">No plans found matching "{searchTerm}"</p>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                        {plans.map((plan) => {
+                        {filteredPlans.map((plan) => {
                             const total = plan.base_price * (1 + (plan.tax_percent || 0) / 100);
                             return (
                                 <div key={plan.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group flex flex-col relative">
@@ -227,84 +250,124 @@ export default function AdminPlansPage() {
                     </div>
                 )}
             </div>
-
-            {/* --- FORM MODAL --- */}
-            {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 my-8 animate-in zoom-in-95 duration-200">
-                        <div className="bg-yellow-300 px-10 py-7 flex items-center justify-between border-b border-yellow-400">
-                            <div>
-                                <p className="text-red-900/60 text-[10px] font-black uppercase tracking-widest mb-1">Plan Designer</p>
-                                <h3 className="text-2xl font-black text-black uppercase italic tracking-tighter">{editingId ? "Update Subscription" : "Create New Tier"}</h3>
-                            </div>
-                            <button onClick={resetForm} className="w-12 h-12 bg-black/10 hover:bg-black/20 rounded-full flex items-center justify-center text-black"><X size={24} /></button>
-                        </div>
-                        
-                        <form onSubmit={handleSave} className="p-10 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Plan Name <span className="text-red-500">*</span></label>
-                                    <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold" placeholder="e.g. Premium" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Medal (Emoji)</label>
-                                    <input value={form.medals} onChange={(e) => setForm({ ...form, medals: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#facc15] outline-none text-sm font-bold" placeholder="e.g. 🏆" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Base Price (₹) <span className="text-red-500">*</span></label>
-                                    <input required type="number" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tax (%)</label>
-                                    <input type="number" value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Months <span className="text-red-500">*</span></label>
-                                    <input required type="number" value={form.duration_months} onChange={(e) => setForm({ ...form, duration_months: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Brand Color</label>
-                                <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-200">
-                                    <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-xl cursor-pointer" />
-                                    <span className="text-xs font-mono font-bold text-slate-500">{form.color}</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Included Benefits <span className="text-red-500">*</span></label>
-                                    <button type="button" onClick={() => setBenefits([...benefits, ""])} className="text-[10px] font-black text-[#e11d48] flex items-center gap-1"><Plus size={14} /> Add Line</button>
-                                </div>
-                                <div className="space-y-3 max-h-48 overflow-y-auto">
-                                    {benefits.map((b, idx) => (
-                                        <div key={idx} className="flex gap-3">
-                                            <input required placeholder="Benefit..." value={b} onChange={(e) => {
-                                                const updated = [...benefits];
-                                                updated[idx] = e.target.value;
-                                                setBenefits(updated);
-                                            }} className="flex-1 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold" />
-                                            <button type="button" onClick={() => setBenefits(benefits.filter((_, i) => i !== idx))} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl"><X size={16} /></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={resetForm} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-50 rounded-2xl">Discard</button>
-                                <button type="submit" disabled={saving} className="flex-[2] py-4 bg-[#e11d48] text-white text-[10px] font-black uppercase rounded-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
-                                    {saving ? <RefreshCw className="animate-spin" size={18} /> : (editingId ? <Edit3 size={18} /> : <ShieldCheck size={18} />)}
-                                    {editingId ? "Update Plan" : "Deploy Plan"}
-                                </button>
-                            </div>
-                        </form>
+{/* --- UPDATED HORIZONTAL DESIGN FORM MODAL --- */}
+{showModal && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+        <div className="bg-white w-full max-w-5xl rounded-[3.5rem] shadow-2xl overflow-hidden border border-slate-200 my-8 animate-in zoom-in-95 duration-300">
+            
+            {/* Header - Sleeker & Integrated */}
+            <div className="bg-yellow-300 px-10 py-8 flex items-center justify-between border-b border-yellow-400/50">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-black rounded-3xl flex items-center justify-center shadow-lg rotate-3">
+                        <Zap className="text-yellow-300" size={28} fill="currentColor" />
+                    </div>
+                    <div>
+                        <p className="text-red-900/60 text-[10px] font-black uppercase tracking-[0.2em] mb-0.5">Configuration Suite</p>
+                        <h3 className="text-3xl font-black text-black uppercase italic tracking-tighter leading-none">
+                            {editingId ? "Modify" : "Engineer"} <span className="text-[#e11d48]">Tier</span>
+                        </h3>
                     </div>
                 </div>
-            )}
+                <button 
+                    onClick={resetForm} 
+                    className="w-14 h-14 bg-white/50 hover:bg-black hover:text-white rounded-full flex items-center justify-center text-black transition-all shadow-sm border border-black/5"
+                >
+                    <X size={24} strokeWidth={3} />
+                </button>
+            </div>
+            
+            <form onSubmit={handleSave} className="flex flex-col md:flex-row divide-x divide-slate-100">
+                
+                {/* LEFT COLUMN: Primary Specs */}
+                <div className="flex-1 p-10 space-y-8 bg-slate-50/50">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-1.5 h-4 bg-[#e11d48] rounded-full" />
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-800">Identity & Pricing</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Display Name</label>
+                            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-6 py-4 bg-white border border-slate-200 rounded-[1.25rem] focus:ring-4 focus:ring-yellow-400/20 focus:border-yellow-400 outline-none text-sm font-bold text-slate-900 transition-all shadow-sm" placeholder="e.g. ULTIMATE PRO" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Base (₹)</label>
+                                <input required type="number" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} className="w-full px-6 py-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none text-sm font-bold text-slate-900 shadow-sm" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Duration (Mo)</label>
+                                <input required type="number" value={form.duration_months} onChange={(e) => setForm({ ...form, duration_months: e.target.value })} className="w-full px-6 py-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none text-sm font-bold text-slate-900 shadow-sm" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Tax (%)</label>
+                                <input type="number" value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} className="w-full px-6 py-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none text-sm font-bold text-slate-900 shadow-sm" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Icon/Medal</label>
+                                <input value={form.medals} onChange={(e) => setForm({ ...form, medals: e.target.value })} className="w-full px-6 py-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none text-sm font-bold text-slate-900 shadow-sm text-center" placeholder="💎" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Accent Theme</label>
+                            <div className="flex items-center gap-4 bg-white p-3 rounded-[1.25rem] border border-slate-200 shadow-sm">
+                                <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-12 h-10 rounded-lg cursor-pointer border-none" />
+                                <span className="text-xs font-mono font-black text-slate-600 tracking-tighter">{form.color.toUpperCase()}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN: Benefits & Submission */}
+                <div className="flex-1 p-10 flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-4 bg-green-500 rounded-full" />
+                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-800">Feature Roadmap</h4>
+                        </div>
+                        <button type="button" onClick={() => setBenefits([...benefits, ""])} className="bg-black text-white px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-2 hover:scale-105 transition-transform active:scale-95">
+                            <Plus size={14} strokeWidth={3} /> Add Perk
+                        </button>
+                    </div>
+
+                    <div className="flex-1 space-y-3 max-h-[320px] overflow-y-auto pr-4 custom-scrollbar">
+                        {benefits.map((b, idx) => (
+                            <div key={idx} className="group flex gap-3 animate-in slide-in-from-right-4 duration-300">
+                                <div className="flex-1 relative">
+                                    <CheckCircle2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-green-500 transition-colors" size={16} />
+                                    <input required placeholder="Benefit description..." value={b} onChange={(e) => {
+                                        const updated = [...benefits];
+                                        updated[idx] = e.target.value;
+                                        setBenefits(updated);
+                                    }} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-200 transition-all" />
+                                </div>
+                                <button type="button" onClick={() => setBenefits(benefits.filter((_, i) => i !== idx))} className="w-12 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-2xl flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-sm">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Final Actions */}
+                    <div className="pt-10 mt-auto flex gap-4">
+                        <button type="button" onClick={resetForm} className="flex-1 py-5 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 tracking-widest transition-colors">
+                            Discard
+                        </button>
+                        <button type="submit" disabled={saving} className="flex-[2] py-5 bg-[#e11d48] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:bg-black transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(225,29,72,0.3)] active:scale-95 disabled:opacity-70">
+                            {saving ? <RefreshCw className="animate-spin" size={20} /> : (editingId ? <RefreshCw size={20} /> : <ShieldCheck size={20} />)}
+                            {editingId ? "Update System" : "Deploy Tier"}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
         </div>
     );
 }
