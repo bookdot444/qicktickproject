@@ -191,7 +191,11 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     }));
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string, isMultiple = false) => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "media_files" | "certificates" | "company_logo",
+    isMultiple = false
+  ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -227,7 +231,10 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
             setCertificatePreviews(prev => [...prev, url]);
           }
         }
-        setFormData(prev => ({ ...prev, [field]: [...prev[field], ...urls] }));
+        setFormData(prev => ({
+          ...prev,
+          [field]: [...(prev[field] as string[]), ...urls]
+        }));
       } else {
         const file = files[0];
         if (file.size > 5 * 1024 * 1024) throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
