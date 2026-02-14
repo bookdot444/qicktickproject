@@ -15,9 +15,11 @@ import {
   Zap,
   Activity,
   ArrowRight,
-  Filter
+  Filter,
+  Building
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 export default function ServiceCategoryPage() {
   const params = useParams();
@@ -65,15 +67,6 @@ export default function ServiceCategoryPage() {
     v.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getPlanStyles = (plan: string) => {
-    const p = plan?.toLowerCase() || "";
-    if (p.includes("diamond"))
-      return { color: "text-cyan-500", bg: "bg-cyan-500/10", icon: <Gem size={18} /> };
-    if (p.includes("gold"))
-      return { color: "text-yellow-500", bg: "bg-yellow-500/10", icon: <Award size={18} /> };
-    return { color: "text-red-600", bg: "bg-red-600/10", icon: <Zap size={18} /> };
-  };
-
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#FFFDF5]">
@@ -86,7 +79,7 @@ export default function ServiceCategoryPage() {
     <div className="min-h-screen bg-[#FFFDF5] font-sans pb-24 selection:bg-yellow-200 overflow-x-hidden">
       
       {/* --- EXACT HEADER DESIGN --- */}
-      <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-44 px-6 relative overflow-hidden border-b border-yellow-100">
+      <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-24 pb-20 px-6 relative overflow-hidden border-b border-yellow-100">
         <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
         
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -120,7 +113,7 @@ export default function ServiceCategoryPage() {
       </div>
 
       {/* --- EXACT SEARCH BAR DESIGN --- */}
-      <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-30">
+      <div className="max-w-4xl mx-auto px-6 -mt-8 relative z-30">
         <div className="bg-gray-900 p-4 rounded-[2.5rem] shadow-2xl flex items-center gap-4 border border-white/10">
           <div className="pl-6 text-yellow-400"><Search size={20} /></div>
           <input 
@@ -139,86 +132,40 @@ export default function ServiceCategoryPage() {
 
       {/* --- VENDOR GRID --- */}
       <div className="max-w-7xl mx-auto px-6 mt-16 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <AnimatePresence mode="popLayout">
             {filteredVendors.length > 0 ? (
-              filteredVendors.map((vendor, idx) => {
-                const style = getPlanStyles(vendor.subscription_plan || "basic");
-
-                return (
-                  <motion.div
-                    key={vendor.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="group bg-white rounded-[3rem] border-2 border-transparent hover:border-yellow-400 shadow-xl transition-all duration-500 overflow-hidden flex flex-col"
-                  >
-                    {/* Header: Logo & Badge */}
-                    <div className="p-8 pb-0 flex justify-between items-start">
-                      <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
-                        {vendor.company_logo ? (
-                          <img 
-                            src={vendor.company_logo} 
-                            alt="logo" 
-                            className="w-full h-full object-contain p-2"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <Building2 className="text-gray-200" size={28} />
-                        )}
-                      </div>
-                      <div className={`${style.bg} ${style.color} p-3 rounded-2xl`}>
-                        {style.icon}
-                      </div>
+              filteredVendors.map((vendor, idx) => (
+                <motion.div
+                  key={vendor.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="group bg-white border-2 border-gray-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-[4px_4px_0px_#000] flex flex-col"
+                  onClick={() => router.push(`/vendor/view/${vendor.id}`)}
+                >
+                  <div className="relative h-40 bg-gray-50 border-b-2 border-gray-900">
+                    {vendor.company_logo ? (
+                      <Image src={vendor.company_logo} alt={vendor.company_name} fill className="object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-gray-200"><Building size={32} /></div>
+                    )}
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-black px-2 py-0.5 rounded text-[8px] font-black uppercase border border-gray-900">
+                        {vendor.city || "Global"}
+                      </span>
                     </div>
-
-                    {/* Content */}
-                    <div className="p-8 flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Registered Partner</span>
-                      </div>
-                      
-                      <h2 className="text-2xl font-black text-gray-900 mb-4 group-hover:text-red-600 transition-colors tracking-tighter uppercase leading-tight line-clamp-2">
-                        {vendor.company_name}
-                      </h2>
-
-                      <div className="space-y-3 border-t border-gray-50 pt-4">
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <MapPin size={14} className="text-red-600" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">
-                            {vendor.city}, {vendor.state}
-                          </span>
-                        </div>
-                      </div>
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    <h3 className="font-black text-sm text-gray-900 uppercase leading-tight truncate group-hover:text-red-600 transition-colors">{vendor.company_name}</h3>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">{vendor.user_type?.join(", ") || "Business"}</p>
+                    <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
+                      <span className="text-lg font-black text-gray-900 tracking-tighter">{vendor.area || "Location"}</span>
+                      <div className="bg-black group-hover:bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
                     </div>
-
-                    {/* Actions */}
-                    <div className="p-4 bg-gray-50/50 mt-auto border-t border-gray-50 grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => router.push(`/vendor/view/${vendor.id}`)}
-                        className="col-span-2 bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-lg active:scale-95"
-                      >
-                        Access Profile <ArrowRight size={14} />
-                      </button>
-                      
-                      <a
-                        href={`tel:${vendor.mobile_number}`}
-                        className="bg-white border-2 border-gray-100 text-gray-900 py-3 rounded-2xl flex items-center justify-center hover:border-yellow-400 transition-all shadow-sm"
-                      >
-                        <Phone size={16} />
-                      </a>
-                      
-                      <a
-                        href={`mailto:${vendor.email || ''}`}
-                        className="bg-white border-2 border-gray-100 text-gray-900 py-3 rounded-2xl flex items-center justify-center hover:border-yellow-400 transition-all shadow-sm"
-                      >
-                        <Mail size={16} />
-                      </a>
-                    </div>
-                  </motion.div>
-                );
-              })
+                  </div>
+                </motion.div>
+              ))
             ) : (
               <div className="col-span-full py-32 flex flex-col items-center justify-center">
                 <div className="bg-white p-12 rounded-[4rem] border-4 border-dashed border-yellow-100 text-center">

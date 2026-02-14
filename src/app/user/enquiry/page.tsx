@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Mail, Phone, Send, Loader, Lock, History, Activity, 
-  ArrowRight, Clock, AlertCircle, CheckCircle2, X, Sparkles, Zap
+  ArrowRight, Clock, AlertCircle, CheckCircle2, X, Sparkles, Zap, Search
 } from "lucide-react";
 
 export default function EnquiryPage() {
   const [enquiries, setEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasSubscription, setHasSubscription] = useState(false);
+  const [entryLimit, setEntryLimit] = useState(0);  // Changed from hasSubscription (boolean) to entryLimit (number)
+  const [search, setSearch] = useState("");  // New: Search state
 
   // Form States
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
@@ -48,18 +49,50 @@ export default function EnquiryPage() {
 
   const checkSubscriptionStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: vendor } = await supabase.from("vendor_register").select("subscription_expiry").eq("user_id", user.id).maybeSingle();
+    if (!user) {
+      setEntryLimit(0);
+      return;
+    }
+
+    let limit = 0;
+
+    // Check vendor subscription
+    const { data: vendor } = await supabase.from("vendor_register").select("subscription_expiry, subscription_plan_id").eq("user_id", user.id).maybeSingle();
     const isVendorActive = vendor?.subscription_expiry && new Date(vendor.subscription_expiry) > new Date();
-    const { data: sub } = await supabase.from("user_subscriptions").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
-    setHasSubscription(!!isVendorActive || !!sub);
+    if (isVendorActive && vendor.subscription_plan_id) {
+      const { data: plan } = await supabase.from("subscription_plans").select("entry").eq("id", vendor.subscription_plan_id).single();
+      limit = plan?.entry || 0;
+    }
+
+    // Check user subscription (if not already set via vendor)
+    if (limit === 0) {
+      const { data: sub } = await supabase.from("user_subscriptions").select("id, plan_id").eq("user_id", user.id).eq("status", "active").maybeSingle();
+      if (sub?.plan_id) {
+        const { data: plan } = await supabase.from("subscription_plans").select("entry").eq("id", sub.plan_id).single();
+        limit = plan?.entry || 0;
+      }
+    }
+
+    setEntryLimit(limit);
   };
 
   const fetchEnquiries = async () => {
-    const tenDaysAgo = new Date();
-    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-    const { data } = await supabase.from("enquiries").select("*").gte('created_at', tenDaysAgo.toISOString()).order("created_at", { ascending: false });
-    if (data) setEnquiries(data);
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("enquiries")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    console.log("ENQUIRIES DATA:", data);
+    console.log("ENQUIRIES ERROR:", error);
+
+    if (error) {
+      setEnquiries([]);
+    } else {
+      setEnquiries(data || []);
+    }
+
     setLoading(false);
   };
 
@@ -78,6 +111,13 @@ export default function EnquiryPage() {
     }
     setFormLoading(false);
   };
+
+  // New: Filtered enquiries based on search
+  const filteredEnquiries = useMemo(() => {
+    return enquiries.filter((enq) =>
+      enq.message.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [enquiries, search]);
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] pb-10 font-sans selection:bg-yellow-200">
@@ -112,7 +152,7 @@ export default function EnquiryPage() {
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-yellow-800">Global Pulse Stream</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 leading-none uppercase">
-              ENQUIRY <span className="text-red-600 ">FEED</span>
+              ENQUIRY <span className="text-black ">FEED</span>
             </h1>
           </div>
           <div className="hidden lg:block bg-white p-6 rounded-[2.5rem] -rotate-3 shadow-xl border border-yellow-100">
@@ -150,7 +190,7 @@ export default function EnquiryPage() {
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-2">
-<label className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 ">Requirement</label>
+<label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ">Requirement</label>
                   </div>
                   <textarea 
   placeholder="WHAT ARE YOU LOOKING FOR?..."
@@ -186,61 +226,78 @@ export default function EnquiryPage() {
               <span className="bg-yellow-400 text-black text-[8px] font-black px-2 py-0.5 rounded uppercase">Recent</span>
             </div>
 
+            {/* New: Search Bar */}
+            <div className="relative">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search requirements..."
+                className="w-full pl-12 pr-4 py-3 rounded-full text-black bg-white/80 border border-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm font-semibold"
+              />
+            </div>
+
             <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1 custom-scrollbar">
               <AnimatePresence initial={false}>
-                {enquiries.length === 0 ? (
+                {filteredEnquiries.length === 0 ? (
                     <div className="bg-white p-10 rounded-[2rem] border border-dashed border-yellow-200 text-center shadow-inner">
                         <History className="mx-auto text-yellow-100 mb-2" size={30} />
                         <p className="text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">No Signals Detected</p>
                     </div>
-                ) : enquiries.map((enq) => (
-                  <motion.div 
-                    key={enq.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
-                    className="bg-white p-6 rounded-[2rem] border border-transparent hover:border-yellow-400 shadow-md relative group transition-all duration-300"
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-1.5">
-                         <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
-                         <span className="text-[8px] font-black text-red-600 uppercase tracking-widest ">Live Signal</span>
-                      </div>
-                      <span className="text-[8px] font-black text-gray-300">{new Date(enq.created_at).toLocaleDateString()}</span>
-                    </div>
+                ) : filteredEnquiries.map((enq) => {
+                  // Fixed: Use original index from full enquiries list for unlocking
+                  const originalIndex = enquiries.findIndex(e => e.id === enq.id);
+                  const isUnlocked = originalIndex < entryLimit;
 
-                    <div className="relative mb-4">
-                       <p className="text-[11px] font-bold text-gray-600 leading-relaxed uppercase tracking-tight relative z-10">
-                         {enq.message}
-                       </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-xl bg-gray-900 text-yellow-400 flex items-center justify-center font-black text-[10px] shadow-lg">
-                        {enq.name?.charAt(0).toUpperCase()}
-                      </div>
-                      <p className="text-[10px] font-black text-gray-900 uppercase tracking-tighter">{enq.name}</p>
-                    </div>
-
-                    {/* PRIVATE DATA BOX */}
-                    <div className="relative rounded-2xl bg-gray-900 p-4 overflow-hidden">
-                      <div className={`space-y-1 transition-all duration-500 ${!hasSubscription ? 'blur-sm select-none pointer-events-none opacity-20' : ''}`}>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase">
-                          <Mail size={12} className="text-yellow-400" /> {enq.email}
+                  return (
+                    <motion.div 
+                      key={enq.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
+                      className="bg-white p-6 rounded-[2rem] border border-transparent hover:border-yellow-400 shadow-md relative group transition-all duration-300"
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-1.5">
+                           <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></span>
+                           <span className="text-[8px] font-black text-black uppercase tracking-widest ">Live Signal</span>
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase ">
-                          <Phone size={12} className="text-yellow-400" /> {enq.phone || "HIDDEN"}
-                        </div>
+                        <span className="text-[8px] font-black text-gray-300">{new Date(enq.created_at).toLocaleDateString()}</span>
                       </div>
 
-                      {!hasSubscription && (
-                        <div 
-                          onClick={() => window.location.href='/user/subscription-plans'}
-                          className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/40 backdrop-blur-[2px] cursor-pointer"
-                        >
-                          <span className="text-[8px] font-black uppercase text-yellow-400 tracking-widest bg-gray-900 px-3 py-1 rounded-full border border-yellow-400/30">Unlock Contact</span>
+                      <div className="relative mb-4">
+                         <p className="text-[11px] font-bold text-gray-600 leading-relaxed uppercase tracking-tight relative z-10">
+                           {enq.message}
+                         </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-8 h-8 rounded-xl bg-gray-900 text-yellow-400 flex items-center justify-center font-black text-[10px] shadow-lg">
+                          {enq.name?.charAt(0).toUpperCase()}
                         </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
+                        <p className="text-[10px] font-black text-gray-900 uppercase tracking-tighter">{enq.name}</p>
+                      </div>
+
+                      {/* PRIVATE DATA BOX - Now per-enquiry based on entryLimit */}
+                      <div className="relative rounded-2xl bg-gray-900 p-4 overflow-hidden">
+                        <div className={`space-y-1 transition-all duration-500 ${!isUnlocked ? 'blur-sm select-none pointer-events-none opacity-20' : ''}`}>
+                          <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase">
+                            <Mail size={12} className="text-yellow-400" /> {enq.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase ">
+                            <Phone size={12} className="text-yellow-400" /> {enq.phone || "HIDDEN"}
+                          </div>
+                        </div>
+
+                        {!isUnlocked && (
+                          <div 
+                            onClick={() => window.location.href='/user/subscription-plans'}
+                            className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/40 backdrop-blur-[2px] cursor-pointer"
+                          >
+                            <span className="text-[8px] font-black uppercase text-yellow-400 tracking-widest bg-gray-900 px-3 py-1 rounded-full border border-yellow-400/30">Unlock Contact</span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           </div>
@@ -252,7 +309,7 @@ export default function EnquiryPage() {
         <div className="bg-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden border border-yellow-100 shadow-xl">
           <div className="relative z-10 flex flex-col items-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black text-gray-900 uppercase tracking-tighter text-center leading-none">
-              The <span className="text-red-600">Protocol</span>
+              The <span className="text-black">Protocol</span>
             </h2>
           </div>
 
@@ -284,11 +341,10 @@ function FlowStep({ number, icon, color, title, desc, textColor = "text-black" }
   );
 }
 
-
 function Input({ label, value, onChange, type = "text", placeholder, error }: any) {
   return (
     <div className="space-y-2 w-full">
-      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 ml-2">
+      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ml-2">
         {label}
       </label>
       <div className="relative">

@@ -20,13 +20,7 @@ import {
   X as CloseIcon,
 } from "lucide-react";
 import VendorRegister from "@/components/user/vendorreg";
-import { createClient, type User } from "@supabase/supabase-js"; // REMOVED: Unused import causing confusion
-
-// Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabaseClient";
 
 export default function UserFeed() {
   const pathname = usePathname();
@@ -90,16 +84,7 @@ export default function UserFeed() {
     return !!vendorData; // Return true if exists in vendor_register
   };
 
-  useEffect(() => {
-    loadUserAndRole();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      loadUserAndRole();
-    });
-
-    return () => authListener.subscription.unsubscribe();
-  }, []);
-
+  // ✅ MOVED HERE: Define loadUserAndRole before useEffect
   const loadUserAndRole = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -112,8 +97,35 @@ export default function UserFeed() {
         return;
       }
 
-      // ✅ 1. READ ROLE FROM AUTH (defaults to "user" if not set)
-      const role = user.user_metadata?.role || "user";
+      // ✅ IMPROVED: Determine role from database tables first, then fallback to metadata
+      let role = user.user_metadata?.role || "user";
+
+      // Check tables to override if needed
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: vendorProfile } = await supabase
+        .from("vendor_register")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (vendorProfile) {
+        role = "vendor";
+        // Update metadata if it doesn't match
+        if (user.user_metadata?.role !== "vendor") {
+          await supabase.auth.updateUser({ data: { role: "vendor" } });
+        }
+      } else if (userProfile) {
+        role = "user";
+        if (user.user_metadata?.role !== "user") {
+          await supabase.auth.updateUser({ data: { role: "user" } });
+        }
+      }
+
       setUserRole(role);
 
       // ✅ 2. ONLY IF VENDOR → LOAD EXTRA DETAILS
@@ -142,6 +154,16 @@ export default function UserFeed() {
       console.error("loadUserAndRole error:", err);
     }
   };
+
+  useEffect(() => {
+    loadUserAndRole();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      loadUserAndRole();
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
 
@@ -211,105 +233,113 @@ export default function UserFeed() {
     }
   };
 
-  const verifyLoginOtp = async () => {
-    setLoginLoading(true);
-    setLoginError(null);
 
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: loginData.email,
-        token: loginData.otp,
-        type: "email",
-      });
+const verifyLoginOtp = async () => {
+  setLoginLoading(true);
+  setLoginError(null);
 
-      if (error) throw error;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Auth failed");
-
-      // ✅ CHECK PROFILE TABLES
-      const { data: userProfile } = await supabase
-        .from("users")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const { data: vendorProfile } = await supabase
-        .from("vendor_register")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!userProfile && !vendorProfile) {
-        await supabase.auth.signOut();
-        setLoginError("Account not registered. Please sign up.");
-        return;
-      }
-
-      setShowLoginPopup(false);
-      router.push("/user");
-
-      // ✅ CLEAR INPUTS AND STATES AFTER SUCCESS
-      setLoginData({ email: "", otp: "" });
-      setLoginError(null);
-      setLoginSuccess(null);
-      setOtpTimer(null);
-
-    } catch (err: any) {
-      setLoginError(err.message);
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const verifyRegisterOtp = async () => {
-    setRegisterLoading(true);
+  try {
     const { error } = await supabase.auth.verifyOtp({
-      email: registerData.email,
-      token: registerData.otp,
+      email: loginData.email,
+      token: loginData.otp,
       type: "email",
     });
 
-    if (error) {
-      setRegisterError(error.message);
-      setRegisterLoading(false);
-      return;
-    }
+    if (error) throw error;
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setRegisterError("User not found after registration.");
-      setRegisterLoading(false);
+    if (!user) throw new Error("Auth failed");
+
+    // ✅ CHECK PROFILE TABLES
+    const { data: userProfile } = await supabase
+      .from("users")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const { data: vendorProfile } = await supabase
+      .from("vendor_register")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    console.log("Debug: userProfile", userProfile, "vendorProfile", vendorProfile); // DEBUG: Remove in production
+
+    if (!userProfile && !vendorProfile) {
+      // ✅ IMPROVED: Check for ANY vendor entry with matching email
+      const { data: anyVendor } = await supabase
+        .from("vendor_register")
+        .select("id, status")
+        .eq("email", loginData.email)
+        .maybeSingle();
+
+      if (anyVendor) {
+        if (anyVendor.status === "approved") {
+          // ✅ LINK AND PROCEED FOR APPROVED ONLY
+          const { error: updateError } = await supabase
+            .from("vendor_register")
+            .update({ user_id: user.id })
+            .eq("email", loginData.email);
+
+          if (updateError) {
+            console.error("Error linking vendor entry:", updateError);
+            setLoginError("Failed to link vendor account. Please try again.");
+            return;
+          }
+
+          await supabase.auth.updateUser({ data: { role: "vendor" } });
+          setShowLoginPopup(false);
+          router.push("/user");
+          loadUserAndRole();
+          return;
+        } else {
+          // ✅ BLOCK PENDING, REJECTED, OR OTHER STATUSES
+          await supabase.auth.signOut();
+          setLoginError("Your account is not approved yet. Please wait for 24hrs or contact support.");
+          return;
+        }
+      }
+
+      // No entry found
+      await supabase.auth.signOut();
+      setLoginError("Account not registered. Please sign up.");
       return;
     }
 
-    const { error: insertError } = await supabase
-      .from("users")
-      .insert({
-        user_id: user.id,
-        email: registerData.email,
-        name: registerData.name,
-      });
-
-    if (insertError) {
-      setRegisterError("Failed to save user data: " + insertError.message);
-    } else {
-      setRegisterSuccess("Registration successful!");
-      setTimeout(() => setShowRegisterPopup(false), 1500);
-
-      // ✅ CLEAR INPUTS AND STATES AFTER SUCCESS
-      setRegisterData({ name: "", email: "", otp: "" });
-      setRegisterError(null);
-      setRegisterSuccess(null);
-      setRegisterStep("form");
-      setOtpTimer(null);
+    // ✅ If vendorProfile exists, CHECK STATUS BEFORE PROCEEDING
+    if (vendorProfile) {
+      if (vendorProfile.status !== "approved") {
+        // ✅ BLOCK IF NOT APPROVED (e.g., pending, rejected)
+        await supabase.auth.signOut();
+        setLoginError("Your vendor account is not approved yet. Please contact support.");
+        return;
+      }
+      // If approved, proceed
+      await supabase.auth.updateUser({ data: { role: "vendor" } });
+    } else if (userProfile) {
+      // Ensure role is "user" for regular users
+      await supabase.auth.updateUser({ data: { role: "user" } });
     }
-    setRegisterLoading(false);
-  };
+
+    setShowLoginPopup(false);
+    router.push("/user");
+
+    // ✅ CLEAR INPUTS AND STATES AFTER SUCCESS
+    setLoginData({ email: "", otp: "" });
+    setLoginError(null);
+    setLoginSuccess(null);
+    setOtpTimer(null);
+  } catch (err: any) {
+    setLoginError(err.message);
+  } finally {
+    setLoginLoading(false);
+  }
+};
+
+
 
   const handleRegisterChange = (e: any) => setRegisterData({ ...registerData, [e.target.name]: e.target.value });
 
-  // UPDATED: Add email existence check before sending OTP
   // UPDATED: Add email existence check before sending OTP
   const sendRegisterOtp = async () => {
     if (!registerData.name || !registerData.email) {
@@ -366,7 +396,7 @@ export default function UserFeed() {
     { name: "Video", href: "/user/video", icon: PlayCircle },
     { name: "Enquiry", href: "/user/enquiry", icon: MessageSquare },
     { name: "Products", href: "/user/listing", icon: Package },
-    ...(user ? [{ name: "Profile", href: userRole === "vendor" ? "/user/vendor-profile" : "/user/profile", icon: UserIcon  }] : []),
+    ...(user ? [{ name: "Profile", href: userRole === "vendor" ? "/user/vendor-profile" : "/user/profile", icon: UserIcon }] : []),
   ];
 
   return (
@@ -389,36 +419,36 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
               priority
             />
           </Link>
-{/* MOBILE ACTIONS (NO HAMBURGER) */}
-<div className="flex lg:hidden items-center gap-2">
-  {!user && (
-    <>
-      <button
-        onClick={() => setOpenVendor(true)}
-        className="px-3 py-2 text-xs font-bold border border-yellow-400 text-yellow-400 rounded-lg"
-      >
-        + Add Business
-      </button>
+          {/* MOBILE ACTIONS (NO HAMBURGER) */}
+          <div className="flex lg:hidden items-center gap-2">
+            {!user && (
+              <>
+                <button
+                  onClick={() => setOpenVendor(true)}
+                  className="px-3 py-2 text-xs font-bold border border-yellow-400 text-yellow-400 rounded-lg"
+                >
+                  + Add Business
+                </button>
 
-      <button
-        onClick={() => setShowLoginPopup(true)}
-        className="px-3 py-2 text-xs font-bold bg-yellow-400 text-black rounded-lg"
-      >
-        Login
-      </button>
-    </>
-  )}
+                <button
+                  onClick={() => setShowLoginPopup(true)}
+                  className="px-3 py-2 text-xs font-bold bg-yellow-400 text-black rounded-lg"
+                >
+                  Login
+                </button>
+              </>
+            )}
 
-  {user && (
-    <button
-      onClick={() => setShowMoreMenu(true)}
-      className="w-10 h-10 rounded-full flex items-center justify-center"
-      style={{ backgroundColor: profileColor }}
-    >
-      <UserCircle size={22} className="text-white" />
-    </button>
-  )}
-</div>
+            {user && (
+              <button
+                onClick={() => setShowMoreMenu(true)}
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: profileColor }}
+              >
+                <UserCircle size={22} className="text-white" />
+              </button>
+            )}
+          </div>
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center space-x-2 font-semibold text-sm">
@@ -452,7 +482,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
             })}
           </nav>
 
- 
+
 
           {/* 3. Actions Section - Desktop */}
           <div className="hidden lg:flex items-center space-x-4">
@@ -478,7 +508,6 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
                   >
                     Login
                   </button>
-
                   <div className="relative">
                     <button
                       onClick={() => setOpenRegisterMenu((prev) => !prev)}
@@ -526,7 +555,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
                      animate-in zoom-in duration-500
                      hover:scale-110 transition-transform
                      px-3 py-2 min-w-[2.5rem] max-w-[5rem]"
-                                                 style={{
+                          style={{
                             backgroundColor: '#000000', // black background for medal
                             boxShadow: `0 0 15px ${profileColor}60`,
                           }}
@@ -782,75 +811,75 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
                 <CloseIcon size={20} />
               </button>
             </div>
-          <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4">
 
-  {/* PROFILE OPTIONS */}
-  {user && (
-    <div className="border rounded-xl p-3">
-      <p className="text-xs font-bold text-gray-500 uppercase mb-2">
-        Account
-      </p>
+              {/* PROFILE OPTIONS */}
+              {user && (
+                <div className="border rounded-xl p-3">
+                  <p className="text-xs font-bold text-black uppercase mb-2">
+                    Account
+                  </p>
 
-      <Link
-        href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
-        onClick={() => setShowMoreMenu(false)}
-        className="block py-2 px-3 rounded-lg hover:bg-gray-100 font-semibold"
-      >
-        My Profile
-      </Link>
+                  <Link
+                    href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
+                    onClick={() => setShowMoreMenu(false)}
+                    className="block py-2 px-3 text-black rounded-lg hover:bg-gray-100 font-semibold"
+                  >
+                    My Profile
+                  </Link>
 
-      {userRole === "vendor" && (
-        <>
-          <Link
-            href="/vendor/products"
-            onClick={() => setShowMoreMenu(false)}
-            className="block py-2 px-3 rounded-lg hover:bg-gray-100 font-semibold"
-          >
-            Products
-          </Link>
+                  {userRole === "vendor" && (
+                    <>
+                      <Link
+                        href="/vendor/products"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="block py-2 px-3 text-black  rounded-lg hover:bg-gray-100 font-semibold"
+                      >
+                        Products
+                      </Link>
 
-          <Link
-            href="/vendor/enquiry"
-            onClick={() => setShowMoreMenu(false)}
-            className="block py-2 px-3 rounded-lg hover:bg-gray-100 font-semibold"
-          >
-            Enquiries
-          </Link>
-        </>
-      )}
+                      <Link
+                        href="/vendor/enquiry"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="block py-2 px-3 text-black rounded-lg hover:bg-gray-100 font-semibold"
+                      >
+                        Enquiries
+                      </Link>
+                    </>
+                  )}
 
-      <button
-        onClick={() => {
-          logout();
-          setShowMoreMenu(false);
-        }}
-        className="w-full text-left py-2 px-3 rounded-lg text-red-600 font-bold hover:bg-red-50 mt-2"
-      >
-        Logout
-      </button>
-    </div>
-  )}
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full text-left py-2 px-3 rounded-lg text-red-600 font-bold hover:bg-red-50 mt-2"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
 
-  {/* REMAINING NAV LINKS */}
-  <div>
-    <p className="text-xs font-bold text-gray-500 uppercase mb-2 px-1">
-      Navigation
-    </p>
+              {/* REMAINING NAV LINKS */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2 px-1">
+                  Navigation
+                </p>
 
-    {navLinks
-      .filter((link) => !bottomNavItems.some((item) => item.href === link.href))
-      .map((link) => (
-        <Link
-          key={link.name}
-          href={link.href}
-          onClick={() => setShowMoreMenu(false)}
-          className="block py-3 px-4 text-gray-800 font-medium hover:bg-gray-100 rounded-lg"
-        >
-          {link.name}
-        </Link>
-      ))}
-  </div>
-</div>
+                {navLinks
+                  .filter((link) => !bottomNavItems.some((item) => item.href === link.href))
+                  .map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      onClick={() => setShowMoreMenu(false)}
+                      className="block py-3 px-4 text-gray-800 font-medium hover:bg-gray-100 rounded-lg"
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
+              </div>
+            </div>
 
           </div>
         </div>
@@ -925,8 +954,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
                   <button
                     onClick={sendLoginOtp}
                     disabled={loginLoading}
-                    className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-bold text-sm uppercase tracking-wide transition-all disabled:opacity-50"
-                  >
+                    className="py-3 bg-black text-slate">
                     {loginLoading ? "Sending..." : "Send OTP"}
                   </button>
                   <button
@@ -1005,7 +1033,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
                       />
                     </div>
 
-                                      <button
+                    <button
                       onClick={sendRegisterOtp}
                       disabled={registerLoading}
                       className="w-full py-3 bg-slate-900 text-yellow-500 rounded-xl font-bold text-sm uppercase tracking-wide shadow-lg transition-all hover:bg-black hover:scale-105 active:scale-95 mt-4 disabled:opacity-50"

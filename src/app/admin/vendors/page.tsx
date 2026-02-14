@@ -9,6 +9,7 @@ import {
   Building2, Hash, ExternalLink, Calendar, ShieldCheck, Activity,
   Plus, Upload, Trash2
 } from "lucide-react";
+import toast from "react-hot-toast";  // Toast for notifications
 
 // --- Types ---
 type Vendor = {
@@ -39,6 +40,7 @@ type Vendor = {
   company_logo: string | null;
   payment_id: string | null;
   categories?: { id: string; name: string }[];  // Updated to array of objects
+  certificates: string[] | null;  // NEW: For certificate images
 };
 
 type SubscriptionPlan = {
@@ -65,13 +67,14 @@ const useVendors = () => {
       .order("created_at", { ascending: false });
 
     if (!error && vendorsData) {
-      // Parse categories from JSON string
-      const vendorsWithCats = vendorsData.map(v => ({
+      // Parse categories and certificates from JSON strings
+      const vendorsWithParsed = vendorsData.map(v => ({
         ...v,
-        categories: v.categories ? JSON.parse(v.categories) : []
+        categories: v.categories ? JSON.parse(v.categories) : [],
+        certificates: (v.certificates && typeof v.certificates === 'string') ? JSON.parse(v.certificates) : (Array.isArray(v.certificates) ? v.certificates : []),
       }));
 
-      setVendors(vendorsWithCats);
+      setVendors(vendorsWithParsed);
     }
     setLoading(false);
   }, []);
@@ -95,6 +98,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  const [certificatePreviews, setCertificatePreviews] = useState<string[]>([]);  // NEW: For certificates
   const [videoFilesList, setVideoFilesList] = useState<{ url: string, added_at: string }[]>([]);
   const [websiteInput, setWebsiteInput] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
@@ -131,6 +135,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     video_files: [] as any,
     status: "approved", // Default to approved for admin adds
     categories: [] as { id: string; name: string }[],  // Updated to array of objects
+    certificates: [] as string[],  // NEW: For certificate images
     role: "admin",
   });
 
@@ -205,14 +210,24 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
 
       if (isMultiple) {
         const urls: string[] = [];
+        const maxFiles = field === 'media_files' || field === 'certificates' ? 6 : Infinity;  // Max 6 for photos and certificates
+        const currentCount = field === 'media_files' ? mediaPreviews.length : certificatePreviews.length;
+        if (currentCount + files.length > maxFiles) {
+          throw new Error(`Maximum ${maxFiles} ${field === 'media_files' ? 'photos' : 'certificates'} allowed.`);
+        }
         for (const file of Array.from(files)) {
           if (file.size > 5 * 1024 * 1024) throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
-          const path = `vendor/media/${Date.now()}-${file.name}`;
+          const subPath = field === 'media_files' ? 'media' : 'certificates';
+          const path = `vendor/${subPath}/${Date.now()}-${file.name}`;
           const url = await uploadToBucket(file, 'media', path);
           urls.push(url);
-          setMediaPreviews(prev => [...prev, url]);
+          if (field === 'media_files') {
+            setMediaPreviews(prev => [...prev, url]);
+          } else {
+            setCertificatePreviews(prev => [...prev, url]);
+          }
         }
-        setFormData(prev => ({ ...prev, media_files: [...prev.media_files, ...urls] }));
+        setFormData(prev => ({ ...prev, [field]: [...prev[field], ...urls] }));
       } else {
         const file = files[0];
         if (file.size > 5 * 1024 * 1024) throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
@@ -255,6 +270,12 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     setFormData({ ...formData, media_files: filtered });
   };
 
+  const removeCertificate = (index: number) => {  // NEW: Remove certificate
+    const filtered = formData.certificates.filter((_, i) => i !== index);
+    setCertificatePreviews(filtered);
+    setFormData({ ...formData, certificates: filtered });
+  };
+
   const removeVideo = (index: number) => {
     const newList = videoFilesList.filter((_, i) => i !== index);
     setVideoFilesList(newList);
@@ -275,6 +296,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     if (!formData.state.trim()) return "State is required";
     if (!formData.pincode.trim()) return "Pincode is required";
     if (formData.media_files.length === 0) return "At least one image is required";
+    if (formData.certificates.length === 0) return "At least one certificate is required";  // NEW: Optional, but added for consistency
     if (formData.gst_number && formData.gst_number.length !== 15) return "GST Number must be 15 characters if provided";
     return null;
   };
@@ -285,7 +307,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     if (errorMsg) { setError(errorMsg); return; }
     setLoading(true);
     try {
-      // Check if email already exists
+      // Check if email already exists (prevent duplicates)
       const { data: existingVendor } = await supabase
         .from("vendor_register")
         .select("id")
@@ -296,7 +318,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
         return;
       }
 
-      // Get current user for user_id
+      // Get current user for user_id (if needed, but admin adds don't create auth users)
       const { data: { user } } = await supabase.auth.getUser();
 
       const now = new Date();
@@ -315,21 +337,55 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
 
       const submissionData = {
         ...vendorData,
-        role: "admin",
+        role: "vendor",
+        status: "pending",
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
         subscription_plan_id: selectedPlanId,
         subscription_expiry: subscriptionExpiry,
         categories: JSON.stringify(formData.categories),  // Save as JSON string
+        certificates: formData.certificates,  // Save as array (consistent with VendorRegister)
       };
 
-      const { data: vendor, error } = await supabase
+      // Check if an existing vendor entry exists with the same email and status "pending" (admin-added)
+      const { data: pendingVendor } = await supabase
         .from("vendor_register")
-        .insert([submissionData])
         .select("id")
-        .single();
+        .eq("email", formData.email)
+        .eq("status", "pending")
+        .maybeSingle();
 
-      if (error) throw error;
+      let vendor;
+      if (pendingVendor) {
+        // Update the existing entry with user_id and other data (though admin adds don't set user_id yet)
+        const { data, error } = await supabase
+          .from("vendor_register")
+          .update({
+            ...submissionData,
+            user_id: user?.id || null,  // Admin adds don't create auth users, so this might be null
+            status: "pending",  // Keep as pending until vendor registers
+          })
+          .eq("id", pendingVendor.id)
+          .select("id")
+          .single();
+        vendor = data;
+        if (error) throw error;
+      } else {
+        // Insert new entry if no existing pending entry
+        const { data, error } = await supabase
+          .from("vendor_register")
+          .insert([{
+            ...submissionData,
+            user_id: user?.id || null,
+          }])
+          .select("id")
+          .single();
+        vendor = data;
+        if (error) throw error;
+      }
+
+      // Notify admin that vendor needs to register
+      toast.success("Vendor added successfully! They must register via the public form to activate their account and gain access.");
 
       onAdd();
       onClose();
@@ -342,6 +398,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
 
   const inputClass = "w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 focus:bg-white outline-none transition-all text-slate-800 text-sm font-bold";
   const labelClass = "block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-[0.2em]";
+
 
 
   return (
@@ -463,8 +520,8 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
                 <input type="text" name="owner_name" value={formData.owner_name} onChange={handleChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Primary Mobile</label>
-                <input type="tel" name="mobile_number" value={formData.mobile_number} onChange={handleChange} className={inputClass} maxLength={10} />
+                <label className={labelClass}>Primary Mobile (WhatsApp Number)</label>
+                <input type="tel" name="mobile_number" value={formData.mobile_number} onChange={handleChange} className={inputClass} maxLength={15} />
               </div>
               <div>
                 <label className={labelClass}>Backup Mobile</label>
@@ -657,8 +714,29 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
                 ))}
                 <label className="aspect-square border-2 border-dashed flex items-center justify-center cursor-pointer rounded-xl">
                   <Plus size={24} />
-                  <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, '', true)} className="hidden" />
+                  <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'media_files', true)} className="hidden" />
                 </label>
+              </div>
+            </div>
+
+            {/* Certificates */}
+            <div>
+              <label className={labelClass}>Certificates (Max 6, Optional)</label>
+              <div className="grid grid-cols-4 gap-4">
+                {certificatePreviews.map((src, i) => (
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
+                    <img src={src} className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeCertificate(i)} className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+                {certificatePreviews.length < 6 && (
+                  <label className="aspect-square border-2 border-dashed flex items-center justify-center cursor-pointer rounded-xl">
+                    <Plus size={24} />
+                    <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
+                  </label>
+                )}
               </div>
             </div>
 
@@ -792,8 +870,12 @@ export default function VendorsPage() {
               <div key={vendor.id} className="bg-white rounded-[3rem] border border-slate-200 p-8 hover:shadow-2xl transition-all group relative overflow-hidden flex flex-col">
                 <div className="flex justify-between items-start mb-8">
                   <div className="w-16 h-16 bg-black rounded-2xl overflow-hidden relative border-4 border-slate-50 shadow-lg group-hover:scale-110 transition-transform">
-                    <Image src={vendor.company_logo || "/placeholder-logo.png"} alt="Logo" fill className="object-cover" />
-                  </div>
+                    <Image
+                      src={vendor.company_logo || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOUI5QkE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ObyBMb2dvPC90ZXh0Pgo8L3N2Zz4="}
+                      alt="Logo"
+                      fill
+                      className="object-cover"
+                    />                  </div>
                   <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${vendor.status === 'approved'
                     ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                     : 'bg-amber-50 text-amber-600 border-amber-100'
@@ -847,8 +929,12 @@ export default function VendorsPage() {
               {/* SIDE PANEL: IDENTITY */}
               <div className="md:w-1/3 bg-yellow-300 p-12 flex flex-col items-center border-r border-black/5 overflow-y-auto">
                 <div className="w-40 h-40 bg-white rounded-[3rem] shadow-2xl overflow-hidden mb-8 border-[6px] border-white relative">
-                  <Image src={selectedVendor.company_logo || "/placeholder-logo.png"} alt="Logo" fill className="object-cover" />
-                </div>
+                  <Image
+                    src={selectedVendor.company_logo || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOUI5QkE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ObyBMb2dvPC90ZXh0Pgo8L3N2Zz4="}
+                    alt="Logo"
+                    fill
+                    className="object-cover"
+                  />                </div>
                 <h2 className="text-3xl font-black text-black uppercase  text-center leading-[0.9] mb-4 tracking-tighter">
                   {selectedVendor.company_name}
                 </h2>
@@ -947,6 +1033,22 @@ export default function VendorsPage() {
                         <img src={img} className="w-full h-full object-cover" alt="Portfolio Asset" />
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* NEW: Certificates Section */}
+                <div className="mb-12 flex-1">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 border-b border-slate-100 pb-3 ">Certificates</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {selectedVendor.certificates && selectedVendor.certificates.length > 0 ? (
+                      selectedVendor.certificates.map((img, i) => (
+                        <div key={i} className="aspect-square rounded-[2rem] overflow-hidden border-2 border-slate-100 shadow-sm hover:scale-105 transition-transform duration-500 bg-slate-100">
+                          <img src={img} className="w-full h-full object-cover" alt="Certificate" />
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-slate-300 text-xs font-bold">NO CERTIFICATES UPLOADED</span>
+                    )}
                   </div>
                 </div>
 

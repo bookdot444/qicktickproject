@@ -16,7 +16,8 @@ import {
     Loader2,
     Zap,
     MapPin,
-    Briefcase
+    Briefcase,
+    Building
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,42 +37,68 @@ function SearchSearchResults() {
     const [find, setFind] = useState(q || "");
     const [near, setNear] = useState(city || "");
     const [businessType, setBusinessType] = useState(type || "");
-    const [searchFilters, setSearchFilters] = useState<{ products: string[] }>({ products: [] });
+    const [searchSuggestions, setSearchSuggestions] = useState<{ products: string[], companies: string[], categories: string[] }>({ products: [], companies: [], categories: [] });
     const [showResults, setShowResults] = useState(false);
     const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
 
     useEffect(() => {
         if (!find || find.length < 2) {
-            setSearchFilters({ products: [] });
+            setSearchSuggestions({ products: [], companies: [], categories: [] });
             setShowResults(false);
             return;
         }
 
-        const fetchSearchFilters = async () => {
-            const { data, error } = await supabase
+        const fetchSearchSuggestions = async () => {
+            // Fetch products
+            const { data: productData, error: productError } = await supabase
                 .from("vendor_products")
                 .select("product_name")
                 .ilike("product_name", `%${find}%`)
                 .eq("is_active", true)
-                .limit(10);
+                .limit(5);
 
-            if (error) {
-                console.error("Filter Fetch Error:", error);
-                setSearchFilters({ products: [] });
-                return;
-            }
+            // Fetch companies
+            const { data: companyData, error: companyError } = await supabase
+                .from("vendor_register")
+                .select("company_name")
+                .ilike("company_name", `%${find}%`)
+                .limit(5);
+
+            // Fetch categories
+            const { data: categoryData, error: categoryError } = await supabase
+                .from("categories")
+                .select("name")
+                .ilike("name", `%${find}%`)
+                .eq("is_active", true)
+                .limit(5);
+
+            if (productError) console.error("Product Fetch Error:", productError);
+            if (companyError) console.error("Company Fetch Error:", companyError);
+            if (categoryError) console.error("Category Fetch Error:", categoryError);
 
             const products = Array.from(
                 new Set(
-                    data.map(item => item.product_name?.toLowerCase().trim()).filter(Boolean)
+                    (productData || []).map(item => item.product_name?.toLowerCase().trim()).filter(Boolean)
                 )
             );
 
-            setSearchFilters({ products });
+            const companies = Array.from(
+                new Set(
+                    (companyData || []).map(item => item.company_name?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            const categories = Array.from(
+                new Set(
+                    (categoryData || []).map(item => item.name?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            setSearchSuggestions({ products, companies, categories });
             setShowResults(true);
         };
 
-        fetchSearchFilters();
+        fetchSearchSuggestions();
     }, [find]);
 
     useEffect(() => {
@@ -81,18 +108,49 @@ function SearchSearchResults() {
         }
 
         const checkLocationAvailability = async () => {
-            const { data, error } = await supabase
+            // First, find vendors that match the search term in products, companies, or categories
+            let vendorIds: string[] = [];
+
+            // From products
+            const { data: productVendors } = await supabase
                 .from("vendor_products")
                 .select("vendor_id")
                 .ilike("product_name", `%${find}%`)
                 .eq("is_active", true);
 
-            if (error || !data?.length) {
+            // From companies
+            const { data: companyVendors } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("company_name", `%${find}%`);
+
+            // From categories (via products)
+            const { data: categoryVendors } = await supabase
+                .from("vendor_products")
+                .select("vendor_id")
+                .eq("is_active", true)
+                .not("category_id", "is", null)
+                .in("category_id", 
+                    (await supabase.from("categories").select("id").ilike("name", `%${find}%`).eq("is_active", true)).data?.map(c => c.id) || []
+                );
+
+            // From categories in vendor_register
+            const { data: categoryVendorsRegister } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("categories::text", `%${find}%`);
+
+            vendorIds = [...new Set([
+                ...(productVendors || []).map(p => p.vendor_id),
+                ...(companyVendors || []).map(c => c.id),
+                ...(categoryVendors || []).map(c => c.vendor_id),
+                ...(categoryVendorsRegister || []).map(c => c.id)
+            ])];
+
+            if (!vendorIds.length) {
                 setLocationAvailability({ locations: [] });
                 return;
             }
-
-            const vendorIds = [...new Set(data.map(p => p.vendor_id))];
 
             const { data: vendors, error: vendorError } = await supabase
                 .from("vendor_register")
@@ -126,33 +184,72 @@ function SearchSearchResults() {
 
         const fetchResults = async () => {
             setLoading(true);
-            const vendorConditions: string[] = [];
 
+            let vendorIds: string[] = [];
+
+            // Check for products
+            const { data: productVendors } = await supabase
+                .from("vendor_products")
+                .select("vendor_id")
+                .ilike("product_name", `%${q}%`)
+                .eq("is_active", true);
+            if (productVendors?.length) {
+                vendorIds.push(...productVendors.map(p => p.vendor_id));
+            }
+
+            // Check for categories
+            const { data: categoryIds } = await supabase
+                .from("categories")
+                .select("id")
+                .ilike("name", `%${q}%`)
+                .eq("is_active", true);
+            if (categoryIds?.length) {
+                const { data: categoryVendors } = await supabase
+                    .from("vendor_products")
+                    .select("vendor_id")
+                    .in("category_id", categoryIds.map(c => c.id))
+                    .eq("is_active", true);
+                if (categoryVendors?.length) {
+                    vendorIds.push(...categoryVendors.map(p => p.vendor_id));
+                }
+            }
+
+            // Check for categories in vendor_register
+            const { data: categoryVendorsRegister } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("categories::text", `%${q}%`);
+            if (categoryVendorsRegister?.length) {
+                vendorIds.push(...categoryVendorsRegister.map(c => c.id));
+            }
+
+            // Check for companies
+            const { data: companyVendors } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("company_name", `%${q}%`);
+            if (companyVendors?.length) {
+                vendorIds.push(...companyVendors.map(c => c.id));
+            }
+
+            vendorIds = [...new Set(vendorIds)];
+
+            if (!vendorIds.length) {
+                setResults([]);
+                setLoading(false);
+                return;
+            }
+
+            const vendorConditions: string[] = [];
             if (city) vendorConditions.push(`city.eq.${city}`);
             if (type) vendorConditions.push(`user_type.cs.{${type}}`);
 
-            const join =
-                vendorConditions.length > 0
-                    ? `vendor_register!inner(${vendorConditions.join(",")})`
-                    : `vendor_register!inner`;
+            const query = supabase.from("vendor_register").select("*").in("id", vendorIds);
+            if (vendorConditions.length) {
+                query.or(vendorConditions.join(","));
+            }
 
-            const { data, error } = await supabase
-                .from("vendor_products")
-                .select(`
-                id,
-                vendor_id,
-                product_name,
-                price,
-                product_image,
-                ${join} (
-                    id,
-                    company_name,
-                    city,
-                    user_type
-                )
-            `)
-                .eq("is_active", true)
-                .ilike("product_name", `%${q}%`);
+            const { data, error } = await query;
 
             if (error) {
                 console.error("Search Error:", error);
@@ -168,7 +265,7 @@ function SearchSearchResults() {
 
     const handleFullSearch = () => {
         if (!find.trim()) {
-            alert("Please enter what you need (e.g., Electrician, Plumber).");
+            alert("Please enter what you need (e.g., Electrician, Plumber, Company Name, Category).");
             return;
         }
         setShowResults(false);
@@ -199,8 +296,8 @@ function SearchSearchResults() {
                             <span>Home</span>
                         </button>
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 leading-none uppercase">
-                            Search <br />
-                            <span className="text-red-600 ">Registry</span>
+                            Search{" "}
+                            <span className="text-black">Registry</span>
                         </h1>
                     </div>
                     <div className="hidden lg:block bg-white p-8 rounded-[2.5rem] rotate-3 shadow-xl border-2 border-yellow-100 relative">
@@ -224,31 +321,76 @@ function SearchSearchResults() {
                                         <span className="text-xs font-bold uppercase tracking-wider text-gray-300">What do you need?</span>
                                         <input
                                             className="bg-transparent border-none outline-none text-white font-semibold placeholder:text-gray-300 w-full"
-                                            placeholder="e.g., Electrician, Plumber..."
+                                            placeholder="e.g., Electrician, Plumber, Company Name, Category..."
                                             value={find}
                                             onChange={(e) => setFind(e.target.value)}
                                             onKeyDown={(e) => e.key === "Enter" && handleFullSearch()}
                                         />
                                     </div>
                                 </div>
-                                {showResults && searchFilters.products.length > 0 && (
-                                    <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[300px] overflow-y-auto">
+                                {showResults && (searchSuggestions.products.length > 0 || searchSuggestions.companies.length > 0 || searchSuggestions.categories.length > 0) && (
+                                    <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[400px] overflow-y-auto">
                                         <div className="px-6 py-4">
-                                            <p className="font-bold text-black text-base mb-2">Suggested Products</p>
-                                            <div className="flex flex-col gap-2">
-                                                {searchFilters.products.map((product) => (
-                                                    <span
-                                                        key={product}
-                                                        onClick={() => {
-                                                            setFind(product.charAt(0).toUpperCase() + product.slice(1));
-                                                            setShowResults(false);
-                                                        }}
-                                                        className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
-                                                    >
-                                                        {product.charAt(0).toUpperCase() + product.slice(1)}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                            {searchSuggestions.products.length > 0 && (
+                                                <>
+                                                    <p className="font-bold text-black text-base mb-2">Suggested Products</p>
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        {searchSuggestions.products.map((product) => (
+                                                            <span
+                                                                key={product}
+                                                                onClick={() => {
+                                                                    setFind(product.charAt(0).toUpperCase() + product.slice(1));
+                                                                    setShowResults(false);
+                                                                    handleFullSearch();
+                                                                }}
+                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+                                                            >
+                                                                {product.charAt(0).toUpperCase() + product.slice(1)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {searchSuggestions.companies.length > 0 && (
+                                                <>
+                                                    <p className="font-bold text-black text-base mb-2">Suggested Companies</p>
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        {searchSuggestions.companies.map((company) => (
+                                                            <span
+                                                                key={company}
+                                                                onClick={() => {
+                                                                    setFind(company.charAt(0).toUpperCase() + company.slice(1));
+                                                                    setShowResults(false);
+                                                                    handleFullSearch();
+                                                                }}
+                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+                                                            >
+                                                                {company.charAt(0).toUpperCase() + company.slice(1)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {searchSuggestions.categories.length > 0 && (
+                                                <>
+                                                    <p className="font-bold text-black text-base mb-2">Suggested Categories</p>
+                                                    <div className="flex flex-col gap-2">
+                                                        {searchSuggestions.categories.map((category) => (
+                                                            <span
+                                                                key={category}
+                                                                onClick={() => {
+                                                                    setFind(category.charAt(0).toUpperCase() + category.slice(1));
+                                                                    setShowResults(false);
+                                                                    handleFullSearch();
+                                                                }}
+                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+                                                            >
+                                                                {category.charAt(0).toUpperCase() + category.slice(1)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -300,13 +442,14 @@ function SearchSearchResults() {
                                         onChange={(e) => setBusinessType(e.target.value)}
                                     >
                                         <option value="" className="text-black">All Types</option>
-                                        <option value="Distributer" className="text-black">Distributor</option>
+                                                                       <option value="Distributer" className="text-black">Distributor</option>
                                         <option value="Manufacturer" className="text-black">Manufacturer</option>
                                         <option value="Retailers" className="text-black">Retailers</option>
                                         <option value="Service Sector" className="text-black">Service Sector</option>
                                     </select>
                                 </div>
                             </div>
+                            <div className="hidden md:block h-8 w-px bg-yellow-500/30"></div>
                             <button
                                 onClick={handleFullSearch}
                                 className="w-full md:w-auto bg-gradient-to-r from-yellow-500 to-red-600 text-black px-10 py-5 rounded-2xl font-bold transition-all hover:scale-105 active:scale-95 shadow-lg"
@@ -329,36 +472,36 @@ function SearchSearchResults() {
                             <p className="font-black uppercase tracking-widest text-xs text-gray-400">Please enter what you need to search.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {results.length === 0 ? (
                                 <div className="col-span-full bg-white p-20 rounded-[3rem] border-4 border-gray-900 text-center">
                                     <p className="font-black uppercase tracking-widest text-xs text-gray-400">No Results Found.</p>
                                 </div>
                             ) : (
-                                results.map((item) => (
+                                results.map((vendor) => (
                                     <div
-                                        key={item.id}
-                                        onClick={() => router.push(`/vendor/view/${item.vendor_id}`)}
+                                        key={vendor.id}
+                                        onClick={() => router.push(`/vendor/view/${vendor.id}`)}
                                         className="group bg-white border-2 border-gray-900 rounded-[2rem] overflow-hidden cursor-pointer shadow-[4px_4px_0px_#000] flex flex-col"
                                     >
                                         <div className="relative h-40 bg-gray-50 border-b-2 border-gray-900">
-                                            {item.product_image ? (
-                                                <Image src={item.product_image} alt={item.product_name} fill className="object-cover" />
+                                            {vendor.company_logo ? (
+                                                <Image src={vendor.company_logo} alt={vendor.company_name} fill className="object-cover" />
                                             ) : (
-                                                <div className="flex h-full items-center justify-center text-gray-200"><Package size={32} /></div>
+                                                <div className="flex h-full items-center justify-center text-gray-200"><Building size={32} /></div>
                                             )}
                                             <div className="absolute top-3 left-3">
-                                                <span className="bg-white/90 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-gray-900">
-                                                    {item.vendor_register?.city || "Global"}
+                                                <span className="bg-black px-2 py-0.5 rounded text-[8px] font-black uppercase border border-gray-900">
+                                                    {vendor.city || "Global"}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="p-5 flex flex-col flex-1">
-                                            <h3 className="font-black text-sm text-gray-900 uppercase  leading-tight truncate group-hover:text-red-600 transition-colors">{item.product_name}</h3>
-                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">{item.vendor_register?.company_name}</p>
+                                            <h3 className="font-black text-sm text-gray-900 uppercase leading-tight truncate group-hover:text-red-600 transition-colors">{vendor.company_name}</h3>
+                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">{vendor.user_type?.join(", ") || "Business"}</p>
                                             <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
-                                                <span className="text-lg font-black text-gray-900 tracking-tighter">₹{item.price.toLocaleString()}</span>
-                                                <div className="bg-gray-100 group-hover:bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
+                                                <span className="text-lg font-black text-gray-900 tracking-tighter">{vendor.area || "Location"}</span>
+                                                <div className="bg-black group-hover:bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
                                             </div>
                                         </div>
                                     </div>
@@ -367,28 +510,6 @@ function SearchSearchResults() {
                         </div>
                     )}
                 </AnimatePresence>
-
-                {/* --- TRUST SECTION --- */}
-                <section className="py-20 px-6">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="bg-white rounded-[4rem] p-12 md:p-20 border border-yellow-100 shadow-xl relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:40px_40px]" />
-                            <div className="flex justify-center mb-8 relative z-10">
-                                <span className="bg-[#0F172A] text-yellow-400 text-[9px] font-black uppercase tracking-[0.4em] px-6 py-2 rounded-full shadow-lg">Trust & Verification</span>
-                            </div>
-                            <h2 className="text-center mb-24 relative z-10">
-                                <span className="text-4xl md:text-7xl font-black  text-[#0F172A] tracking-tighter uppercase leading-[0.85] block">SECURE ASSETS,</span>
-                                <span className="text-4xl md:text-7xl font-black  text-red-600 tracking-tighter uppercase leading-[0.85] block">VERIFIED VENDORS.</span>
-                            </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
-                                <TrustCardItem num="01" color="bg-yellow-400" icon={<ShieldCheck size={28} />} title="Secure" desc="Military-grade encryption protecting every digital asset." />
-                                <TrustCardItem num="02" color="bg-red-600" icon={<Hash size={28} className="text-white" />} title="Tracked" desc="Real-time activity monitoring for transparency." />
-                                <TrustCardItem num="03" color="bg-[#0F172A]" icon={<Award size={28} className="text-yellow-400" />} title="Verified" desc="Multi-step background checks before listing." />
-                                <TrustCardItem num="04" color="bg-yellow-50" icon={<TrendingUp size={28} className="text-yellow-600" />} title="Popular" desc="Join the fastest growing network of professionals." />
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </div>
         </div>
     );
@@ -402,7 +523,7 @@ function TrustCardItem({ num, color, icon, title, desc }: { num: string, color: 
             <div className={`w-16 h-16 ${color} rounded-[1.5rem] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500`}>
                 {icon}
             </div>
-            <h3 className="text-lg font-black  uppercase tracking-tighter text-gray-900 mb-2">{title}</h3>
+            <h3 className="text-lg font-black uppercase tracking-tighter text-gray-900 mb-2">{title}</h3>
             <p className="text-gray-400 text-[10px] font-bold leading-relaxed uppercase tracking-wide">{desc}</p>
         </div>
     );

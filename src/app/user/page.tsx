@@ -910,7 +910,7 @@ export default function Home() {
             </section>
 
             {/* TRUST CTA - Redesigned & Compact with 3 Buttons */}
-            <section className="py-10  bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
+            <section className=" pt-6 pb-8 py-10  bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
                 {/* Subtle Pattern Overlay */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
 
@@ -953,7 +953,7 @@ export default function Home() {
             </section>
 
             {/* DIGITAL BRANDING - Compact Studio Slider */}
-            <section className="py-18 md:py-8 bg-[#FCF9F1] overflow-hidden relative border-b border-gray-100">
+<section className="pt-6 pb-8 md:py-8 bg-[#FCF9F1] overflow-hidden relative border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="flex flex-col items-center text-center mb-10">
                         <div className="mb-6">
@@ -1044,7 +1044,7 @@ export default function Home() {
             </section>
 
             {/* DIGITAL BANNERS - Premium Scrolling Layout */}
-            <section className="py-18 md:py-8 bg-white relative overflow-hidden">
+            <section className="pt-6 pb-8 py-18 md:py-8 bg-white relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6">
 
                     {/* --- CENTERED HEADER & CONTROLS --- */}
@@ -1152,7 +1152,7 @@ export default function Home() {
             </section>
 
             {/* COMPACT TRANSPORT BANNER */}
-            <section className="py-18 md:py-8 bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
+            <section className="pt-6 pb-8 py-18 md:py-8 bg-[#FEF3C7] relative overflow-hidden border-y border-yellow-200">
                 {/* Decorative Elements - Scaled down */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-400/20 rounded-full blur-2xl" />
@@ -1208,7 +1208,7 @@ export default function Home() {
             </section>
 
             {/* HELP & EARN - Compact Community Grid */}
-            <section className="py-18 md:py-8 pt-8 bg-[#FFFDF5] relative overflow-hidden">
+            <section className="pt-6 pb-8 py-18 md:py-8 pt-8 bg-[#FFFDF5] relative overflow-hidden">
                 {/* Decorative Elements - Reduced */}
                 <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-30" />
                 <div className="absolute -top-12 -right-12 w-48 h-48 bg-yellow-200/20 rounded-full blur-[60px]" />
@@ -1306,7 +1306,7 @@ export default function Home() {
             </section>
 
             {/* CERTIFICATES SECTION - Compact Amber Gallery */}
-            <section className="py-18 md:py-5 pt-8 bg-[#FEF3C7] border-y border-yellow-200">
+            <section className="pt-6 pb-8 py-18 md:py-5 pt-8 bg-[#FEF3C7] border-y border-yellow-200">
                 <div className="max-w-6xl mx-auto px-6">
 
                     {/* --- COMPACT HEADER --- */}
@@ -1381,7 +1381,7 @@ export default function Home() {
             </section>
 
             {/* PODCASTS SECTION - Compact Version */}
-            <section className="py-18 md:py-8 bg-[#FFFDF5] relative overflow-hidden">
+            <section className="pt-6 pb-8 py-18 md:py-8 bg-[#FFFDF5] relative overflow-hidden">
                 <div className="max-w-6xl mx-auto px-6">
 
                     {/* --- COMPACT HEADER --- */}
@@ -1464,7 +1464,7 @@ export default function Home() {
             </section>
 
             {/* INFLUENCERS SECTION - Split Media Design (Image & Video) */}
-            <section className="py-18 md:py-8 bg-[#FEF3C7] border-t border-yellow-200 relative overflow-hidden">
+            <section className="pt-6 pb-8 py-18 md:py-8 bg-[#FEF3C7] border-t border-yellow-200 relative overflow-hidden">
                 {/* Decorative background element */}
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-[#FDE68A]/30 -skew-x-12 translate-x-20 pointer-events-none" />
 

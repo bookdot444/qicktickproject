@@ -145,7 +145,7 @@ export default function HelpAndEarn() {
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-yellow-800">Support Protocol v2.0</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 leading-none">
-              GIVE <span className="text-red-600 ">&</span> <br />
+              GIVE <span className="text-black">&</span> <br />
               <span className="underline decoration-yellow-400 decoration-4 underline-offset-4">EARN REWARDS</span>
             </h1>
           </div>
@@ -280,7 +280,7 @@ export default function HelpAndEarn() {
           <div className="relative z-10 flex flex-col items-center mb-12">
             <div className="bg-gray-900 text-yellow-400 text-[8px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-4">Protocol</div>
             <h2 className="text-3xl md:text-5xl font-black text-gray-900  uppercase tracking-tighter text-center">
-              The <span className="text-red-600">Ecosystem</span>
+              The <span className="text-black">Ecosystem</span>
             </h2>
           </div>
 
@@ -298,7 +298,7 @@ export default function HelpAndEarn() {
 function BlackInput({ label, name, value, onChange, type = "text", placeholder }: any) {
   return (
     <div className="space-y-1.5 w-full">
-      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 ml-2 ">
+      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ml-2 ">
         {label}
       </label>
       <input

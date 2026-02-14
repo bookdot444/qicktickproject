@@ -27,7 +27,7 @@ export default function TransportPage() {
   const [requests, setRequests] = useState<TransportRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
-  const [hasSubscription, setHasSubscription] = useState(false);
+  const [transportLimit, setTransportLimit] = useState(0);  // Changed from hasSubscription (boolean) to transportLimit (number)
   const [showToast, setShowToast] = useState(false);
   const router = useRouter();
 
@@ -43,28 +43,45 @@ export default function TransportPage() {
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setTransportLimit(0);
+      return;
+    }
 
-    const { data: vendor } = await supabase.from("vendor_register").select("subscription_expiry").eq("user_id", user.id).maybeSingle();
+    let limit = 0;
+
+    // Check vendor subscription
+    const { data: vendor } = await supabase.from("vendor_register").select("subscription_expiry, subscription_plan_id").eq("user_id", user.id).maybeSingle();
     const isVendorActive = vendor?.subscription_expiry && new Date(vendor.subscription_expiry) > new Date();
+    if (isVendorActive && vendor.subscription_plan_id) {
+      const { data: plan } = await supabase.from("subscription_plans").select("transport").eq("id", vendor.subscription_plan_id).single();
+      limit = plan?.transport || 0;
+    }
 
-    const { data: sub } = await supabase.from("user_subscriptions").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
-    setHasSubscription(!!isVendorActive || !!sub);
+    // Check user subscription (if not already set via vendor)
+    if (limit === 0) {
+      const { data: sub } = await supabase.from("user_subscriptions").select("id, plan_id").eq("user_id", user.id).eq("status", "active").maybeSingle();
+      if (sub?.plan_id) {
+        const { data: plan } = await supabase.from("subscription_plans").select("transport").eq("id", sub.plan_id).single();
+        limit = plan?.transport || 0;
+      }
+    }
+
+    setTransportLimit(limit);
   };
 
   const fetchRequests = async () => {
     setListLoading(true);
-    const tenDaysAgo = new Date();
-    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-    const dateLimit = tenDaysAgo.toISOString().split('T')[0];
 
     const { data, error } = await supabase
       .from("travel_requests")
       .select("*")
-      .gte('travel_date', dateLimit)
-      .order("travel_date", { ascending: false });
+      .order("created_at", { ascending: false });
 
-    if (!error && data) setRequests(data);
+    if (!error && data) {
+      setRequests(data);
+    }
+
     setListLoading(false);
   };
 
@@ -138,7 +155,7 @@ export default function TransportPage() {
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-yellow-800">Live Logistics</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 leading-none">
-              SMART <span className="text-red-600">TRANSPORT</span>
+              SMART <span className="text-black">TRANSPORT</span>
             </h1>
           </div>
           <div className="hidden lg:block bg-white p-6 rounded-[2rem] rotate-3 shadow-xl border border-yellow-100 relative">
@@ -178,14 +195,14 @@ export default function TransportPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 ml-2">Product Description</label>
+                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ml-2">Product Description</label>
                   <textarea
-  placeholder="DESCRIBE YOUR GOODS..." 
-  rows={2}
-  className="w-full p-4 bg-black/5 border border-black/10 rounded-2xl focus:border-black focus:bg-white outline-none transition-all font-bold uppercase text-[11px] tracking-widest text-black placeholder:text-black/30"
-  value={formData.goods} 
-  onChange={(e) => setFormData({ ...formData, goods: e.target.value })}
-/>
+                    placeholder="DESCRIBE YOUR GOODS..."
+                    rows={2}
+                    className="w-full p-4 bg-black/5 border border-black/10 rounded-2xl focus:border-black focus:bg-white outline-none transition-all font-bold uppercase text-[11px] tracking-widest text-black placeholder:text-black/30"
+                    value={formData.goods}
+                    onChange={(e) => setFormData({ ...formData, goods: e.target.value })}
+                  />
                 </div>
 
                 <button
@@ -202,7 +219,7 @@ export default function TransportPage() {
           <div className="lg:col-span-5 space-y-6">
             <div className="flex items-center justify-between px-2">
               <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2 text-gray-900">
-                <Clock className="text-red-600" size={20} /> Active Leads
+                <Clock className="text-black" size={20} /> Active Leads
               </h2>
               <span className="bg-yellow-400 text-black text-[8px] font-black px-2 py-0.5 rounded uppercase">Recent</span>
             </div>
@@ -216,8 +233,9 @@ export default function TransportPage() {
               ) : requests.length === 0 ? (
                 <div className="text-center p-10 bg-white rounded-[2rem] border border-dashed border-yellow-200 text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">No Active Leads</div>
               ) : (
-                requests.map((req) => {
+                requests.map((req, index) => {
                   const isPast = new Date(req.travel_date) < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isUnlocked = index < transportLimit;  // New: Check if this lead is within the transport limit
 
                   return (
                     <motion.div
@@ -227,7 +245,7 @@ export default function TransportPage() {
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
                           <span className={`w-1.5 h-1.5 rounded-full ${isPast ? 'bg-gray-300' : 'bg-red-600 animate-pulse'}`}></span>
-                          <span className={`text-[8px] font-black uppercase tracking-widest ${isPast ? 'text-gray-400' : 'text-red-600'}`}>{isPast ? 'Archived' : 'Live Lead'}</span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest ${isPast ? 'text-gray-400' : 'text-black'}`}>{isPast ? 'Archived' : 'Live Lead'}</span>
                         </div>
                         <span className="text-[8px] font-black text-gray-300">ID_{req.id}</span>
                       </div>
@@ -237,7 +255,7 @@ export default function TransportPage() {
                         <div className="flex items-center gap-2 mb-2">
                           <MapPin size={14} className="text-yellow-600" />
                           <p className="text-sm font-black  uppercase tracking-tighter text-gray-900 leading-tight">
-                            {req.pickup_location} <ArrowRight size={10} className="inline mx-1 text-red-600" /> {req.drop_location}
+                            {req.pickup_location} <ArrowRight size={10} className="inline mx-1 text-black" /> {req.drop_location}
                           </p>
                         </div>
 
@@ -263,9 +281,9 @@ export default function TransportPage() {
                         )}
                       </div>
 
-                      {/* Contact Section */}
+                      {/* Contact Section - Now per-lead based on transportLimit */}
                       <div className="relative rounded-2xl bg-gray-900 p-4 overflow-hidden mt-4">
-                        <div className={`space-y-1 transition-all duration-500 ${!hasSubscription ? 'blur-sm select-none pointer-events-none opacity-20' : ''}`}>
+                        <div className={`space-y-1 transition-all duration-500 ${!isUnlocked ? 'blur-sm select-none pointer-events-none opacity-20' : ''}`}>
                           <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase ">
                             <UserIcon size={12} className="text-yellow-400" /> {req.name}
                           </div>
@@ -273,8 +291,7 @@ export default function TransportPage() {
                             <Phone size={12} className="text-yellow-400" /> {req.phone}
                           </div>
                         </div>
-
-                        {!hasSubscription && (
+                        {!isUnlocked && (
                           <div
                             onClick={() => router.push('/user/subscription-plans')}
                             className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/40 backdrop-blur-[2px] cursor-pointer"
@@ -297,7 +314,7 @@ export default function TransportPage() {
         <div className="bg-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden border border-yellow-100 shadow-xl">
           <div className="relative z-10 flex flex-col items-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black text-gray-900  uppercase tracking-tighter text-center leading-none">
-              How to <span className="text-red-600">Dispatch</span>
+              How to <span className="text-black">Dispatch</span>
             </h2>
           </div>
 
@@ -332,7 +349,7 @@ function Step({ number, icon, color, title, desc, textColor = "text-black" }: an
 function Input({ label, value, onChange, type = "text", placeholder, error, min }: any) {
   return (
     <div className="space-y-2 w-full">
-      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 ml-2">
+      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ml-2">
         {label}
       </label>
       <div className="relative">

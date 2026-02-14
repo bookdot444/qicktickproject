@@ -30,6 +30,7 @@ export default function VendorRegister({
 
   const [videoFilesList, setVideoFilesList] = useState<{ url: string, added_at: string }[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  const [certificatePreviews, setCertificatePreviews] = useState<string[]>([]); // NEW: For certificates
   const [showPlans, setShowPlans] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -69,6 +70,7 @@ export default function VendorRegister({
     media_files: [] as string[],
     video_files: [] as any,
     categories: [] as string[], // Added for categories
+    certificates: [] as string[], // NEW: For certificate images
   });
 
   useEffect(() => {
@@ -145,24 +147,34 @@ export default function VendorRegister({
     try {
       if (isMultiple) {
         const urls: string[] = [];
+        const maxFiles = field === 'media_files' ? 6 : 6; // Limit photos and certificates to 6
+        const currentCount = field === 'media_files' ? mediaPreviews.length : certificatePreviews.length;
+        if (currentCount + files.length > maxFiles) {
+          throw new Error(`Maximum ${maxFiles} ${field === 'media_files' ? 'photos' : 'certificates'} allowed.`);
+        }
         for (const file of Array.from(files)) {
           // Validate file size (e.g., max 5MB per file)
           if (file.size > 5 * 1024 * 1024) {
             throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
           }
-          const path = `vendor/media/${Date.now()}-${file.name}`;
-          const url = await uploadToBucket(file, 'media', path); // Ensure 'media' bucket exists in Supabase
+          const subPath = field === 'media_files' ? 'media' : 'certificates';
+          const path = `vendor/${subPath}/${Date.now()}-${file.name}`;
+          const url = await uploadToBucket(file, 'media', path); // Use 'media' bucket
           urls.push(url);
-          setMediaPreviews(prev => [...prev, url]);
+          if (field === 'media_files') {
+            setMediaPreviews(prev => [...prev, url]);
+          } else {
+            setCertificatePreviews(prev => [...prev, url]);
+          }
         }
-        setFormData(prev => ({ ...prev, media_files: [...prev.media_files, ...urls] }));
+        setFormData(prev => ({ ...prev, [field]: [...prev[field], ...urls] }));
       } else {
         const file = files[0];
         if (file.size > 5 * 1024 * 1024) {
           throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
         }
         const path = `vendor/logos/${Date.now()}-${file.name}`;
-        const url = await uploadToBucket(file, 'media', path); // Ensure 'media' bucket exists
+        const url = await uploadToBucket(file, 'media', path); // Use 'media' bucket
         setFormData(prev => ({ ...prev, [field]: url }));
       }
       toast.success('File uploaded successfully!');
@@ -216,6 +228,12 @@ export default function VendorRegister({
     const filtered = formData.media_files.filter((_, i) => i !== index);
     setMediaPreviews(filtered);
     setFormData({ ...formData, media_files: filtered });
+  };
+
+  const removeCertificate = (index: number) => { // NEW: Remove certificate
+    const filtered = formData.certificates.filter((_, i) => i !== index);
+    setCertificatePreviews(filtered);
+    setFormData({ ...formData, certificates: filtered });
   };
 
   const useMyLocation = async () => {
@@ -442,7 +460,7 @@ export default function VendorRegister({
     setStep((s) => Math.max(s - 1, 1));
   };
 
-  const saveVendorData = async (paymentId: string | null) => {
+    const saveVendorData = async (paymentId: string | null) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("User not authenticated");
 
@@ -478,6 +496,7 @@ export default function VendorRegister({
       company_logo: formData.company_logo,
       media_files: formData.media_files,
       video_files: videoFilesList,
+      certificates: formData.certificates, // NEW: Include certificates
       payment_id: paymentId,
       status: formData.subscription_plan_id ? 'active' : 'pending',
       subscription_expiry: expiry.toISOString().split('T')[0],
@@ -540,14 +559,6 @@ export default function VendorRegister({
       await saveVendorData(paymentId);
 
       toast.success("Registration successful! Welcome onboard.");
-
-      // ✅ SET ROLE IN SUPABASE AUTH (CRITICAL)
-      await supabase.auth.updateUser({
-                data: {
-          role: "vendor",
-        },
-      });
-
       await supabase.auth.refreshSession();
 
       // 🔥 IMPORTANT
@@ -627,9 +638,9 @@ export default function VendorRegister({
 
   const inputClass = "w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-800 text-sm font-medium";
   const labelClass = "block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide";
-const sortedCategories = [...categories].sort((a, b) =>
-  a.name.localeCompare(b.name)
-);
+  const sortedCategories = [...categories].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
   return (
     <>
@@ -731,7 +742,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                     )}
                     <div>
                       <label className={labelClass}>Business Sector (Multiple allowed)</label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {[
                           { label: "Manufacturer", value: "manufacturer" },
                           { label: "Industrial", value: "industrial" },
@@ -776,7 +787,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Personal Identity</h2>
                     <p className="text-sm text-gray-600">Tell us about yourself</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>First Name</label>
                       <input
@@ -811,9 +822,9 @@ const sortedCategories = [...categories].sort((a, b) =>
                       className={inputClass}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClass}>Primary Mobile</label>
+                      <label className={labelClass}>Primary Mobile (WhatsApp Number)</label>
                       <input
                         type="tel"
                         name="mobile_number"
@@ -832,7 +843,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                         placeholder="Alternate number"
                         value={formData.alternate_number}
                         onChange={handleChange}
-                        className={inputClass}
+                        className={inputClass}                         maxLength={15}
                       />
                     </div>
                   </div>
@@ -899,7 +910,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                       className={inputClass}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>GSTIN Number</label>
                       <input
@@ -1040,7 +1051,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                     <Globe size={16} />
                     {loading ? "Detecting Location..." : "Use My Location"}
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Office / Shop No.</label>
                       <input
@@ -1086,7 +1097,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                       className={inputClass}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Locality</label>
                       <input
@@ -1110,7 +1121,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className={labelClass}>City</label>
                       <input
@@ -1155,8 +1166,8 @@ const sortedCategories = [...categories].sort((a, b) =>
                     <p className="text-sm text-gray-600">Upload images and videos to showcase your business</p>
                   </div>
                   <div>
-                    <label className={labelClass}>Photo Gallery</label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <label className={labelClass}>Photo Gallery (Max 6)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {mediaPreviews.map((src, i) => (
                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden group shadow-md border border-gray-200">
                           <img src={src} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
@@ -1168,17 +1179,19 @@ const sortedCategories = [...categories].sort((a, b) =>
                           </button>
                         </div>
                       ))}
-                      <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-300 group-hover:text-white transition-colors">
-                          <Plus size={20} strokeWidth={2} />
-                        </div>
-                        <span className="text-xs font-medium mt-2 uppercase tracking-wide">Add Photo</span>
-                        <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, '', true)} className="hidden" />
-                      </label>
+                      {mediaPreviews.length < 6 && (
+                        <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                          <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-300 group-hover:text-white transition-colors">
+                            <Plus size={20} strokeWidth={2} />
+                          </div>
+                          <span className="text-xs font-medium mt-2 uppercase tracking-wide">Add Photo</span>
+                          <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'media_files', true)} className="hidden" />
+                        </label>
+                      )}
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Video Experience</label>
+                    <label className={labelClass}>Video Experience (Optional)</label>
                     <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all group">
                       <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mb-2 group-hover:bg-yellow-300 group-hover:text-white transition-colors">
                         <Upload size={20} />
@@ -1204,6 +1217,31 @@ const sortedCategories = [...categories].sort((a, b) =>
                           </button>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Certificates (Max 6, Optional)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {certificatePreviews.map((src, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group shadow-md border border-gray-200">
+                          <img src={src} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <button
+                            onClick={() => removeCertificate(i)}
+                            className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      ))}
+                      {certificatePreviews.length < 6 && (
+                        <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                          <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-300 group-hover:text-white transition-colors">
+                            <Plus size={20} strokeWidth={2} />
+                          </div>
+                          <span className="text-xs font-medium mt-2 uppercase tracking-wide">Add Certificate</span>
+                          <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
+                        </label>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1251,7 +1289,7 @@ const sortedCategories = [...categories].sort((a, b) =>
                               className={`group relative overflow-hidden rounded-2xl transition-all duration-300 cursor-pointer border-2 ${isSelected ? "bg-blue-50 border-blue-600 shadow-lg -translate-y-1" : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-md"
                                 }`}
                             >
-                              <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-4">
                                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isSelected ? "bg-gray-900 text-yellow-300 rotate-6" : "bg-gray-200 text-gray-500"
                                     }`}>
