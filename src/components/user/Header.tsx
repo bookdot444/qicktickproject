@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import type { User } from "@supabase/supabase-js";
 import {
   LogOut, PlusCircle,
   UserCircle,

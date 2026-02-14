@@ -702,11 +702,11 @@ export default function VideoPage() {
                     className="p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white hover:bg-white hover:text-red-500 transition-all shadow-lg group/icon"
                   >
 
-                  <FontAwesomeIcon
-  icon={faHandsClapping}
-  style={{ fontSize: "20px" }}
-  className="group-active/icon:scale-125 transition-transform"
-/>
+                    <FontAwesomeIcon
+                      icon={faHandsClapping}
+                      style={{ fontSize: "20px" }}
+                      className="group-active/icon:scale-125 transition-transform"
+                    />
 
                   </button>
 
