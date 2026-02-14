@@ -235,107 +235,107 @@ export default function UserFeed() {
   };
 
 
-const verifyLoginOtp = async () => {
-  setLoginLoading(true);
-  setLoginError(null);
+  const verifyLoginOtp = async () => {
+    setLoginLoading(true);
+    setLoginError(null);
 
-  try {
-    const { error } = await supabase.auth.verifyOtp({
-      email: loginData.email,
-      token: loginData.otp,
-      type: "email",
-    });
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: loginData.email,
+        token: loginData.otp,
+        type: "email",
+      });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Auth failed");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Auth failed");
 
-    // ✅ CHECK PROFILE TABLES
-    const { data: userProfile } = await supabase
-      .from("users")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const { data: vendorProfile } = await supabase
-      .from("vendor_register")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    console.log("Debug: userProfile", userProfile, "vendorProfile", vendorProfile); // DEBUG: Remove in production
-
-    if (!userProfile && !vendorProfile) {
-      // ✅ IMPROVED: Check for ANY vendor entry with matching email
-      const { data: anyVendor } = await supabase
-        .from("vendor_register")
-        .select("id, status")
-        .eq("email", loginData.email)
+      // ✅ CHECK PROFILE TABLES
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("id")
+        .eq("user_id", user.id)
         .maybeSingle();
 
-      if (anyVendor) {
-        if (anyVendor.status === "approved") {
-          // ✅ LINK AND PROCEED FOR APPROVED ONLY
-          const { error: updateError } = await supabase
-            .from("vendor_register")
-            .update({ user_id: user.id })
-            .eq("email", loginData.email);
+      const { data: vendorProfile } = await supabase
+        .from("vendor_register")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-          if (updateError) {
-            console.error("Error linking vendor entry:", updateError);
-            setLoginError("Failed to link vendor account. Please try again.");
+      console.log("Debug: userProfile", userProfile, "vendorProfile", vendorProfile); // DEBUG: Remove in production
+
+      if (!userProfile && !vendorProfile) {
+        // ✅ IMPROVED: Check for ANY vendor entry with matching email
+        const { data: anyVendor } = await supabase
+          .from("vendor_register")
+          .select("id, status")
+          .eq("email", loginData.email)
+          .maybeSingle();
+
+        if (anyVendor) {
+          if (anyVendor.status === "approved") {
+            // ✅ LINK AND PROCEED FOR APPROVED ONLY
+            const { error: updateError } = await supabase
+              .from("vendor_register")
+              .update({ user_id: user.id })
+              .eq("email", loginData.email);
+
+            if (updateError) {
+              console.error("Error linking vendor entry:", updateError);
+              setLoginError("Failed to link vendor account. Please try again.");
+              return;
+            }
+
+            await supabase.auth.updateUser({ data: { role: "vendor" } });
+            setShowLoginPopup(false);
+            router.push("/user");
+            loadUserAndRole();
+            return;
+          } else {
+            // ✅ BLOCK PENDING, REJECTED, OR OTHER STATUSES
+            await supabase.auth.signOut();
+            setLoginError("Your account is not approved yet. Please wait for 24hrs or contact support.");
             return;
           }
-
-          await supabase.auth.updateUser({ data: { role: "vendor" } });
-          setShowLoginPopup(false);
-          router.push("/user");
-          loadUserAndRole();
-          return;
-        } else {
-          // ✅ BLOCK PENDING, REJECTED, OR OTHER STATUSES
-          await supabase.auth.signOut();
-          setLoginError("Your account is not approved yet. Please wait for 24hrs or contact support.");
-          return;
         }
-      }
 
-      // No entry found
-      await supabase.auth.signOut();
-      setLoginError("Account not registered. Please sign up.");
-      return;
-    }
-
-    // ✅ If vendorProfile exists, CHECK STATUS BEFORE PROCEEDING
-    if (vendorProfile) {
-      if (vendorProfile.status !== "approved") {
-        // ✅ BLOCK IF NOT APPROVED (e.g., pending, rejected)
+        // No entry found
         await supabase.auth.signOut();
-        setLoginError("Your vendor account is not approved yet. Please contact support.");
+        setLoginError("Account not registered. Please sign up.");
         return;
       }
-      // If approved, proceed
-      await supabase.auth.updateUser({ data: { role: "vendor" } });
-    } else if (userProfile) {
-      // Ensure role is "user" for regular users
-      await supabase.auth.updateUser({ data: { role: "user" } });
+
+      // ✅ If vendorProfile exists, CHECK STATUS BEFORE PROCEEDING
+      if (vendorProfile) {
+        if (vendorProfile.status !== "approved") {
+          // ✅ BLOCK IF NOT APPROVED (e.g., pending, rejected)
+          await supabase.auth.signOut();
+          setLoginError("Your vendor account is not approved yet. Please contact support.");
+          return;
+        }
+        // If approved, proceed
+        await supabase.auth.updateUser({ data: { role: "vendor" } });
+      } else if (userProfile) {
+        // Ensure role is "user" for regular users
+        await supabase.auth.updateUser({ data: { role: "user" } });
+      }
+
+      setShowLoginPopup(false);
+      router.push("/user");
+
+      // ✅ CLEAR INPUTS AND STATES AFTER SUCCESS
+      setLoginData({ email: "", otp: "" });
+      setLoginError(null);
+      setLoginSuccess(null);
+      setOtpTimer(null);
+    } catch (err: any) {
+      setLoginError(err.message);
+    } finally {
+      setLoginLoading(false);
     }
-
-    setShowLoginPopup(false);
-    router.push("/user");
-
-    // ✅ CLEAR INPUTS AND STATES AFTER SUCCESS
-    setLoginData({ email: "", otp: "" });
-    setLoginError(null);
-    setLoginSuccess(null);
-    setOtpTimer(null);
-  } catch (err: any) {
-    setLoginError(err.message);
-  } finally {
-    setLoginLoading(false);
-  }
-};
+  };
 
 
 
@@ -380,6 +380,61 @@ const verifyLoginOtp = async () => {
       setRegisterLoading(false);
     }
   };
+
+  const verifyRegisterOtp = async () => {
+    setRegisterLoading(true);
+    setRegisterError(null);
+
+    try {
+      if (!registerData.email || !registerData.otp) {
+        setRegisterError("Please enter OTP");
+        return;
+      }
+
+      const { error } = await supabase.auth.verifyOtp({
+        email: registerData.email,
+        token: registerData.otp,
+        type: "email",
+      });
+
+      if (error) throw error;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Registration failed. User not found.");
+
+      // ✅ Insert into users table
+      const { error: insertError } = await supabase.from("users").insert([
+        {
+          user_id: user.id,
+          name: registerData.name,
+          email: registerData.email,
+        },
+      ]);
+
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        throw new Error("User profile creation failed.");
+      }
+
+      // ✅ Ensure role is user
+      await supabase.auth.updateUser({
+        data: { role: "user" },
+      });
+
+      setRegisterSuccess("Registration successful!");
+      setShowRegisterPopup(false);
+      router.push("/user");
+
+      // reset fields
+      setRegisterData({ name: "", email: "", otp: "" });
+      setRegisterStep("form");
+    } catch (err: any) {
+      setRegisterError(err.message);
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
 
   const navLinks = [
     { name: "Home", href: "/user" },
