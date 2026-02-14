@@ -130,7 +130,11 @@ export default function VideoPage() {
       const allVideos = [...normalizedRegister, ...normalizedStandalone];
 
       // Sort by latest uploaded (descending order)
-      allVideos.sort((a, b) => new Date(b.created_at || '1970-01-01') - new Date(a.created_at || '1970-01-01'));
+      allVideos.sort(
+        (a, b) =>
+          new Date(b.created_at || "1970-01-01").getTime() -
+          new Date(a.created_at || "1970-01-01").getTime()
+      );
 
       setVideos(allVideos);
 
