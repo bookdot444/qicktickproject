@@ -138,7 +138,13 @@ export default function VendorRegister({
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string, isMultiple = false) => {
+  type UploadField = "media_files" | "certificates" | "company_logo";
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: UploadField,
+    isMultiple = false
+  ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -167,7 +173,10 @@ export default function VendorRegister({
             setCertificatePreviews(prev => [...prev, url]);
           }
         }
-        setFormData(prev => ({ ...prev, [field]: [...prev[field], ...urls] }));
+        setFormData(prev => ({
+          ...prev,
+          [field]: [...(prev[field] as string[]), ...urls]
+        }));
       } else {
         const file = files[0];
         if (file.size > 5 * 1024 * 1024) {
@@ -175,7 +184,10 @@ export default function VendorRegister({
         }
         const path = `vendor/logos/${Date.now()}-${file.name}`;
         const url = await uploadToBucket(file, 'media', path); // Use 'media' bucket
-        setFormData(prev => ({ ...prev, [field]: url }));
+        setFormData(prev => ({
+          ...prev,
+          [field]: url
+        }));
       }
       toast.success('File uploaded successfully!');
     } catch (err: any) {
@@ -460,7 +472,7 @@ export default function VendorRegister({
     setStep((s) => Math.max(s - 1, 1));
   };
 
-    const saveVendorData = async (paymentId: string | null) => {
+  const saveVendorData = async (paymentId: string | null) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("User not authenticated");
 
@@ -843,7 +855,7 @@ export default function VendorRegister({
                         placeholder="Alternate number"
                         value={formData.alternate_number}
                         onChange={handleChange}
-                        className={inputClass}                         maxLength={15}
+                        className={inputClass} maxLength={15}
                       />
                     </div>
                   </div>
@@ -955,56 +967,56 @@ export default function VendorRegister({
                 </div>
               )}
 
-{step === 4 && (
-  <div className="space-y-6 animate-fade-in">
-    <div className="text-center">
-      <h2 className="text-2xl font-bold text-gray-900">
-        Business Categories
-      </h2>
-      <p className="text-sm text-gray-600">
-        Select all that apply
-      </p>
-    </div>
+              {step === 4 && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Business Categories
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      Select all that apply
+                    </p>
+                  </div>
 
-    <div>
-      <label className={labelClass}>
-        Business Categories (Alphabetical)
-      </label>
+                  <div>
+                    <label className={labelClass}>
+                      Business Categories (Alphabetical)
+                    </label>
 
-      <div className="mt-3 border border-gray-300 rounded-xl bg-white max-h-72 overflow-y-auto">
-        {sortedCategories.map(cat => {
-          const selected = formData.categories.includes(cat.id);
+                    <div className="mt-3 border border-gray-300 rounded-xl bg-white max-h-72 overflow-y-auto">
+                      {sortedCategories.map(cat => {
+                        const selected = formData.categories.includes(cat.id);
 
-          return (
-            <label
-              key={cat.id}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b last:border-b-0
+                        return (
+                          <label
+                            key={cat.id}
+                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b last:border-b-0
                 ${selected ? "bg-yellow-50" : "hover:bg-gray-50"}`}
-            >
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={() => {
-                  setFormData(prev => ({
-                    ...prev,
-                    categories: selected
-                      ? prev.categories.filter(c => c !== cat.id)
-                      : [...prev.categories, cat.id],
-                  }));
-                }}
-                className="h-4 w-4 accent-yellow-500"
-              />
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  categories: selected
+                                    ? prev.categories.filter(c => c !== cat.id)
+                                    : [...prev.categories, cat.id],
+                                }));
+                              }}
+                              className="h-4 w-4 accent-yellow-500"
+                            />
 
-              <span className="text-sm text-gray-800">
-                {cat.name}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  </div>
-)}
+                            <span className="text-sm text-gray-800">
+                              {cat.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {step === 5 && (
                 <div className="space-y-6 animate-fade-in">
