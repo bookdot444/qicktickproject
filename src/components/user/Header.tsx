@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  LogOut, PlusCircle,
+  LogOut, PlusCircle, UserPlus,
   UserCircle,
   ChevronDown,
   User as UserIcon,
@@ -478,27 +478,38 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
           {/* MOBILE ACTIONS (NO HAMBURGER) */}
           <div className="flex lg:hidden items-center gap-2">
             {!user && (
-              <>
+              <div className="flex items-center gap-1.5 bg-black/5 p-1 rounded-xl">
+                {/* Add Business - Subtle Border Style */}
                 <button
                   onClick={() => setOpenVendor(true)}
-                  className="px-3 py-2 text-xs font-bold border border-yellow-400 text-yellow-400 rounded-lg"
+                  className="px-3 py-2 text-[10px] font-black uppercase tracking-tight border border-yellow-500 text-yellow-600 rounded-lg active:scale-95 transition-transform"
                 >
                   + Add Business
                 </button>
 
+                {/* Register Button - Icon Style */}
+                <button
+                  onClick={() => { setShowRegisterPopup(true); setOpenRegisterMenu(false); }}
+                  className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors flex items-center justify-center border border-transparent"
+                  title="Register"
+                >
+                  <UserPlus size={18} strokeWidth={2.5} />
+                </button>
+
+                {/* Login Button - High Visibility */}
                 <button
                   onClick={() => setShowLoginPopup(true)}
-                  className="px-3 py-2 text-xs font-bold bg-yellow-400 text-black rounded-lg"
+                  className="px-4 py-2 text-[10px] font-black uppercase tracking-tight bg-yellow-400 text-black rounded-lg shadow-sm shadow-yellow-200 active:scale-95 transition-all"
                 >
                   Login
                 </button>
-              </>
+              </div>
             )}
 
             {user && (
               <button
                 onClick={() => setShowMoreMenu(true)}
-                className="w-10 h-10 rounded-full flex items-center justify-center"
+                className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90"
                 style={{ backgroundColor: profileColor }}
               >
                 <UserCircle size={22} className="text-white" />
@@ -537,8 +548,6 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
               );
             })}
           </nav>
-
-
 
           {/* 3. Actions Section - Desktop */}
           <div className="hidden lg:flex items-center space-x-4">

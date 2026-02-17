@@ -37,13 +37,13 @@ function SearchSearchResults() {
     const [find, setFind] = useState(q || "");
     const [near, setNear] = useState(city || "");
     const [businessType, setBusinessType] = useState(type || "");
-    const [searchSuggestions, setSearchSuggestions] = useState<{ products: string[], companies: string[], categories: string[] }>({ products: [], companies: [], categories: [] });
+    const [searchSuggestions, setSearchSuggestions] = useState<{ products: string[], companies: string[], categories: string[], locations: string[], sectors: string[] }>({ products: [], companies: [], categories: [], locations: [], sectors: [] });
     const [showResults, setShowResults] = useState(false);
     const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
 
     useEffect(() => {
         if (!find || find.length < 2) {
-            setSearchSuggestions({ products: [], companies: [], categories: [] });
+            setSearchSuggestions({ products: [], companies: [], categories: [], locations: [], sectors: [] });
             setShowResults(false);
             return;
         }
@@ -72,9 +72,25 @@ function SearchSearchResults() {
                 .eq("is_active", true)
                 .limit(5);
 
+            // Fetch locations (cities)
+            const { data: locationData, error: locationError } = await supabase
+                .from("vendor_register")
+                .select("city")
+                .ilike("city", `%${find}%`)
+                .limit(5);
+
+            // Fetch sectors
+            const { data: sectorData, error: sectorError } = await supabase
+                .from("vendor_register")
+                .select("sector")
+                .ilike("sector", `%${find}%`)
+                .limit(5);
+
             if (productError) console.error("Product Fetch Error:", productError);
             if (companyError) console.error("Company Fetch Error:", companyError);
             if (categoryError) console.error("Category Fetch Error:", categoryError);
+            if (locationError) console.error("Location Fetch Error:", locationError);
+            if (sectorError) console.error("Sector Fetch Error:", sectorError);
 
             const products = Array.from(
                 new Set(
@@ -94,7 +110,19 @@ function SearchSearchResults() {
                 )
             );
 
-            setSearchSuggestions({ products, companies, categories });
+            const locations = Array.from(
+                new Set(
+                    (locationData || []).map(item => item.city?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            const sectors = Array.from(
+                new Set(
+                    (sectorData || []).map(item => item.sector?.toLowerCase().trim()).filter(Boolean)
+                )
+            );
+
+            setSearchSuggestions({ products, companies, categories, locations, sectors });
             setShowResults(true);
         };
 
@@ -130,7 +158,7 @@ function SearchSearchResults() {
                 .select("vendor_id")
                 .eq("is_active", true)
                 .not("category_id", "is", null)
-                .in("category_id", 
+                .in("category_id",
                     (await supabase.from("categories").select("id").ilike("name", `%${find}%`).eq("is_active", true)).data?.map(c => c.id) || []
                 );
 
@@ -175,7 +203,6 @@ function SearchSearchResults() {
 
         checkLocationAvailability();
     }, [find, near]);
-
     useEffect(() => {
         if (!q) {
             setLoading(false);
@@ -232,6 +259,24 @@ function SearchSearchResults() {
                 vendorIds.push(...companyVendors.map(c => c.id));
             }
 
+            // Check for cities
+            const { data: cityVendors } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("city", `%${q}%`);
+            if (cityVendors?.length) {
+                vendorIds.push(...cityVendors.map(c => c.id));
+            }
+
+            // Check for sectors
+            const { data: sectorVendors } = await supabase
+                .from("vendor_register")
+                .select("id")
+                .ilike("sector", `%${q}%`);
+            if (sectorVendors?.length) {
+                vendorIds.push(...sectorVendors.map(s => s.id));
+            }
+
             vendorIds = [...new Set(vendorIds)];
 
             if (!vendorIds.length) {
@@ -240,14 +285,10 @@ function SearchSearchResults() {
                 return;
             }
 
-            const vendorConditions: string[] = [];
-            if (city) vendorConditions.push(`city.eq.${city}`);
-            if (type) vendorConditions.push(`user_type.cs.{${type}}`);
-
-            const query = supabase.from("vendor_register").select("*").in("id", vendorIds);
-            if (vendorConditions.length) {
-                query.or(vendorConditions.join(","));
-            }
+            // Build query with AND conditions
+            let query = supabase.from("vendor_register").select("*").in("id", vendorIds);
+            if (city) query = query.eq("city", city);
+            if (type) query = query.contains("user_type", [type]);
 
             const { data, error } = await query;
 
@@ -262,7 +303,6 @@ function SearchSearchResults() {
 
         fetchResults();
     }, [q, city, type]);
-
     const handleFullSearch = () => {
         if (!find.trim()) {
             alert("Please enter what you need (e.g., Electrician, Plumber, Company Name, Category).");
@@ -328,7 +368,7 @@ function SearchSearchResults() {
                                         />
                                     </div>
                                 </div>
-                                {showResults && (searchSuggestions.products.length > 0 || searchSuggestions.companies.length > 0 || searchSuggestions.categories.length > 0) && (
+                                {showResults && (searchSuggestions.products.length > 0 || searchSuggestions.companies.length > 0 || searchSuggestions.categories.length > 0 || searchSuggestions.locations.length > 0 || searchSuggestions.sectors.length > 0) && (
                                     <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[400px] overflow-y-auto">
                                         <div className="px-6 py-4">
                                             {searchSuggestions.products.length > 0 && (
@@ -371,21 +411,21 @@ function SearchSearchResults() {
                                                     </div>
                                                 </>
                                             )}
-                                            {searchSuggestions.categories.length > 0 && (
+                                            {searchSuggestions.sectors.length > 0 && (
                                                 <>
-                                                    <p className="font-bold text-black text-base mb-2">Suggested Categories</p>
+                                                    <p className="font-bold text-black text-base mb-2">Suggested Sectors</p>
                                                     <div className="flex flex-col gap-2">
-                                                        {searchSuggestions.categories.map((category) => (
+                                                        {searchSuggestions.sectors.map((sector) => (
                                                             <span
-                                                                key={category}
+                                                                key={sector}
                                                                 onClick={() => {
-                                                                    setFind(category.charAt(0).toUpperCase() + category.slice(1));
+                                                                    setFind(sector.charAt(0).toUpperCase() + sector.slice(1));
                                                                     setShowResults(false);
                                                                     handleFullSearch();
                                                                 }}
                                                                 className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
                                                             >
-                                                                {category.charAt(0).toUpperCase() + category.slice(1)}
+                                                                {sector.charAt(0).toUpperCase() + sector.slice(1)}
                                                             </span>
                                                         ))}
                                                     </div>
@@ -442,10 +482,10 @@ function SearchSearchResults() {
                                         onChange={(e) => setBusinessType(e.target.value)}
                                     >
                                         <option value="" className="text-black">All Types</option>
-                                                                       <option value="Distributer" className="text-black">Distributor</option>
-                                        <option value="Manufacturer" className="text-black">Manufacturer</option>
-                                        <option value="Retailers" className="text-black">Retailers</option>
-                                        <option value="Service Sector" className="text-black">Service Sector</option>
+                                        <option value="distributor" className="text-black">Distributor</option>
+                                        <option value="manufacturer" className="text-black">Manufacturer</option>
+                                        <option value="retailer" className="text-black">Retailers</option>
+                                        <option value="service" className="text-black">Service Sector</option>
                                     </select>
                                 </div>
                             </div>
@@ -501,7 +541,7 @@ function SearchSearchResults() {
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">{vendor.user_type?.join(", ") || "Business"}</p>
                                             <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
                                                 <span className="text-lg font-black text-gray-900 tracking-tighter">{vendor.area || "Location"}</span>
-                                                <div className="bg-black group-hover:bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
+                                                <div className="bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
                                             </div>
                                         </div>
                                     </div>

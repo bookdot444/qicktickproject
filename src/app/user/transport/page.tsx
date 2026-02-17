@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Truck, Phone, Send, Loader, Lock, Clock,
+  Truck, Phone, Send, Loader, Lock, Clock, Search,
   AlertCircle, CheckCircle2, X, MapPin,
   Calendar, Weight, User as UserIcon, ArrowRight,
   Package, Sparkles, ShieldCheck
 } from "lucide-react";
-
+import { supabase } from "@/lib/supabaseClient";
 interface TransportRequest {
   id: number;
   name: string;
@@ -30,7 +29,17 @@ export default function TransportPage() {
   const [transportLimit, setTransportLimit] = useState(0);  // Changed from hasSubscription (boolean) to transportLimit (number)
   const [showToast, setShowToast] = useState(false);
   const router = useRouter();
+  const [search, setSearch] = useState(""); // Add this state
 
+  // Add this useMemo to handle filtering
+  const filteredRequests = useMemo(() => {
+    return requests.filter((req) =>
+      // Searches by Pickup, Drop, or Goods Description
+      req.pickup_location.toLowerCase().includes(search.toLowerCase()) ||
+      req.drop_location.toLowerCase().includes(search.toLowerCase()) ||
+      req.goods_description?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [requests, search]);
   const [formData, setFormData] = useState({
     name: "", phone: "", pickup: "", drop: "", date: "", goods: "", weight: ""
   });
@@ -119,6 +128,8 @@ export default function TransportPage() {
     }
     setLoading(false);
   };
+
+
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] pb-10 font-sans selection:bg-yellow-200">
@@ -224,18 +235,34 @@ export default function TransportPage() {
               <span className="bg-yellow-400 text-black text-[8px] font-black px-2 py-0.5 rounded uppercase">Recent</span>
             </div>
 
+            {/* NEW: Search Bar Component */}
+            <div className="relative">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="SEARCH ROUTES OR CARGO..."
+                className="w-full pl-12 pr-4 py-3 rounded-full text-black bg-white/80 border border-yellow-200 focus:border-black outline-none text-[10px] font-black uppercase tracking-widest transition-all"
+              />
+            </div>
+
             <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1 custom-scrollbar">
+              {/* Use filteredRequests instead of requests below */}
               {listLoading ? (
                 <div className="flex flex-col items-center justify-center p-10 bg-white rounded-[2rem] border border-dashed border-yellow-200">
                   <Loader className="animate-spin text-yellow-600 mb-2" size={20} />
                   <span className="text-[9px] font-black uppercase text-yellow-800">Scanning...</span>
                 </div>
-              ) : requests.length === 0 ? (
-                <div className="text-center p-10 bg-white rounded-[2rem] border border-dashed border-yellow-200 text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">No Active Leads</div>
+              ) : filteredRequests.length === 0 ? ( // Changed to filteredRequests
+                <div className="text-center p-10 bg-white rounded-[2rem] border border-dashed border-yellow-200 text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">
+                  No Matching Leads Found
+                </div>
               ) : (
-                requests.map((req, index) => {
+                filteredRequests.map((req, index) => { // Changed to filteredRequests
+                  // We must find the original index to keep the lock logic consistent with the full list
+                  const originalIndex = requests.findIndex(r => r.id === req.id);
                   const isPast = new Date(req.travel_date) < new Date(new Date().setHours(0, 0, 0, 0));
-                  const isUnlocked = index < transportLimit;  // New: Check if this lead is within the transport limit
+                  const isUnlocked = originalIndex < transportLimit;
 
                   return (
                     <motion.div

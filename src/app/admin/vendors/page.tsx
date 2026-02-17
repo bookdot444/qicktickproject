@@ -214,11 +214,8 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
 
       if (isMultiple) {
         const urls: string[] = [];
-        const maxFiles = field === 'media_files' || field === 'certificates' ? 6 : Infinity;  // Max 6 for photos and certificates
-        const currentCount = field === 'media_files' ? mediaPreviews.length : certificatePreviews.length;
-        if (currentCount + files.length > maxFiles) {
-          throw new Error(`Maximum ${maxFiles} ${field === 'media_files' ? 'photos' : 'certificates'} allowed.`);
-        }
+        // Removed maxFiles limit for unlimited uploads
+        // ... rest of the loop (no changes to the for loop or upload logic)
         for (const file of Array.from(files)) {
           if (file.size > 5 * 1024 * 1024) throw new Error(`File ${file.name} is too large. Max size is 5MB.`);
           const subPath = field === 'media_files' ? 'media' : 'certificates';
@@ -728,7 +725,7 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
 
             {/* Certificates */}
             <div>
-              <label className={labelClass}>Certificates (Max 6, Optional)</label>
+              <label className={labelClass}>Certificates (Optional)</label>
               <div className="grid grid-cols-4 gap-4">
                 {certificatePreviews.map((src, i) => (
                   <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
@@ -738,21 +735,19 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
                     </button>
                   </div>
                 ))}
-                {certificatePreviews.length < 6 && (
-                  <label className="aspect-square border-2 border-dashed flex items-center justify-center cursor-pointer rounded-xl">
-                    <Plus size={24} />
-                    <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
-                  </label>
-                )}
+                <label className="aspect-square border-2 border-dashed flex items-center justify-center cursor-pointer rounded-xl">
+                  <Plus size={24} />
+                  <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
+                </label>
               </div>
             </div>
 
             {/* Video Files */}
             <div>
               <label className={labelClass}>Video Experience</label>
-              <input type="file" accept="video/*" onChange={handleVideoFileUpload} className="hidden" id="video-upload" />
+              <input type="file" multiple accept="video/*" onChange={handleVideoFileUpload} className="hidden" id="video-upload" />
               <label htmlFor="video-upload" className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100">
-                <Upload size={20} /> Upload Video
+                <Upload size={20} /> Upload Videos
               </label>
               <div className="space-y-2 mt-4">
                 {videoFilesList.map((v, i) => (

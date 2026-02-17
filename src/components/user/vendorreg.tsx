@@ -153,11 +153,7 @@ export default function VendorRegister({
     try {
       if (isMultiple) {
         const urls: string[] = [];
-        const maxFiles = field === 'media_files' ? 6 : 6; // Limit photos and certificates to 6
-        const currentCount = field === 'media_files' ? mediaPreviews.length : certificatePreviews.length;
-        if (currentCount + files.length > maxFiles) {
-          throw new Error(`Maximum ${maxFiles} ${field === 'media_files' ? 'photos' : 'certificates'} allowed.`);
-        }
+        // Removed maxFiles limit for unlimited uploads
         for (const file of Array.from(files)) {
           // Validate file size (e.g., max 5MB per file)
           if (file.size > 5 * 1024 * 1024) {
@@ -201,25 +197,27 @@ export default function VendorRegister({
 
   // Function to handle Video File Uploads (upload to bucket)
   const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setLoading(true);
     setError(null);
     try {
-      if (file.size > 50 * 1024 * 1024) { // Max 50MB for videos
-        throw new Error(`File ${file.name} is too large. Max size is 50MB.`);
+      for (const file of Array.from(files)) {
+        if (file.size > 50 * 1024 * 1024) { // Max 50MB for videos
+          throw new Error(`File ${file.name} is too large. Max size is 50MB.`);
+        }
+        const path = `vendor/videos/${Date.now()}-${file.name}`;
+        const url = await uploadToBucket(file, 'media', path);
+        const newVideo = {
+          url: url,
+          added_at: new Date().toISOString()
+        };
+        const newList = [...videoFilesList, newVideo];
+        setVideoFilesList(newList);
+        setFormData(prev => ({ ...prev, video_files: newList }));
       }
-      const path = `vendor/videos/${Date.now()}-${file.name}`;
-      const url = await uploadToBucket(file, 'media', path);
-      const newVideo = {
-        url: url,
-        added_at: new Date().toISOString()
-      };
-      const newList = [...videoFilesList, newVideo];
-      setVideoFilesList(newList);
-      setFormData(prev => ({ ...prev, video_files: newList }));
-      toast.success('Video uploaded successfully!');
+      toast.success('Videos uploaded successfully!');
     } catch (err: any) {
       console.error('Video upload error:', err);
       setError(err.message || "Video upload failed. Please try again.");
@@ -1208,8 +1206,8 @@ export default function VendorRegister({
                       <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mb-2 group-hover:bg-yellow-300 group-hover:text-white transition-colors">
                         <Upload size={20} />
                       </div>
-                      <span className="text-sm font-medium text-gray-600">Drop video file here</span>
-                      <input type="file" accept="video/*" onChange={handleVideoFileUpload} className="hidden" />
+                      <span className="text-sm font-medium text-gray-600">Drop video files here</span>
+                      <input type="file" multiple accept="video/*" onChange={handleVideoFileUpload} className="hidden" />
                     </label>
                     <div className="space-y-2 mt-4">
                       {videoFilesList.map((v, i) => (
@@ -1232,7 +1230,7 @@ export default function VendorRegister({
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Certificates (Max 6, Optional)</label>
+                    <label className={labelClass}>Certificates (Optional)</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {certificatePreviews.map((src, i) => (
                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden group shadow-md border border-gray-200">
@@ -1245,15 +1243,13 @@ export default function VendorRegister({
                           </button>
                         </div>
                       ))}
-                      {certificatePreviews.length < 6 && (
-                        <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                          <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-300 group-hover:text-white transition-colors">
-                            <Plus size={20} strokeWidth={2} />
-                          </div>
-                          <span className="text-xs font-medium mt-2 uppercase tracking-wide">Add Certificate</span>
-                          <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
-                        </label>
-                      )}
+                      <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-300 group-hover:text-white transition-colors">
+                          <Plus size={20} strokeWidth={2} />
+                        </div>
+                        <span className="text-xs font-medium mt-2 uppercase tracking-wide">Add Certificate</span>
+                        <input type="file" multiple accept="image/*" onChange={(e) => handleFileUpload(e, 'certificates', true)} className="hidden" />
+                      </label>
                     </div>
                   </div>
                 </div>

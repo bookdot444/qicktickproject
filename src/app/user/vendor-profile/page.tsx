@@ -25,6 +25,8 @@ export default function VendorProfileDetail() {
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingCertificates, setUploadingCertificates] = useState(false);
+const [showAllGallery, setShowAllGallery] = useState(false);
+const [showAllCertificates, setShowAllCertificates] = useState(false);
 
   const sectorOptions = [
     { label: "Manufacturer", value: "manufacturer" },
@@ -98,27 +100,29 @@ export default function VendorProfileDetail() {
     try {
       setUploadingGallery(true);
 
-      const file = e.target.files?.[0];
-      if (!file) return;
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
-      if ((editForm.media_files || []).length >= 6) {
-        alert("You can upload maximum 6 gallery images only!");
-        return;
+      let uploadedUrls: string[] = [];
+
+      for (const file of files) {
+        const url = await uploadFileToBucket(file, "gallery", "vendor-videos");
+        uploadedUrls.push(url);
       }
 
-      const url = await uploadFileToBucket(file, "gallery", "vendor-videos");
-
-      setEditForm({
-        ...editForm,
-        media_files: [...(editForm.media_files || []), url],
-      });
+      setEditForm((prev: any) => ({
+        ...prev,
+        media_files: [...(prev.media_files || []), ...uploadedUrls],
+      }));
 
     } catch (err: any) {
       alert("Gallery Upload Failed: " + err.message);
     } finally {
       setUploadingGallery(false);
+      e.target.value = ""; // ✅ reset
     }
   };
+
 
   // ===========================
   // CERTIFICATE UPLOAD (MAX 6)
@@ -127,27 +131,29 @@ export default function VendorProfileDetail() {
     try {
       setUploadingCertificates(true);
 
-      const file = e.target.files?.[0];
-      if (!file) return;
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
-      if ((editForm.certificates || []).length >= 6) {
-        alert("You can upload maximum 6 certificates only!");
-        return;
+      let uploadedUrls: string[] = [];
+
+      for (const file of files) {
+        const url = await uploadFileToBucket(file, "certificates", "vendor-videos");
+        uploadedUrls.push(url);
       }
 
-      const url = await uploadFileToBucket(file, "certificates", "vendor-videos");
-
-      setEditForm({
-        ...editForm,
-        certificates: [...(editForm.certificates || []), url],
-      });
+      setEditForm((prev: any) => ({
+        ...prev,
+        certificates: [...(prev.certificates || []), ...uploadedUrls],
+      }));
 
     } catch (err: any) {
       alert("Certificate Upload Failed: " + err.message);
     } finally {
       setUploadingCertificates(false);
+      e.target.value = ""; // ✅ reset
     }
   };
+
 
   // ===========================
   // VIDEO UPLOAD
@@ -214,6 +220,7 @@ export default function VendorProfileDetail() {
           owner_name: editForm.owner_name,
           company_name: editForm.company_name,
           mobile_number: editForm.mobile_number,
+          company_logo: editForm.company_logo, // ✅ ADD THIS
           websites: editForm.websites?.filter((w: string) => w.trim() !== "") || [],
           profile_info: editForm.profile_info,
           flat_no: editForm.flat_no,
@@ -230,8 +237,9 @@ export default function VendorProfileDetail() {
           sector: editForm.sector,
           media_files: editForm.media_files,
           video_files: editForm.video_files,
-          certificates: editForm.certificates, // ✅ IMPORTANT
+          certificates: editForm.certificates,
         })
+
         .eq("id", vendor.id);
 
       if (updateError) throw updateError;
@@ -317,7 +325,11 @@ export default function VendorProfileDetail() {
                   </div>
 
                   <InputField label="Owner Name" value={editForm.owner_name} onChange={(v: any) => setEditForm({ ...editForm, owner_name: v })} />
-                  <InputField label="Company Name" value={editForm.company_name} onChange={(v: any) => setEditForm({ ...editForm, company_name: v })} />
+<InputField
+  label="Company Name"
+  value={editForm.company_name}
+  disabled
+/>
                   <InputField label="Mobile" value={editForm.mobile_number} onChange={(v: any) => setEditForm({ ...editForm, mobile_number: v })} />
                   <InputField label="GST Number" value={editForm.gst_number} onChange={(v: any) => setEditForm({ ...editForm, gst_number: v })} />
 
@@ -401,6 +413,121 @@ export default function VendorProfileDetail() {
                   </div>
 
                   <InputField label="Pincode" value={editForm.pincode} onChange={(v: any) => setEditForm({ ...editForm, pincode: v })} />
+
+                  {/* ================= COMPANY DETAILS ================= */}
+                  <div className="pt-6 border-t border-slate-200 space-y-5">
+                    <SectionTitle icon={<Building2 size={14} />} title="Company Details" />
+
+                    {/* Websites (Multiple) */}
+                    <div className="w-full">
+                      <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block ml-1">
+                        Websites
+                      </label>
+
+                      <div className="space-y-3">
+                        {(editForm.websites || []).map((site: string, index: number) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={site}
+                              onChange={(e) => {
+                                const updated = [...(editForm.websites || [])];
+                                updated[index] = e.target.value;
+                                setEditForm({ ...editForm, websites: updated });
+                              }}
+                              placeholder="Enter website URL..."
+                              className="flex-1 bg-white border border-slate-200 p-3 rounded-xl font-bold text-xs focus:ring-2 focus:ring-yellow-400 outline-none transition-all"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = (editForm.websites || []).filter((_: any, i: number) => i !== index);
+                                setEditForm({ ...editForm, websites: updated });
+                              }}
+                              className="bg-red-600 text-white p-3 rounded-xl hover:scale-105 transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Add Website Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditForm({
+                              ...editForm,
+                              websites: [...(editForm.websites || []), ""],
+                            });
+                          }}
+                          className="w-full bg-black text-yellow-400 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"
+                        >
+                          <Plus size={14} />
+                          Add Website
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Company Logo Upload */}
+                    <div className="w-full">
+                      <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block ml-1">
+                        Company Logo
+                      </label>
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-2xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden">
+                          {editForm.company_logo ? (
+                            <img
+                              src={editForm.company_logo}
+                              alt="Company Logo"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Building2 size={30} className="text-slate-300" />
+                          )}
+                        </div>
+
+                        <label className="cursor-pointer bg-yellow-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all">
+                          <ImageIcon size={14} />
+                          Upload Logo
+                          <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={async (e) => {
+                              try {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                const url = await uploadFileToBucket(file, "logos", "vendor-videos");
+
+                                setEditForm({
+                                  ...editForm,
+                                  company_logo: url,
+                                });
+                              } catch (err: any) {
+                                alert("Logo Upload Failed: " + err.message);
+                              }
+                            }}
+                          />
+                        </label>
+
+                        {/* Remove Logo Button */}
+                        {editForm.company_logo && (
+                          <button
+                            onClick={() => setEditForm({ ...editForm, company_logo: "" })}
+                            className="bg-red-600 text-white p-2 rounded-xl hover:scale-105 transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+
+
                 </div>
 
                 {/* COL 3 */}
@@ -410,10 +537,10 @@ export default function VendorProfileDetail() {
                   {/* Gallery Upload */}
                   <div>
                     <label className="text-[10px] font-black uppercase text-slate-400 flex justify-between items-center mb-3">
-                      Work Gallery (Max 6)
+                      Work Gallery
                       <label className="bg-yellow-400 p-1.5 rounded-lg cursor-pointer">
                         {uploadingGallery ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                        <input type="file" hidden onChange={handleGalleryUpload} accept="image/*" />
+                        <input type="file" hidden multiple onChange={handleGalleryUpload} accept="image/*" />
                       </label>
                     </label>
 
@@ -435,10 +562,10 @@ export default function VendorProfileDetail() {
                   {/* Certificates Upload */}
                   <div className="pt-4 border-t border-slate-200">
                     <label className="text-[10px] font-black uppercase text-slate-400 flex justify-between items-center mb-3">
-                      Certificates (Max 6)
+                      Certificates
                       <label className="bg-black text-yellow-400 p-1.5 rounded-lg cursor-pointer">
                         {uploadingCertificates ? <Loader2 size={14} className="animate-spin" /> : <Award size={14} />}
-                        <input type="file" hidden onChange={handleCertificateUpload} accept="image/*" />
+                        <input type="file" hidden multiple onChange={handleCertificateUpload} accept="image/*" />
                       </label>
                     </label>
 
@@ -640,54 +767,99 @@ export default function VendorProfileDetail() {
               </div>
             </div>
           )}
+{/* IMAGE SHOWCASE */}
+<div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
+  <div className="flex items-center gap-3 mb-8">
+    <div className="p-3 bg-slate-100 rounded-2xl">
+      <ImageIcon size={20} />
+    </div>
+    <h2 className="text-xl font-black uppercase">Work Gallery</h2>
+  </div>
 
-          {/* IMAGE SHOWCASE */}
-          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-3 bg-slate-100 rounded-2xl">
-                <ImageIcon size={20} />
-              </div>
-              <h2 className="text-xl font-black uppercase">Work Gallery</h2>
+  {vendor.media_files?.length > 0 ? (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {(showAllGallery ? vendor.media_files : vendor.media_files.slice(0, 6)).map(
+          (img: string, i: number) => (
+            <div
+              key={i}
+              className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
+            >
+              <img
+                src={img}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
             </div>
+          )
+        )}
+      </div>
 
-            {vendor.media_files?.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {vendor.media_files.map((img: string, i: number) => (
-                  <div key={i} className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                    <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-sm font-bold text-center py-8">
-                No gallery images uploaded.
-              </p>
-            )}
-          </div>
+      {/* View More Button */}
+      {vendor.media_files.length > 6 && (
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => setShowAllGallery(!showAllGallery)}
+            className="bg-black text-yellow-400 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+          >
+            {showAllGallery ? "View Less" : "View More"}
+          </button>
+        </div>
+      )}
+    </>
+  ) : (
+    <p className="text-slate-400 text-sm font-bold text-center py-8">
+      No gallery images uploaded.
+    </p>
+  )}
+</div>
 
-          {/* CERTIFICATES SHOWCASE */}
-          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-3 bg-yellow-400 rounded-2xl text-black">
-                <Award size={20} />
-              </div>
-              <h2 className="text-xl font-black uppercase">Certificates</h2>
+
+{/* CERTIFICATES SHOWCASE */}
+<div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
+  <div className="flex items-center gap-3 mb-8">
+    <div className="p-3 bg-yellow-400 rounded-2xl text-black">
+      <Award size={20} />
+    </div>
+    <h2 className="text-xl font-black uppercase">Certificates</h2>
+  </div>
+
+  {vendor.certificates?.length > 0 ? (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {(showAllCertificates ? vendor.certificates : vendor.certificates.slice(0, 6)).map(
+          (img: string, i: number) => (
+            <div
+              key={i}
+              className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
+            >
+              <img
+                src={img}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
             </div>
+          )
+        )}
+      </div>
 
-            {vendor.certificates?.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {vendor.certificates.map((img: string, i: number) => (
-                  <div key={i} className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                    <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-sm font-bold text-center py-8">
-                No certificates uploaded.
-              </p>
-            )}
-          </div>
+      {/* View More Button */}
+      {vendor.certificates.length > 6 && (
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => setShowAllCertificates(!showAllCertificates)}
+            className="bg-yellow-400 text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+          >
+            {showAllCertificates ? "View Less" : "View More"}
+          </button>
+        </div>
+      )}
+    </>
+  ) : (
+    <p className="text-slate-400 text-sm font-bold text-center py-8">
+      No certificates uploaded.
+    </p>
+  )}
+</div>
+
         </div>
 
         {/* RIGHT */}
@@ -823,7 +995,7 @@ function AccountRow({ label, value }: any) {
   );
 }
 
-function InputField({ label, value, onChange }: any) {
+function InputField({ label, value, onChange, disabled = false }: any) {
   return (
     <div className="w-full">
       <label className="text-[10px] font-black uppercase text-slate-500 mb-1.5 block ml-1">
@@ -832,9 +1004,15 @@ function InputField({ label, value, onChange }: any) {
       <input
         type="text"
         value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-xs focus:ring-2 focus:ring-yellow-400 outline-none transition-all"
+        disabled={disabled}
+        onChange={(e) => onChange && onChange(e.target.value)}
+        className={`w-full p-3 rounded-xl font-bold text-xs outline-none transition-all
+          ${disabled
+            ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+            : "bg-white border border-slate-200 focus:ring-2 focus:ring-yellow-400"
+          }`}
       />
     </div>
   );
 }
+

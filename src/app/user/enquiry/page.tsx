@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Mail, Phone, Send, Loader, Lock, History, Activity, 
+import {
+  Mail, Phone, Send, Loader, Lock, History, Activity,
   ArrowRight, Clock, AlertCircle, CheckCircle2, X, Sparkles, Zap, Search
 } from "lucide-react";
 
@@ -26,7 +26,7 @@ export default function EnquiryPage() {
 
     const channel = supabase
       .channel('public-enquiries')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'enquiries' }, 
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'enquiries' },
         (payload) => {
           setEnquiries((prev) => [payload.new, ...prev]);
         }
@@ -42,7 +42,7 @@ export default function EnquiryPage() {
     if (!formData.email.match(/^\S+@\S+\.\S+$/)) newErrors.email = "Invalid";
     if (formData.phone && !formData.phone.match(/^\d{10,15}$/)) newErrors.phone = "Invalid";
     if (formData.message.length < 10) newErrors.message = "Min 10 chars";
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -121,11 +121,11 @@ export default function EnquiryPage() {
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] pb-10 font-sans selection:bg-yellow-200">
-      
+
       {/* --- SUCCESS TOAST (Compact) --- */}
       <AnimatePresence>
         {showToast && (
-          <motion.div 
+          <motion.div
             initial={{ y: 50, opacity: 0 }} animate={{ y: -20, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
             className="fixed bottom-0 inset-x-0 z-[9999] flex justify-center px-4 pointer-events-none"
           >
@@ -141,7 +141,7 @@ export default function EnquiryPage() {
       {/* --- HEADER (Reduced Size) --- */}
       <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-16 pb-32 px-6 relative overflow-hidden border-b border-yellow-100">
         <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
-        
+
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full mb-4 shadow-sm border border-yellow-300">
@@ -156,58 +156,58 @@ export default function EnquiryPage() {
             </h1>
           </div>
           <div className="hidden lg:block bg-white p-6 rounded-[2.5rem] -rotate-3 shadow-xl border border-yellow-100">
-             <Sparkles size={50} className="text-yellow-600" />
+            <Sparkles size={50} className="text-yellow-600" />
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* --- LEFT: BROADCAST FORM --- */}
           <div className="lg:col-span-7">
             <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-xl border border-yellow-100">
               <div className="mb-8">
-                  <h3 className="text-xl font-black tracking-tighter uppercase  text-gray-900">Post your Requirement</h3>
-                  <p className="text-gray-400 font-bold uppercase text-[9px] tracking-widest mt-1">Broadcast requirement to all verified vendors</p>
+                <h3 className="text-xl font-black tracking-tighter uppercase  text-gray-900">Post your Requirement</h3>
+                <p className="text-gray-400 font-bold uppercase text-[9px] tracking-widest mt-1">Broadcast requirement to all verified vendors</p>
               </div>
 
               <form onSubmit={handleFormSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input 
+                  <Input
                     label="Name" placeholder="IDENTITY..." error={errors.name}
-                    value={formData.name} onChange={(val:string) => setFormData({...formData, name: val})} 
+                    value={formData.name} onChange={(val: string) => setFormData({ ...formData, name: val })}
                   />
-                  <Input 
+                  <Input
                     label="Email" type="email" placeholder="CONTACT..." error={errors.email}
-                    value={formData.email} onChange={(val:string) => setFormData({...formData, email: val})} 
+                    value={formData.email} onChange={(val: string) => setFormData({ ...formData, email: val })}
                   />
                 </div>
-                <Input 
+                <Input
                   label="Phone Number" placeholder="MOBILE..." error={errors.phone}
-                  value={formData.phone} onChange={(val:string) => setFormData({...formData, phone: val})} 
+                  value={formData.phone} onChange={(val: string) => setFormData({ ...formData, phone: val })}
                 />
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-2">
-<label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ">Requirement</label>
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black ">Requirement</label>
                   </div>
-                  <textarea 
-  placeholder="WHAT ARE YOU LOOKING FOR?..."
-  rows={3} 
-  value={formData.message} 
-  onChange={(e) => setFormData({...formData, message: e.target.value})}
-  className={`
+                  <textarea
+                    placeholder="WHAT ARE YOU LOOKING FOR?..."
+                    rows={3}
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    className={`
     w-full p-4 rounded-2xl outline-none transition-all font-bold uppercase text-[11px] tracking-widest text-black
     bg-black/5 border 
     ${errors.message ? 'border-red-400' : 'border-black/10'} 
     focus:border-black focus:bg-white 
     placeholder:text-black/30
   `}
-/>
+                  />
                 </div>
 
-                <button 
+                <button
                   type="submit" disabled={formLoading}
                   className="w-full bg-gray-900 hover:bg-red-600 text-white py-5 rounded-2xl font-black text-lg uppercase tracking-tighter transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 disabled:opacity-50"
                 >
@@ -240,32 +240,32 @@ export default function EnquiryPage() {
             <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1 custom-scrollbar">
               <AnimatePresence initial={false}>
                 {filteredEnquiries.length === 0 ? (
-                    <div className="bg-white p-10 rounded-[2rem] border border-dashed border-yellow-200 text-center shadow-inner">
-                        <History className="mx-auto text-yellow-100 mb-2" size={30} />
-                        <p className="text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">No Signals Detected</p>
-                    </div>
+                  <div className="bg-white p-10 rounded-[2rem] border border-dashed border-yellow-200 text-center shadow-inner">
+                    <History className="mx-auto text-yellow-100 mb-2" size={30} />
+                    <p className="text-yellow-800/40 text-[9px] font-black uppercase tracking-widest">No Signals Detected</p>
+                  </div>
                 ) : filteredEnquiries.map((enq) => {
                   // Fixed: Use original index from full enquiries list for unlocking
                   const originalIndex = enquiries.findIndex(e => e.id === enq.id);
                   const isUnlocked = originalIndex < entryLimit;
 
                   return (
-                    <motion.div 
+                    <motion.div
                       key={enq.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
                       className="bg-white p-6 rounded-[2rem] border border-transparent hover:border-yellow-400 shadow-md relative group transition-all duration-300"
                     >
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-1.5">
-                           <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></span>
-                           <span className="text-[8px] font-black text-black uppercase tracking-widest ">Live Signal</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></span>
+                          <span className="text-[8px] font-black text-black uppercase tracking-widest ">Live Signal</span>
                         </div>
                         <span className="text-[8px] font-black text-gray-300">{new Date(enq.created_at).toLocaleDateString()}</span>
                       </div>
 
                       <div className="relative mb-4">
-                         <p className="text-[11px] font-bold text-gray-600 leading-relaxed uppercase tracking-tight relative z-10">
-                           {enq.message}
-                         </p>
+                        <p className="text-[11px] font-bold text-gray-600 leading-relaxed uppercase tracking-tight relative z-10">
+                          {enq.message}
+                        </p>
                       </div>
 
                       <div className="flex items-center gap-3 mb-6">
@@ -287,8 +287,8 @@ export default function EnquiryPage() {
                         </div>
 
                         {!isUnlocked && (
-                          <div 
-                            onClick={() => window.location.href='/user/subscription-plans'}
+                          <div
+                            onClick={() => window.location.href = '/user/subscription-plans'}
                             className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/40 backdrop-blur-[2px] cursor-pointer"
                           >
                             <span className="text-[8px] font-black uppercase text-yellow-400 tracking-widest bg-gray-900 px-3 py-1 rounded-full border border-yellow-400/30">Unlock Contact</span>
@@ -303,7 +303,7 @@ export default function EnquiryPage() {
           </div>
         </div>
       </div>
-      
+
       {/* --- PROTOCOL FLOW (Compact) --- */}
       <div className="max-w-7xl mx-auto px-6 mt-20 mb-10">
         <div className="bg-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden border border-yellow-100 shadow-xl">
@@ -314,9 +314,9 @@ export default function EnquiryPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
-            <FlowStep number="01" icon={<Send size={24}/>} color="bg-yellow-400" title="Broadcast" desc="Requirement is instantly tagged and pushed to feed." />
-            <FlowStep number="02" icon={<Activity size={24}/>} color="bg-red-600" textColor="text-white" title="Stream" desc="Verified vendors monitor the pulse stream live." />
-            <FlowStep number="03" icon={<Zap size={24}/>} color="bg-gray-900" textColor="text-yellow-400" title="Connect" desc="Partners unlock bridges to send competitive quotes." />
+            <FlowStep number="01" icon={<Send size={24} />} color="bg-yellow-400" title="Broadcast" desc="Requirement is instantly tagged and pushed to feed." />
+            <FlowStep number="02" icon={<Activity size={24} />} color="bg-red-600" textColor="text-white" title="Stream" desc="Verified vendors monitor the pulse stream live." />
+            <FlowStep number="03" icon={<Zap size={24} />} color="bg-gray-900" textColor="text-yellow-400" title="Connect" desc="Partners unlock bridges to send competitive quotes." />
           </div>
         </div>
       </div>

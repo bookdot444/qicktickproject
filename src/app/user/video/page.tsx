@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,13 +11,12 @@ import toast, { Toaster } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHandsClapping } from "@fortawesome/free-solid-svg-icons";
 import {
-  Play,
+  Play, Send, Smile, Eye,
   Search,
-  MonitorPlay,
+  MonitorPlay, X,
   MapPin,
   ChevronRight,
   User,
-  Hand,
   MessageSquare,
   Briefcase,
   Globe,
@@ -31,6 +31,10 @@ export default function VideoPage() {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const searchParams = useSearchParams();
+  const [viewCounts, setViewCounts] = useState<{ [key: string]: number }>({});
 
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
@@ -137,7 +141,17 @@ export default function VideoPage() {
       );
 
       setVideos(allVideos);
+      // 👇 ADD THIS CODE HERE
+      const vid = searchParams.get("vid");
 
+      if (vid) {
+        const index = allVideos.findIndex((v) => v.uniqueId === vid);
+        if (index !== -1) {
+          setActiveIndex(index);
+          setActiveIndex(index);
+
+        }
+      }
       await fetchLikesAndComments(allVideos);
       setLoading(false);
     };
@@ -148,11 +162,28 @@ export default function VideoPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, [user?.id]);
 
-  const fetchLikesAndComments = async (videos: any[]) => {
-    if (!user) return;
 
+  useEffect(() => {
+    const activeVid = filteredVideos[activeIndex];
+    if (!activeVid) return;
+
+    const saveView = async () => {
+      await supabase.from("video_views").insert({
+        video_unique_id: activeVid.uniqueId,
+        user_id: user ? user.id : null,
+      });
+
+      fetchLikesAndComments(videos);
+    };
+
+    saveView();
+  }, [activeIndex, user, videos]);
+
+
+  const fetchLikesAndComments = async (videos: any[]) => {
     const videoIds = videos.map((v) => v.uniqueId);
 
+    // Fetch likes
     const { data: likesData } = await supabase
       .from("video_likes")
       .select("video_unique_id, user_id")
@@ -162,16 +193,18 @@ export default function VideoPage() {
     const counts: { [key: string]: number } = {};
 
     likesData?.forEach((like) => {
-      if (like.user_id === user.id) likesSet.add(like.video_unique_id);
+      if (user && like.user_id === user.id) likesSet.add(like.video_unique_id);
+
       counts[like.video_unique_id] = (counts[like.video_unique_id] || 0) + 1;
     });
 
     setLikedVideos(likesSet);
     setLikeCounts(counts);
 
+    // Fetch comments
     const { data: commentsData } = await supabase
       .from("video_comments")
-      .select("video_unique_id, comment, created_at, user_id")
+      .select("video_unique_id, comment, created_at, user_id, guest_name, guest_phone")
       .in("video_unique_id", videoIds)
       .order("created_at", { ascending: false });
 
@@ -188,13 +221,28 @@ export default function VideoPage() {
 
     setComments(commentMap);
     setCommentCounts(commentCountsMap);
+
+
+    // Fetch views count
+    const { data: viewsData } = await supabase
+      .from("video_views")
+      .select("video_unique_id")
+      .in("video_unique_id", videoIds);
+
+    const viewMap: { [key: string]: number } = {};
+
+    viewsData?.forEach((v) => {
+      viewMap[v.video_unique_id] = (viewMap[v.video_unique_id] || 0) + 1;
+    });
+
+    setViewCounts(viewMap);
+
   };
+
 
   const handleShare = async (video: any) => {
     try {
-      const shareUrl = video.isYouTube
-        ? `https://www.youtube.com/watch?v=${video.ytId}`
-        : video.url;
+      const shareUrl = `${window.location.origin}/user/videos?vid=${video.uniqueId}`;
 
       if (navigator.share) {
         await navigator.share({
@@ -204,12 +252,13 @@ export default function VideoPage() {
         });
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copied!");
+        toast.success("Page link copied!");
       }
     } catch (error) {
       toast.error("Sharing failed!");
     }
   };
+
 
 
   const filteredVideos = videos.filter((v) => {
@@ -222,55 +271,80 @@ export default function VideoPage() {
   const sectors = ["All Sectors", ...new Set(videos.flatMap((v) => v.sector).filter(Boolean))];
   const areas = ["All Areas", ...new Set(videos.map((v) => v.area).filter(Boolean))];
 
-  const toggleLike = async (uniqueId: string) => {
-    if (!user) {
-      toast.error("Please log in to like videos.");
-      return;
-    }
+const toggleLike = async (uniqueId: string) => {
+  if (!user) {
+    toast.error("Please login to like this video ❤️");
+    router.push("/login"); // 👈 redirect to login page
+    return;
+  }
 
-    const isLiked = likedVideos.has(uniqueId);
+  const isLiked = likedVideos.has(uniqueId);
 
-    if (isLiked) {
-      await supabase.from("video_likes").delete().eq("video_unique_id", uniqueId).eq("user_id", user.id);
+  if (isLiked) {
+    await supabase
+      .from("video_likes")
+      .delete()
+      .eq("video_unique_id", uniqueId)
+      .eq("user_id", user.id);
 
-      setLikedVideos((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(uniqueId);
-        return newSet;
-      });
+    setLikedVideos((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(uniqueId);
+      return newSet;
+    });
 
-      setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
-    } else {
-      await supabase.from("video_likes").insert({ video_unique_id: uniqueId, user_id: user.id });
+    setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
+  } else {
+    await supabase.from("video_likes").insert({
+      video_unique_id: uniqueId,
+      user_id: user.id,
+    });
 
-      setLikedVideos((prev) => new Set(prev).add(uniqueId));
-      setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) + 1 }));
-    }
-  };
+    setLikedVideos((prev) => new Set(prev).add(uniqueId));
+    setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) + 1 }));
+  }
+};
+
 
   const handleComment = (uniqueId: string) => {
-    if (!user) {
-      toast.error("Please log in to comment.");
-      return;
-    }
     setCommentModal({ open: true, videoId: uniqueId });
   };
+
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;
 
-    await supabase.from("video_comments").insert({
+    // If not logged in → guest should enter name + phone
+    if (!user) {
+      if (!guestName.trim() || !guestPhone.trim()) {
+        toast.error("Please enter your Name and Phone Number.");
+        return;
+      }
+    }
+
+    const { error } = await supabase.from("video_comments").insert({
       video_unique_id: commentModal.videoId,
-      user_id: user.id,
+      user_id: user ? user.id : null,
       comment: newComment.trim(),
+      guest_name: user ? null : guestName.trim(),
+      guest_phone: user ? null : guestPhone.trim(),
     });
 
-    setNewComment("");
-    setCommentModal({ open: false, videoId: null });
+    if (error) {
+      toast.error("Failed to post comment!");
+      console.log(error);
+      return;
+    }
 
     toast.success("Comment added!");
+    setNewComment("");
+    setGuestName("");
+    setGuestPhone("");
+    setCommentModal({ open: false, videoId: null });
+
     await fetchLikesAndComments(videos);
   };
+
 
   const handleService = (video: any) => {
     router.push(`/user/videoview?vendorId=${video.vendorId}&tab=services`);
@@ -430,7 +504,7 @@ export default function VideoPage() {
                       <Briefcase size={24} className="text-yellow-400" />
                     </div>
                     <span className="text-[9px] font-bold text-white uppercase">
-                      Service
+                      Update
                     </span>
                   </button>
 
@@ -473,6 +547,7 @@ export default function VideoPage() {
             const index = Math.round(scrollTop / window.innerHeight);
             setActiveIndex(index);
           }}
+
         >
           {filteredVideos.map((video, index) => (
             <div key={video.uniqueId} className="h-[100dvh] w-full snap-start relative bg-black">
@@ -485,7 +560,7 @@ export default function VideoPage() {
                     className="w-full h-full scale-[1.7] pointer-events-none"
                   />
                 ) : (
-                  <video src={video.url} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                  <video src={video.url} autoPlay loop playsInline className="w-full h-full object-cover" />
                 )}
               </div>
 
@@ -502,10 +577,32 @@ export default function VideoPage() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-black text-white leading-tight mb-6 drop-shadow-2xl uppercase">
-                  {video.title}
-                </h3>
+                <div className="flex items-center justify-between gap-4 w-full mb-6">
+                  {/* Video Title - Truncated to stay on one line */}
+                  <h3 className="text-lg font-black text-white uppercase truncate drop-shadow-xl flex-1">
+                    {video.title}
+                  </h3>
 
+                  {/* Stats Group */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* View Count Badge */}
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-sm transition-all hover:bg-white/20">
+                      <Eye size={12} className="text-white/80" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                        {Intl.NumberFormat('en-US', { notation: 'compact' }).format(viewCounts[video.uniqueId] || 0)}
+                        <span className="ml-1 text-white/50">Views</span>
+                      </span>
+                    </div>
+
+                    {/* Trending Badge */}
+                    {viewCounts[video.uniqueId] > 1000 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg animate-in fade-in zoom-in duration-300">
+                        <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-[8px] font-black uppercase text-red-400">Hot</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 {video.vendorId && (
                   <div className="flex items-center gap-3 pointer-events-auto relative z-[200]">
                     {/* VIEW PROFILE */}
@@ -542,74 +639,134 @@ export default function VideoPage() {
           ))}
         </div>
 
+
         {/* COMMENT MODAL */}
         <AnimatePresence>
           {commentModal.open && (
             <motion.div
-              className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white/90 backdrop-blur-xl w-full max-w-md rounded-3xl p-8 shadow-2xl border border-white/20"
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
               >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Comments</h3>
-                  <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">
-                    {(comments[commentModal.videoId!] || []).length}
-                  </span>
+                {/* Header - Fixed */}
+                <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-xl">
+                      <MessageSquare className="text-blue-600" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
+                        Community
+                      </h3>
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
+                        {(comments[commentModal.videoId!] || []).length} Thoughts shared
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setCommentModal({ open: false, videoId: null })}
+                    className="p-2 hover:bg-slate-200/50 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
 
-                {/* Comments List */}
-                <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                {/* Comments List - Scrollable */}
+                <div className="p-8 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white">
                   {comments[commentModal.videoId!]?.length > 0 ? (
                     (comments[commentModal.videoId!] || []).map((c, i) => (
                       <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
                         key={i}
-                        className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+                        className="group flex gap-4"
                       >
-                        <p className="text-gray-700 text-sm leading-relaxed">{c.comment}</p>
+                        {/* Avatar Placeholder */}
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs border border-slate-200">
+                          {c.guest_name ? c.guest_name.charAt(0).toUpperCase() : <User size={16} />}
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-slate-700">
+                              {c.guest_name || "Member"}
+                            </span>
+                            {c.guest_phone && (
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
+                                <Phone size={10} /> {c.guest_phone}
+                              </span>
+                            )}
+                          </div>
+                          <div className="bg-slate-50 group-hover:bg-blue-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-100 transition-colors">
+                            <p className="text-slate-600 text-sm leading-relaxed">
+                              {c.comment}
+                            </p>
+                          </div>
+                        </div>
                       </motion.div>
                     ))
                   ) : (
-                    <div className="text-center py-10">
-                      <p className="text-gray-400 text-sm italic">No comments yet. Be the first!</p>
+                    <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                      <Smile size={48} className="mb-4 text-slate-300" />
+                      <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+                        No comments yet
+                      </p>
                     </div>
                   )}
                 </div>
 
-                {/* Input Section */}
-                <div className="mt-6 space-y-4">
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write a thoughtful comment..."
-                    className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500/50 outline-none transition-all resize-none text-sm text-gray-800 placeholder:text-gray-400"
-                    rows={3}
-                  />
+                {/* Input Section - Fixed at bottom */}
+                <div className="p-8 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md">
+                  <div className="space-y-3">
+                    {!user && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 text-slate-300" size={16} />
+                          <input
+                            type="text"
+                            placeholder="Full Name"
+                            value={guestName}
+                            onChange={(e) => setGuestName(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                          />
+                        </div>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
+                          <input
+                            type="text"
+                            placeholder="Phone"
+                            value={guestPhone}
+                            onChange={(e) => setGuestPhone(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={submitComment}
-                      disabled={!newComment.trim()}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-200 active:scale-95"
-                    >
-                      Post Comment
-                    </button>
-
-                    <button
-                      onClick={() => setCommentModal({ open: false, videoId: null })}
-                      className="px-6 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-3 rounded-xl transition-all"
-                    >
-                      Close
-                    </button>
+                    <div className="relative">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Share your feedback..."
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none"
+                        rows={2}
+                      />
+                      <button
+                        onClick={submitComment}
+                        disabled={!newComment.trim()}
+                        className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-200 disabled:shadow-none active:scale-95"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -688,8 +845,8 @@ export default function VideoPage() {
               <div className="relative h-60 w-full overflow-hidden cursor-pointer" onClick={() => setSelectedVideo(video)}>
                 {video.isYouTube ? (
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=1&mute=1&loop=1&playlist=${video.ytId}&controls=0`}
-                    className="w-full h-full pointer-events-none scale-105"
+                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                    className="w-full h-full scale-[1.7] pointer-events-none"
                   />
                 ) : (
                   <video src={video.url} autoPlay muted loop playsInline className="w-full h-full object-cover" />

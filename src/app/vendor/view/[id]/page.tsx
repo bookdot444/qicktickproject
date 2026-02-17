@@ -19,6 +19,8 @@ export default function VendorDetailPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openSection, setOpenSection] = useState<string | null>("media");
+  const [showAllMedia, setShowAllMedia] = useState(false);
+  const [showAllCertificates, setShowAllCertificates] = useState(false);
 
   // --- POPUP STATE ---
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -282,51 +284,83 @@ export default function VendorDetailPage() {
             isOpen={openSection === "media"}
             onToggle={() => setOpenSection(openSection === "media" ? null : "media")}
           >
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {vendor.media_files?.map((img: string, i: number) => (
-                <div
-                  key={i}
-                  onClick={() => openMediaByUrl(img)}
-                  className="aspect-square rounded-2xl overflow-hidden cursor-zoom-in group relative bg-slate-50 border border-slate-100 shadow-sm"
-                >
-                  <img
-                    src={img}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Maximize2 className="text-white" />
-                  </div>
-                </div>
-              ))}
+            {(() => {
+              const mediaImages = vendor.media_files || [];
+              const mediaVideos = getVideos();
 
-              {getVideos().map((vid: any, i: number) => {
-                const url = typeof vid === "string" ? vid : vid.url;
-                return (
-                  <div
-                    key={i}
-                    onClick={() => openMediaByUrl(url)}
-                    className="aspect-square rounded-2xl bg-black overflow-hidden cursor-pointer group relative border border-slate-200 shadow-sm"
-                  >
-                    <video
-                      src={url}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                    />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                      <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                        <Play className="text-white ml-1" fill="white" size={30} />
-                      </div>
-                    </div>
+              const combinedMedia = [
+                ...mediaImages.map((img: string) => ({ type: "image", url: img })),
+                ...mediaVideos.map((vid: any) => ({
+                  type: "video",
+                  url: typeof vid === "string" ? vid : vid.url,
+                })),
+              ];
+
+              const visibleMedia = showAllMedia ? combinedMedia : combinedMedia.slice(0, 6);
+
+              return combinedMedia.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {visibleMedia.map((item: any, i: number) =>
+                      item.type === "image" ? (
+                        <div
+                          key={i}
+                          onClick={() => openMediaByUrl(item.url)}
+                          className="aspect-square rounded-2xl overflow-hidden cursor-zoom-in group relative bg-slate-50 border border-slate-100 shadow-sm"
+                        >
+                          <img
+                            src={item.url}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Maximize2 className="text-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          key={i}
+                          onClick={() => openMediaByUrl(item.url)}
+                          className="aspect-square rounded-2xl bg-black overflow-hidden cursor-pointer group relative border border-slate-200 shadow-sm"
+                        >
+                          <video
+                            src={item.url}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                              <Play className="text-white ml-1" fill="white" size={30} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* VIEW MORE BUTTON */}
+                  {combinedMedia.length > 6 && (
+                    <div className="mt-8 flex justify-center">
+                      <button
+                        onClick={() => setShowAllMedia(!showAllMedia)}
+                        className="bg-black text-yellow-400 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                      >
+                        {showAllMedia ? "View Less" : "View More"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm font-bold py-10 text-center">
+                  No media uploaded by this vendor.
+                </p>
+              );
+            })()}
           </AccordionSection>
 
-          {/* CERTIFICATES SECTION */}
+
           {/* CERTIFICATES SECTION */}
           <AccordionSection
             title="Certificates"
@@ -337,29 +371,47 @@ export default function VendorDetailPage() {
             }
           >
             {getCertificates().length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {getCertificates().map((img: string, i: number) => (
-                  <div
-                    key={i}
-                    onClick={() => openMediaByUrl(img)}
-                    className="aspect-square rounded-2xl overflow-hidden cursor-zoom-in group relative bg-slate-50 border border-slate-100 shadow-sm"
-                  >
-                    <img
-                      src={img}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Maximize2 className="text-white" />
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {(showAllCertificates
+                    ? getCertificates()
+                    : getCertificates().slice(0, 6)
+                  ).map((img: string, i: number) => (
+                    <div
+                      key={i}
+                      onClick={() => openMediaByUrl(img)}
+                      className="aspect-square rounded-2xl overflow-hidden cursor-zoom-in group relative bg-slate-50 border border-slate-100 shadow-sm"
+                    >
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Maximize2 className="text-white" />
+                      </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* VIEW MORE BUTTON */}
+                {getCertificates().length > 6 && (
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      onClick={() => setShowAllCertificates(!showAllCertificates)}
+                      className="bg-yellow-400 text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                    >
+                      {showAllCertificates ? "View Less" : "View More"}
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <p className="text-slate-400 text-sm font-bold py-10 text-center">
                 No certificates uploaded by this vendor.
               </p>
             )}
           </AccordionSection>
+
 
 
           {/* BUSINESS OVERVIEW */}
