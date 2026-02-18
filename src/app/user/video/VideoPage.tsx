@@ -241,7 +241,7 @@ export default function VideoPage() {
 
   const handleShare = async (video: any) => {
     try {
-      const shareUrl = `${window.location.origin}/user/videos?vid=${video.uniqueId}`;
+      const shareUrl = `${window.location.origin}/user/video?vid=${video.uniqueId}`; // Changed from /user/videos to /user/video
 
       if (navigator.share) {
         await navigator.share({
@@ -270,39 +270,39 @@ export default function VideoPage() {
   const sectors = ["All Sectors", ...new Set(videos.flatMap((v) => v.sector).filter(Boolean))];
   const areas = ["All Areas", ...new Set(videos.map((v) => v.area).filter(Boolean))];
 
-const toggleLike = async (uniqueId: string) => {
-  if (!user) {
-    toast.error("Please login to like this video ❤️");
-    router.push("/login"); // 👈 redirect to login page
-    return;
-  }
+  const toggleLike = async (uniqueId: string) => {
+    if (!user) {
+      toast.error("Please login to like this video ❤️");
+      router.push("/login"); // 👈 redirect to login page
+      return;
+    }
 
-  const isLiked = likedVideos.has(uniqueId);
+    const isLiked = likedVideos.has(uniqueId);
 
-  if (isLiked) {
-    await supabase
-      .from("video_likes")
-      .delete()
-      .eq("video_unique_id", uniqueId)
-      .eq("user_id", user.id);
+    if (isLiked) {
+      await supabase
+        .from("video_likes")
+        .delete()
+        .eq("video_unique_id", uniqueId)
+        .eq("user_id", user.id);
 
-    setLikedVideos((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(uniqueId);
-      return newSet;
-    });
+      setLikedVideos((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(uniqueId);
+        return newSet;
+      });
 
-    setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
-  } else {
-    await supabase.from("video_likes").insert({
-      video_unique_id: uniqueId,
-      user_id: user.id,
-    });
+      setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
+    } else {
+      await supabase.from("video_likes").insert({
+        video_unique_id: uniqueId,
+        user_id: user.id,
+      });
 
-    setLikedVideos((prev) => new Set(prev).add(uniqueId));
-    setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) + 1 }));
-  }
-};
+      setLikedVideos((prev) => new Set(prev).add(uniqueId));
+      setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) + 1 }));
+    }
+  };
 
 
   const handleComment = (uniqueId: string) => {
