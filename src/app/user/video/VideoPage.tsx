@@ -346,11 +346,30 @@ export default function VideoPage() {
 
 
   const handleService = (video: any) => {
+    if (!user) {
+      toast.error("Please login to access services 📋");
+      router.push("/login");
+      return;
+    }
     router.push(`/user/videoview?vendorId=${video.vendorId}&tab=services`);
+  };
+
+  const handleAds = (video: any) => {
+    if (!user) {
+      toast.error("Please login to access ads 📢");
+      router.push("/login");
+      return;
+    }
+    router.push(`/user/videoview?vendorId=${video.vendorId}&tab=ads`);
   };
 
 
   const handleWebsite = (video: any) => {
+    if (!user) {
+      toast.error("Please login to access this feature 🌐");
+      router.push("/login");
+      return;
+    }
     if (video.websites?.length) {
       window.open(video.websites[0], "_blank");
     } else {
@@ -358,9 +377,6 @@ export default function VideoPage() {
     }
   };
 
-  const handleAds = (video: any) => {
-    router.push(`/user/videoview?vendorId=${video.vendorId}&tab=ads`);
-  };
 
 
   const handlePhone = (video: any) => {
@@ -662,7 +678,7 @@ export default function VideoPage() {
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
-                        Community
+                        Comment
                       </h3>
                       <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
                         {(comments[commentModal.videoId!] || []).length} Thoughts shared
@@ -754,7 +770,7 @@ export default function VideoPage() {
                       <textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Share your feedback..."
+                        placeholder="Share your Comment..."
                         className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none"
                         rows={2}
                       />
@@ -854,16 +870,14 @@ export default function VideoPage() {
                 {/* FLOATING TOP ACTIONS (Like & Comment) */}
                 <div className="absolute top-4 right-4 flex flex-col gap-3 z-30">
                   <button
-                    onClick={(e) => { e.stopPropagation(); /* handleLike logic */ }}
+                    onClick={(e) => { e.stopPropagation(); toggleLike(video.uniqueId); }}
                     className="p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white hover:bg-white hover:text-red-500 transition-all shadow-lg group/icon"
                   >
-
                     <FontAwesomeIcon
                       icon={faHandsClapping}
                       style={{ fontSize: "20px" }}
                       className="group-active/icon:scale-125 transition-transform"
                     />
-
                   </button>
 
                   <button

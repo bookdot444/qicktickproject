@@ -50,21 +50,24 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6 relative font-sans">
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="relative w-full max-w-[440px]"
       >
         {/* Main Card */}
         <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative border border-slate-100">
-          
+
           {/* Top Yellow Accent Bar (Matched to Photo) */}
           <div className="absolute top-0 left-0 right-0 h-2 bg-[#FFC107]" />
 
           <div className="p-8 md:p-12">
             {/* Close Icon (Design Decoration) */}
-            <button className="absolute top-6 right-6 p-1 text-slate-300 hover:text-slate-600 transition-colors">
+            <button
+              onClick={() => router.push('/user/video')}  // 👈 Added: Navigate to VideoPage on click
+              className="absolute top-6 right-6 p-1 text-slate-300 hover:text-slate-600 transition-colors"
+            >
               <X size={20} strokeWidth={3} />
             </button>
 
@@ -121,13 +124,13 @@ export default function LoginPage() {
                   >
                     {loading && step === 'email' ? <RefreshCw className="animate-spin" size={16} /> : "Send OTP"}
                   </button>
-                  
+
                   <button
                     onClick={verifyOtp}
                     disabled={loading || step === 'email'}
                     className={`py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center
-                      ${step === 'otp' 
-                        ? 'bg-[#FFC107] text-black shadow-yellow-100 hover:bg-[#EBB106]' 
+                      ${step === 'otp'
+                        ? 'bg-[#FFC107] text-black shadow-yellow-100 hover:bg-[#EBB106]'
                         : 'bg-slate-100 text-slate-400'}`}
                   >
                     {loading && step === 'otp' ? <RefreshCw className="animate-spin" size={16} /> : "Login"}
@@ -136,7 +139,7 @@ export default function LoginPage() {
 
                 {/* Optional Back Button */}
                 {step === "otp" && (
-                  <button 
+                  <button
                     onClick={() => setStep("email")}
                     className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors pt-2"
                   >
