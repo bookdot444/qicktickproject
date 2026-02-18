@@ -63,7 +63,6 @@ export default function VendorRegister({
     pincode: "",
     business_keywords: "",
     sector: "",
-    address: "",
     subscription_plan_id: "",
     profile_image: "",
     company_logo: "",
@@ -288,7 +287,6 @@ export default function VendorRegister({
             state: address.state || "",
             pincode: address.postcode || "",
             landmark: address.road || "",
-            address: data.display_name || "",
           }));
 
           toast.success("Location detected successfully");
@@ -501,7 +499,6 @@ export default function VendorRegister({
       pincode: formData.pincode,
       business_keywords: formData.business_keywords,
       sector: formData.sector,
-      address: formData.address,
       subscription_plan_id: formData.subscription_plan_id ? parseInt(formData.subscription_plan_id) : null,
       company_logo: formData.company_logo,
       media_files: formData.media_files,

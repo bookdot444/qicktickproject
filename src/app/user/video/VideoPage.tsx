@@ -148,7 +148,6 @@ export default function VideoPage() {
         const index = allVideos.findIndex((v) => v.uniqueId === vid);
         if (index !== -1) {
           setActiveIndex(index);
-          setActiveIndex(index);
 
         }
       }

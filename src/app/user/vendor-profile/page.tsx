@@ -25,8 +25,8 @@ export default function VendorProfileDetail() {
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingCertificates, setUploadingCertificates] = useState(false);
-const [showAllGallery, setShowAllGallery] = useState(false);
-const [showAllCertificates, setShowAllCertificates] = useState(false);
+  const [showAllGallery, setShowAllGallery] = useState(false);
+  const [showAllCertificates, setShowAllCertificates] = useState(false);
 
   const sectorOptions = [
     { label: "Manufacturer", value: "manufacturer" },
@@ -46,12 +46,13 @@ const [showAllCertificates, setShowAllCertificates] = useState(false);
       const { data, error: dbError } = await supabase
         .from("vendor_register")
         .select(`
-          id, email, first_name, last_name, mobile_number, profile_info, company_name, user_type, media_files, created_at, updated_at, status, subscription_expiry, user_id, owner_name, gst_number, business_keywords, sector, address, city, state, pincode, company_logo, video_files, payment_id, websites, flat_no, floor, building, street, area, landmark, subscription_plan_id, alternate_number, role,
-          certificates,
-          subscription_plans (
-            id, name, base_price, tax_percent, duration_months
-          )
-        `)
+  id, email, first_name, last_name, mobile_number, profile_info, company_name, user_type, media_files, created_at, updated_at, status, subscription_expiry, user_id, owner_name, gst_number, business_keywords, sector, city, state, pincode, company_logo, video_files, payment_id, websites, flat_no, floor, building, street, area, landmark, subscription_plan_id, alternate_number, role,
+  certificates,
+  subscription_plans (
+    id, name, base_price, tax_percent, duration_months
+  )
+`)
+
         .eq("email", user.email)
         .single();
 
@@ -325,11 +326,11 @@ const [showAllCertificates, setShowAllCertificates] = useState(false);
                   </div>
 
                   <InputField label="Owner Name" value={editForm.owner_name} onChange={(v: any) => setEditForm({ ...editForm, owner_name: v })} />
-<InputField
-  label="Company Name"
-  value={editForm.company_name}
-  disabled
-/>
+                  <InputField
+                    label="Company Name"
+                    value={editForm.company_name}
+                    disabled
+                  />
                   <InputField label="Mobile" value={editForm.mobile_number} onChange={(v: any) => setEditForm({ ...editForm, mobile_number: v })} />
                   <InputField label="GST Number" value={editForm.gst_number} onChange={(v: any) => setEditForm({ ...editForm, gst_number: v })} />
 
@@ -767,98 +768,98 @@ const [showAllCertificates, setShowAllCertificates] = useState(false);
               </div>
             </div>
           )}
-{/* IMAGE SHOWCASE */}
-<div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
-  <div className="flex items-center gap-3 mb-8">
-    <div className="p-3 bg-slate-100 rounded-2xl">
-      <ImageIcon size={20} />
-    </div>
-    <h2 className="text-xl font-black uppercase">Work Gallery</h2>
-  </div>
-
-  {vendor.media_files?.length > 0 ? (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {(showAllGallery ? vendor.media_files : vendor.media_files.slice(0, 6)).map(
-          (img: string, i: number) => (
-            <div
-              key={i}
-              className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
-            >
-              <img
-                src={img}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+          {/* IMAGE SHOWCASE */}
+          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-3 bg-slate-100 rounded-2xl">
+                <ImageIcon size={20} />
+              </div>
+              <h2 className="text-xl font-black uppercase">Work Gallery</h2>
             </div>
-          )
-        )}
-      </div>
 
-      {/* View More Button */}
-      {vendor.media_files.length > 6 && (
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={() => setShowAllGallery(!showAllGallery)}
-            className="bg-black text-yellow-400 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
-          >
-            {showAllGallery ? "View Less" : "View More"}
-          </button>
-        </div>
-      )}
-    </>
-  ) : (
-    <p className="text-slate-400 text-sm font-bold text-center py-8">
-      No gallery images uploaded.
-    </p>
-  )}
-</div>
+            {vendor.media_files?.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {(showAllGallery ? vendor.media_files : vendor.media_files.slice(0, 6)).map(
+                    (img: string, i: number) => (
+                      <div
+                        key={i}
+                        className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
+                      >
+                        <img
+                          src={img}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* View More Button */}
+                {vendor.media_files.length > 6 && (
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      onClick={() => setShowAllGallery(!showAllGallery)}
+                      className="bg-black text-yellow-400 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                    >
+                      {showAllGallery ? "View Less" : "View More"}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-slate-400 text-sm font-bold text-center py-8">
+                No gallery images uploaded.
+              </p>
+            )}
+          </div>
 
 
-{/* CERTIFICATES SHOWCASE */}
-<div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
-  <div className="flex items-center gap-3 mb-8">
-    <div className="p-3 bg-yellow-400 rounded-2xl text-black">
-      <Award size={20} />
-    </div>
-    <h2 className="text-xl font-black uppercase">Certificates</h2>
-  </div>
-
-  {vendor.certificates?.length > 0 ? (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {(showAllCertificates ? vendor.certificates : vendor.certificates.slice(0, 6)).map(
-          (img: string, i: number) => (
-            <div
-              key={i}
-              className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
-            >
-              <img
-                src={img}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+          {/* CERTIFICATES SHOWCASE */}
+          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-3 bg-yellow-400 rounded-2xl text-black">
+                <Award size={20} />
+              </div>
+              <h2 className="text-xl font-black uppercase">Certificates</h2>
             </div>
-          )
-        )}
-      </div>
 
-      {/* View More Button */}
-      {vendor.certificates.length > 6 && (
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={() => setShowAllCertificates(!showAllCertificates)}
-            className="bg-yellow-400 text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
-          >
-            {showAllCertificates ? "View Less" : "View More"}
-          </button>
-        </div>
-      )}
-    </>
-  ) : (
-    <p className="text-slate-400 text-sm font-bold text-center py-8">
-      No certificates uploaded.
-    </p>
-  )}
-</div>
+            {vendor.certificates?.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {(showAllCertificates ? vendor.certificates : vendor.certificates.slice(0, 6)).map(
+                    (img: string, i: number) => (
+                      <div
+                        key={i}
+                        className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-100 shadow-sm"
+                      >
+                        <img
+                          src={img}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* View More Button */}
+                {vendor.certificates.length > 6 && (
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      onClick={() => setShowAllCertificates(!showAllCertificates)}
+                      className="bg-yellow-400 text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                    >
+                      {showAllCertificates ? "View Less" : "View More"}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-slate-400 text-sm font-bold text-center py-8">
+                No certificates uploaded.
+              </p>
+            )}
+          </div>
 
         </div>
 
