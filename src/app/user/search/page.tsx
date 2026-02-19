@@ -29,6 +29,7 @@ function SearchSearchResults() {
     const q = searchParams.get("q");
     const city = searchParams.get("city");
     const type = searchParams.get("type");
+    const [isSelecting, setIsSelecting] = useState(false);
 
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -40,6 +41,13 @@ function SearchSearchResults() {
     const [searchSuggestions, setSearchSuggestions] = useState<{ products: string[], companies: string[], categories: string[], locations: string[], sectors: string[] }>({ products: [], companies: [], categories: [], locations: [], sectors: [] });
     const [showResults, setShowResults] = useState(false);
     const [locationAvailability, setLocationAvailability] = useState<{ locations: string[] }>({ locations: [] });
+
+    // ✅ Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 32;
+    const [totalCount, setTotalCount] = useState(0);
+
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     useEffect(() => {
         if (!find || find.length < 2) {
@@ -123,7 +131,9 @@ function SearchSearchResults() {
             );
 
             setSearchSuggestions({ products, companies, categories, locations, sectors });
-            setShowResults(true);
+            if (!isSelecting) {
+                setShowResults(true);
+            }
         };
 
         fetchSearchSuggestions();
@@ -136,23 +146,19 @@ function SearchSearchResults() {
         }
 
         const checkLocationAvailability = async () => {
-            // First, find vendors that match the search term in products, companies, or categories
             let vendorIds: string[] = [];
 
-            // From products
             const { data: productVendors } = await supabase
                 .from("vendor_products")
                 .select("vendor_id")
                 .ilike("product_name", `%${find}%`)
                 .eq("is_active", true);
 
-            // From companies
             const { data: companyVendors } = await supabase
                 .from("vendor_register")
                 .select("id")
                 .ilike("company_name", `%${find}%`);
 
-            // From categories (via products)
             const { data: categoryVendors } = await supabase
                 .from("vendor_products")
                 .select("vendor_id")
@@ -162,7 +168,6 @@ function SearchSearchResults() {
                     (await supabase.from("categories").select("id").ilike("name", `%${find}%`).eq("is_active", true)).data?.map(c => c.id) || []
                 );
 
-            // From categories in vendor_register
             const { data: categoryVendorsRegister } = await supabase
                 .from("vendor_register")
                 .select("id")
@@ -182,9 +187,9 @@ function SearchSearchResults() {
 
             const { data: vendors, error: vendorError } = await supabase
                 .from("vendor_register")
-                .select("area")
+                .select("city")
                 .in("id", vendorIds)
-                .ilike("area", `%${near}%`);
+                .ilike("city", `%${near}%`);
 
             if (vendorError) {
                 console.error("Location Check Error:", vendorError);
@@ -194,7 +199,7 @@ function SearchSearchResults() {
 
             const locations = Array.from(
                 new Set(
-                    vendors.map(v => v.area?.toLowerCase().trim()).filter(Boolean)
+                    (vendors || []).map(v => v.city?.toLowerCase().trim()).filter(Boolean)
                 )
             );
 
@@ -203,6 +208,12 @@ function SearchSearchResults() {
 
         checkLocationAvailability();
     }, [find, near]);
+
+    // ✅ Reset page to 1 when query changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [q, city, type]);
+
     useEffect(() => {
         if (!q) {
             setLoading(false);
@@ -214,7 +225,6 @@ function SearchSearchResults() {
 
             let vendorIds: string[] = [];
 
-            // Check for products
             const { data: productVendors } = await supabase
                 .from("vendor_products")
                 .select("vendor_id")
@@ -224,7 +234,6 @@ function SearchSearchResults() {
                 vendorIds.push(...productVendors.map(p => p.vendor_id));
             }
 
-            // Check for categories
             const { data: categoryIds } = await supabase
                 .from("categories")
                 .select("id")
@@ -241,7 +250,6 @@ function SearchSearchResults() {
                 }
             }
 
-            // Check for categories in vendor_register
             const { data: categoryVendorsRegister } = await supabase
                 .from("vendor_register")
                 .select("id")
@@ -250,7 +258,6 @@ function SearchSearchResults() {
                 vendorIds.push(...categoryVendorsRegister.map(c => c.id));
             }
 
-            // Check for companies
             const { data: companyVendors } = await supabase
                 .from("vendor_register")
                 .select("id")
@@ -259,7 +266,6 @@ function SearchSearchResults() {
                 vendorIds.push(...companyVendors.map(c => c.id));
             }
 
-            // Check for cities
             const { data: cityVendors } = await supabase
                 .from("vendor_register")
                 .select("id")
@@ -268,7 +274,6 @@ function SearchSearchResults() {
                 vendorIds.push(...cityVendors.map(c => c.id));
             }
 
-            // Check for sectors
             const { data: sectorVendors } = await supabase
                 .from("vendor_register")
                 .select("id")
@@ -281,28 +286,42 @@ function SearchSearchResults() {
 
             if (!vendorIds.length) {
                 setResults([]);
+                setTotalCount(0);
                 setLoading(false);
                 return;
             }
 
-            // Build query with AND conditions
-            let query = supabase.from("vendor_register").select("*").in("id", vendorIds);
+            // ✅ Pagination Range
+            const from = (currentPage - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            let query = supabase
+                .from("vendor_register")
+                .select("*", { count: "exact" })
+                .in("id", vendorIds)
+                .order("created_at", { ascending: false }) // ✅ Latest First
+                .range(from, to);
+
             if (city) query = query.eq("city", city);
             if (type) query = query.contains("user_type", [type]);
 
-            const { data, error } = await query;
+            const { data, error, count } = await query;
 
             if (error) {
                 console.error("Search Error:", error);
                 setResults([]);
+                setTotalCount(0);
             } else {
                 setResults(data ?? []);
+                setTotalCount(count || 0);
             }
+
             setLoading(false);
         };
 
         fetchResults();
-    }, [q, city, type]);
+    }, [q, city, type, currentPage]);
+
     const handleFullSearch = () => {
         if (!find.trim()) {
             alert("Please enter what you need (e.g., Electrician, Plumber, Company Name, Category).");
@@ -373,17 +392,23 @@ function SearchSearchResults() {
                                         <div className="px-6 py-4">
                                             {searchSuggestions.products.length > 0 && (
                                                 <>
-                                                    <p className="font-bold text-black text-base mb-2">Suggested Products</p>
+                                                    <p className="font-bold text-black text-[11px] mb-2">Suggested Products</p>
                                                     <div className="flex flex-col gap-2 mb-4">
                                                         {searchSuggestions.products.map((product) => (
                                                             <span
                                                                 key={product}
                                                                 onClick={() => {
+                                                                    setIsSelecting(true);
                                                                     setFind(product.charAt(0).toUpperCase() + product.slice(1));
                                                                     setShowResults(false);
-                                                                    handleFullSearch();
+
+                                                                    setTimeout(() => {
+                                                                        setIsSelecting(false);
+                                                                        handleFullSearch();
+                                                                    }, 200);
                                                                 }}
-                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+
+                                                                className="cursor-pointer text-black px-3 py-2 rounded-md border border-yellow-200  font-bold text-[10px] transition-colors"
                                                             >
                                                                 {product.charAt(0).toUpperCase() + product.slice(1)}
                                                             </span>
@@ -393,17 +418,25 @@ function SearchSearchResults() {
                                             )}
                                             {searchSuggestions.companies.length > 0 && (
                                                 <>
-                                                    <p className="font-bold text-black text-base mb-2">Suggested Companies</p>
+                                                    <p className="font-bold text-black text-[11px] mb-2">Suggested Companies</p>
                                                     <div className="flex flex-col gap-2 mb-4">
                                                         {searchSuggestions.companies.map((company) => (
                                                             <span
                                                                 key={company}
                                                                 onClick={() => {
-                                                                    setFind(company.charAt(0).toUpperCase() + company.slice(1));
+                                                                    const value = company.charAt(0).toUpperCase() + company.slice(1);
+
+                                                                    setIsSelecting(true);
                                                                     setShowResults(false);
-                                                                    handleFullSearch();
+                                                                    setFind(value);
+
+                                                                    setTimeout(() => {
+                                                                        setIsSelecting(false);
+                                                                        handleFullSearch();
+                                                                    }, 200);
                                                                 }}
-                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+
+                                                                className="cursor-pointer text-black px-3 py-2 rounded-md border border-yellow-200  font-bold text-[10px] transition-colors"
                                                             >
                                                                 {company.charAt(0).toUpperCase() + company.slice(1)}
                                                             </span>
@@ -411,26 +444,59 @@ function SearchSearchResults() {
                                                     </div>
                                                 </>
                                             )}
-                                            {searchSuggestions.sectors.length > 0 && (
+                                            {searchSuggestions.categories.length > 0 && (
                                                 <>
-                                                    <p className="font-bold text-black text-base mb-2">Suggested Sectors</p>
-                                                    <div className="flex flex-col gap-2">
-                                                        {searchSuggestions.sectors.map((sector) => (
+                                                    <p className="font-bold text-black text-[11px] mb-2">Suggested Categories</p>
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        {searchSuggestions.categories.map((category) => (
                                                             <span
-                                                                key={sector}
+                                                                key={category}
                                                                 onClick={() => {
-                                                                    setFind(sector.charAt(0).toUpperCase() + sector.slice(1));
+                                                                    const value = category.charAt(0).toUpperCase() + category.slice(1);
+
+                                                                    setIsSelecting(true);
                                                                     setShowResults(false);
-                                                                    handleFullSearch();
+                                                                    setFind(value);
+
+                                                                    setTimeout(() => {
+                                                                        setIsSelecting(false);
+                                                                        handleFullSearch();
+                                                                    }, 200);
                                                                 }}
-                                                                className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+
+
+                                                                className="cursor-pointer text-black px-3 py-2 rounded-md border border-yellow-200  font-bold text-[10px] transition-colors"
                                                             >
-                                                                {sector.charAt(0).toUpperCase() + sector.slice(1)}
+                                                                {category.charAt(0).toUpperCase() + category.slice(1)}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 </>
                                             )}
+
+                                            {searchSuggestions.locations.length > 0 && (
+                                                <>
+                                                    <p className="font-bold text-black text-[11px] mb-2">Suggested Locations</p>
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        {searchSuggestions.locations.map((location) => (
+                                                            <span
+                                                                key={location}
+                                                                onClick={() => {
+                                                                    const value = location.charAt(0).toUpperCase() + location.slice(1);
+
+                                                                    setShowResults(false);
+                                                                    setNear(value);
+                                                                }}
+
+                                                                className="cursor-pointer text-black px-3 py-2 rounded-md border border-yellow-200  font-bold text-[10px] transition-colors"
+                                                            >
+                                                                {location.charAt(0).toUpperCase() + location.slice(1)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+
                                         </div>
                                     </div>
                                 )}
@@ -452,16 +518,19 @@ function SearchSearchResults() {
                                 {locationAvailability.locations.length > 0 && (
                                     <div className="absolute left-0 right-0 top-[110%] bg-white border border-yellow-500/30 rounded-2xl shadow-2xl z-[60] max-h-[200px] overflow-y-auto">
                                         <div className="px-6 py-4">
-                                            <p className="font-bold text-black text-base mb-2">Available Locations</p>
+                                            <p className="font-bold text-black text-[11px] mb-2">Available Locations</p>
                                             <div className="flex flex-col gap-2">
                                                 {locationAvailability.locations.map((location) => (
                                                     <span
                                                         key={location}
                                                         onClick={() => {
-                                                            setNear(location.charAt(0).toUpperCase() + location.slice(1));
-                                                            setLocationAvailability({ locations: [] });
+                                                            const value = location.charAt(0).toUpperCase() + location.slice(1);
+
+                                                            setNear(value);
+                                                            setLocationAvailability({ locations: [] }); // close dropdown
                                                         }}
-                                                        className="cursor-pointer bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md border border-yellow-200 uppercase font-bold text-sm hover:bg-yellow-200 transition-colors"
+
+                                                        className="cursor-pointer text-black px-3 py-2 rounded-md border border-yellow-200  font-bold text-[10px] transition-colors"
                                                     >
                                                         {location.charAt(0).toUpperCase() + location.slice(1)}
                                                     </span>
@@ -499,6 +568,54 @@ function SearchSearchResults() {
                         </div>
                     </div>
                 </div>
+
+                {/* ✅ PAGINATION (TOP) */}
+                {!loading && totalCount > 0 && (
+                    <div className="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                            Showing{" "}
+                            {(currentPage - 1) * pageSize + 1} -{" "}
+                            {Math.min(currentPage * pageSize, totalCount)}{" "}
+                            of {totalCount} Vendors
+                        </p>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`px-4 py-2 rounded-xl text-[11px]  text-black font-black uppercase border-2 border-gray-900 shadow-[2px_2px_0px_#000] transition-all 
+                                ${currentPage === 1 ? "opacity-40 cursor-not-allowed text-black bg-gray-100" : "bg-white hover:bg-yellow-100"}`}
+                            >
+                                Prev
+                            </button>
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .slice(
+                                    Math.max(currentPage - 3, 0),
+                                    Math.min(currentPage + 2, totalPages)
+                                )
+                                .map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`px-4 py-2 text-black rounded-xl text-[11px] font-black uppercase border-2 border-gray-900 shadow-[2px_2px_0px_#000] transition-all 
+                                        ${currentPage === page ? "bg-yellow-400" : "bg-white hover:bg-yellow-100"}`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+
+                            <button
+                                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase border-2  text-black border-gray-900 shadow-[2px_2px_0px_#000] transition-all 
+                                ${currentPage === totalPages ? "opacity-40 cursor-not-allowed bg-gray-100" : "bg-white hover:bg-yellow-100"}`}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* --- RESULTS GRID --- */}
                 <AnimatePresence mode="wait">

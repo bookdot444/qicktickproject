@@ -571,11 +571,24 @@ export default function VideoPage() {
               <div className="absolute inset-0 z-0">
                 {video.isYouTube ? (
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=1&mute=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                    key={`${video.ytId}-${activeIndex === index ? "active" : "inactive"}`}
+                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=${activeIndex === index ? 1 : 0
+                      }&mute=${activeIndex === index ? 0 : 1
+                      }&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
                     className="w-full h-full scale-[1.7] pointer-events-none"
+                    allow="autoplay; encrypted-media"
+                    allowFullScreen
                   />
+
                 ) : (
-                  <video src={video.url} autoPlay loop playsInline className="w-full h-full object-cover" />
+                  <video
+                    src={video.url}
+                    autoPlay={activeIndex === index}
+                    muted={activeIndex !== index}
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
 
@@ -851,21 +864,31 @@ export default function VideoPage() {
 
         {/* Video Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
-          {filteredVideos.map((video) => (
+          {filteredVideos.map((video, index) => (
             <motion.div
               key={video.uniqueId}
               className="group bg-white rounded-[2.5rem] border border-yellow-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-xl transition-all duration-300"
             >
               {/* VIDEO CONTAINER */}
               <div className="relative h-60 w-full overflow-hidden cursor-pointer" onClick={() => setSelectedVideo(video)}>
-                {video.isYouTube ? (
+             {video.isYouTube ? (
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-                    className="w-full h-full scale-[1.7] pointer-events-none"
-                  />
-                ) : (
-                  <video src={video.url} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-                )}
+                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=0&mute=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+    className="w-full h-full scale-[1.7] pointer-events-none"
+    allow="autoplay; encrypted-media"
+  />
+) : (
+  <video
+    src={video.url}
+    autoPlay
+    muted
+    loop
+    playsInline
+    className="w-full h-full object-cover"
+  />
+)}
+
+
 
                 {/* FLOATING TOP ACTIONS (Like & Comment) */}
                 <div className="absolute top-4 right-4 flex flex-col gap-3 z-30">
@@ -1001,7 +1024,8 @@ export default function VideoPage() {
             <motion.div className="w-full max-w-4xl bg-white rounded-[2rem] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="aspect-video w-full bg-black">
                 {selectedVideo.isYouTube ? (
-                  <iframe src={`https://www.youtube.com/embed/${selectedVideo.ytId}?autoplay=1`} className="w-full h-full" allowFullScreen allow="autoplay" />
+                  <iframe
+                    src={`https://www.youtube.com/embed/${selectedVideo.ytId}?autoplay=1`} className="w-full h-full" allowFullScreen allow="autoplay" />
                 ) : (
                   <video src={selectedVideo.url} controls autoPlay className="w-full h-full" />
                 )}
