@@ -33,7 +33,6 @@ type Vendor = {
   website: string | null;
   business_keywords: string | null;
   sector: string | null;
-  address: string | null;
   city: string | null;
   state: string | null;
   pincode: string | null;
@@ -129,7 +128,6 @@ function AddVendorForm({ onClose, onAdd }: { onClose: () => void; onAdd: () => v
     pincode: "",
     business_keywords: "",
     sector: "",
-    address: "",
     company_logo: "",
     media_files: [] as string[],
     video_files: [] as any,
@@ -993,7 +991,6 @@ export default function VendorsPage() {
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
                       <MapPin size={16} className="text-red-600" /> Headquarters
                     </h4>
-                    <p className="text-sm font-bold text-slate-600 leading-relaxed mb-3 ">{selectedVendor.address}</p>
                     <p className="text-xs font-black text-slate-900 uppercase tracking-tight">
                       {selectedVendor.city}, {selectedVendor.state} <span className="text-red-600 ml-2"># {selectedVendor.pincode}</span>
                     </p>
