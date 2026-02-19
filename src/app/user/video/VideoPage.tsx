@@ -41,6 +41,7 @@ export default function VideoPage() {
   const [commentCounts, setCommentCounts] = useState<{ [key: string]: number }>({});
   const [comments, setComments] = useState<{ [key: string]: any[] }>({});
   const [user, setUser] = useState<any>(null);
+  const [scrollTimeout, setScrollTimeout] = useState<any>(null);
 
   const [commentModal, setCommentModal] = useState<{ open: boolean; videoId: string | null }>({
     open: false,
@@ -556,251 +557,163 @@ export default function VideoPage() {
 
         {/* VIDEO SCROLL */}
         <div
-          className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+          className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide scroll-smooth"
           onScroll={(e) => {
-            const scrollTop = (e.target as HTMLDivElement).scrollTop;
-            const index = Math.round(scrollTop / window.innerHeight);
-            setActiveIndex(index);
+            const container = e.target as HTMLDivElement;
+
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            const timeout = setTimeout(() => {
+              const scrollTop = container.scrollTop;
+              const screenHeight = container.clientHeight;
+
+              const index = Math.min(
+                filteredVideos.length - 1,
+                Math.max(0, Math.round(scrollTop / screenHeight))
+              );
+
+              setActiveIndex(index);
+            }, 120);
+
+            setScrollTimeout(timeout);
           }}
-
         >
-          {filteredVideos.map((video, index) => (
-            <div key={video.uniqueId} className="h-[100dvh] w-full snap-start relative bg-black">
-
-              {/* VIDEO */}
-              <div className="absolute inset-0 z-0">
-                {video.isYouTube ? (
-                  <iframe
-                    key={`${video.ytId}-${activeIndex === index ? "active" : "inactive"}`}
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=${activeIndex === index ? 1 : 0
-                      }&mute=${activeIndex === index ? 0 : 1
-                      }&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-                    className="w-full h-full scale-[1.7] pointer-events-none"
-                    allow="autoplay; encrypted-media"
-                    allowFullScreen
-                  />
-
-                ) : (
-                  <video
-                    src={video.url}
-                    autoPlay={activeIndex === index}
-                    muted={activeIndex !== index}
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-
-              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 z-10 pointer-events-none" />
-
-              {/* CONTENT */}
-              <div className="absolute bottom-40 left-6 right-20 z-[160] pointer-events-none">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="bg-red-600 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white">
-                    {video.sector}
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase">
-                    <MapPin size={10} /> {video.area}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 w-full mb-6">
-                  {/* Video Title - Truncated to stay on one line */}
-                  <h3 className="text-lg font-black text-white uppercase truncate drop-shadow-xl flex-1">
-                    {video.title}
-                  </h3>
-
-                  {/* Stats Group */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* View Count Badge */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-sm transition-all hover:bg-white/20">
-                      <Eye size={12} className="text-white/80" />
-                      <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                        {Intl.NumberFormat('en-US', { notation: 'compact' }).format(viewCounts[video.uniqueId] || 0)}
-                        <span className="ml-1 text-white/50">Views</span>
-                      </span>
-                    </div>
-
-                    {/* Trending Badge */}
-                    {viewCounts[video.uniqueId] > 1000 && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg animate-in fade-in zoom-in duration-300">
-                        <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-[8px] font-black uppercase text-red-400">Hot</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {video.vendorId && (
-                  <div className="flex items-center gap-3 pointer-events-auto relative z-[200]">
-                    {/* VIEW PROFILE */}
-                    <Link
-                      href={`/vendor/view/${video.vendorId}`}
-                      className="inline-flex items-center justify-center gap-2 bg-yellow-400 text-black px-8 py-4 rounded-2xl text-[12px] font-black shadow-[0_15px_30px_rgba(250,204,21,0.4)] active:scale-95 transition-transform uppercase tracking-widest"
-                    >
-                      <User size={18} /> VIEW PROFILE
-                    </Link>
-
-                    {/* CALL BUTTON */}
-                    {video.mobile_number && (
-                      <button
-                        onClick={() => handlePhone(video)}
-                        className="p-4 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 active:scale-95 transition-transform"
-                      >
-                        <Phone size={20} className="text-green-400" />
-                      </button>
-                    )}
-
-                    {/* WHATSAPP BUTTON */}
-                    {video.mobile_number && (
-                      <button
-                        onClick={() => handleWhatsApp(video)}
-                        className="p-4 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 active:scale-95 transition-transform"
-                      >
-                        <MessageCircle size={20} className="text-green-500" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
 
 
-        {/* COMMENT MODAL */}
-        <AnimatePresence>
-          {commentModal.open && (
-            <motion.div
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+          {/* COMMENT MODAL */}
+          <AnimatePresence>
+            {commentModal.open && (
               <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                {/* Header - Fixed */}
-                <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded-xl">
-                      <MessageSquare className="text-blue-600" size={20} />
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+                >
+                  {/* Header - Fixed */}
+                  <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded-xl">
+                        <MessageSquare className="text-blue-600" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
+                          Comment
+                        </h3>
+                        <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
+                          {(comments[commentModal.videoId!] || []).length} Thoughts shared
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
-                        Comment
-                      </h3>
-                      <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
-                        {(comments[commentModal.videoId!] || []).length} Thoughts shared
-                      </p>
-                    </div>
+                    <button
+                      onClick={() => setCommentModal({ open: false, videoId: null })}
+                      className="p-2 hover:bg-slate-200/50 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={20} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setCommentModal({ open: false, videoId: null })}
-                    className="p-2 hover:bg-slate-200/50 rounded-full transition-colors text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
 
-                {/* Comments List - Scrollable */}
-                <div className="p-8 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white">
-                  {comments[commentModal.videoId!]?.length > 0 ? (
-                    (comments[commentModal.videoId!] || []).map((c, i) => (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        key={i}
-                        className="group flex gap-4"
-                      >
-                        {/* Avatar Placeholder */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs border border-slate-200">
-                          {c.guest_name ? c.guest_name.charAt(0).toUpperCase() : <User size={16} />}
-                        </div>
+                  {/* Comments List - Scrollable */}
+                  <div className="p-8 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white">
+                    {comments[commentModal.videoId!]?.length > 0 ? (
+                      (comments[commentModal.videoId!] || []).map((c, i) => (
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          key={i}
+                          className="group flex gap-4"
+                        >
+                          {/* Avatar Placeholder */}
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs border border-slate-200">
+                            {c.guest_name ? c.guest_name.charAt(0).toUpperCase() : <User size={16} />}
+                          </div>
 
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-black text-slate-700">
-                              {c.guest_name || "Member"}
-                            </span>
-                            {c.guest_phone && (
-                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
-                                <Phone size={10} /> {c.guest_phone}
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-slate-700">
+                                {c.guest_name || "Member"}
                               </span>
-                            )}
+                              {c.guest_phone && (
+                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
+                                  <Phone size={10} /> {c.guest_phone}
+                                </span>
+                              )}
+                            </div>
+                            <div className="bg-slate-50 group-hover:bg-blue-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-100 transition-colors">
+                              <p className="text-slate-600 text-sm leading-relaxed">
+                                {c.comment}
+                              </p>
+                            </div>
                           </div>
-                          <div className="bg-slate-50 group-hover:bg-blue-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-100 transition-colors">
-                            <p className="text-slate-600 text-sm leading-relaxed">
-                              {c.comment}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 opacity-40">
-                      <Smile size={48} className="mb-4 text-slate-300" />
-                      <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-                        No comments yet
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Section - Fixed at bottom */}
-                <div className="p-8 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md">
-                  <div className="space-y-3">
-                    {!user && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 text-slate-300" size={16} />
-                          <input
-                            type="text"
-                            placeholder="Full Name"
-                            value={guestName}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
-                          />
-                        </div>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
-                          <input
-                            type="text"
-                            placeholder="Phone"
-                            value={guestPhone}
-                            onChange={(e) => setGuestPhone(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
-                          />
-                        </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                        <Smile size={48} className="mb-4 text-slate-300" />
+                        <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+                          No comments yet
+                        </p>
                       </div>
                     )}
+                  </div>
 
-                    <div className="relative">
-                      <textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Share your Comment..."
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none"
-                        rows={2}
-                      />
-                      <button
-                        onClick={submitComment}
-                        disabled={!newComment.trim()}
-                        className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-200 disabled:shadow-none active:scale-95"
-                      >
-                        <Send size={18} />
-                      </button>
+                  {/* Input Section - Fixed at bottom */}
+                  <div className="p-8 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md">
+                    <div className="space-y-3">
+                      {!user && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="relative">
+                            <User className="absolute left-3 top-3 text-slate-300" size={16} />
+                            <input
+                              type="text"
+                              placeholder="Full Name"
+                              value={guestName}
+                              onChange={(e) => setGuestName(e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                            />
+                          </div>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
+                            <input
+                              type="text"
+                              placeholder="Phone"
+                              value={guestPhone}
+                              onChange={(e) => setGuestPhone(e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="relative">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Share your Comment..."
+                          className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none"
+                          rows={2}
+                        />
+                        <button
+                          onClick={submitComment}
+                          disabled={!newComment.trim()}
+                          className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-200 disabled:shadow-none active:scale-95"
+                        >
+                          <Send size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     );
   }
@@ -871,22 +784,22 @@ export default function VideoPage() {
             >
               {/* VIDEO CONTAINER */}
               <div className="relative h-60 w-full overflow-hidden cursor-pointer" onClick={() => setSelectedVideo(video)}>
-             {video.isYouTube ? (
+                {video.isYouTube ? (
                   <iframe
                     src={`https://www.youtube.com/embed/${video.ytId}?autoplay=0&mute=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-    className="w-full h-full scale-[1.7] pointer-events-none"
-    allow="autoplay; encrypted-media"
-  />
-) : (
-  <video
-    src={video.url}
-    autoPlay
-    muted
-    loop
-    playsInline
-    className="w-full h-full object-cover"
-  />
-)}
+                    className="w-full h-full scale-[1.7] pointer-events-none"
+                    allow="autoplay; encrypted-media"
+                  />
+                ) : (
+                  <video
+                    src={video.url}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                )}
 
 
 
