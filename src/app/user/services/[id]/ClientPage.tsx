@@ -190,9 +190,10 @@ export default function ServiceCategoryPage() {
                     <div className="mt-auto flex items-center justify-between pt-2 md:pt-4 border-t-2 border-gray-900">
                       <div className="flex flex-col">
                         <span className="text-[6px] md:text-[8px] font-black text-gray-400 uppercase tracking-widest">Base Area</span>
-                        <span className="text-[10px] md:text-sm font-black text-gray-900 tracking-tighter uppercase truncate max-w-[50px] md:max-w-none">
-                          {vendor.area || "N/A"}
-                        </span>
+                        <span className="text-[10px] md:text-sm font-black text-gray-900 tracking-tighter uppercase max-w-[50px] md:max-w-none whitespace-normal break-words">
+  {vendor.area || "N/A"}
+</span>
+
                       </div>
                       <div className="bg-red-600 text-white p-1.5 md:p-3 rounded-lg md:rounded-xl transition-colors shadow-[1px_1px_0px_rgba(0,0,0,0.2)]">
                         <ArrowRight size={14} className="md:w-[18px] md:h-[18px]" />

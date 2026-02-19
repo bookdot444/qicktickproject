@@ -304,25 +304,15 @@ export default function VideoPage() {
     setCommentModal({ open: true, videoId: uniqueId });
   };
 
-  useEffect(() => {
-    if (!videoId || filteredVideos.length === 0) return;
+useEffect(() => {
+  if (!videoId || filteredVideos.length === 0) return;
 
-    const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
+  const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
 
-    if (index !== -1) {
-      setActiveIndex(index);
-
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTo({
-            top: index * window.innerHeight, // ✅ BEST FIX
-            behavior: "smooth",
-          });
-        }
-      }, 300);
-    }
-  }, [videoId, filteredVideos]);
-
+  if (index !== -1) {
+    setActiveIndex(index);
+  }
+}, [videoId, filteredVideos]);
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;
