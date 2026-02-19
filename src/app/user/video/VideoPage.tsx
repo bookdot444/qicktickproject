@@ -42,7 +42,7 @@ export default function VideoPage() {
   const [commentCounts, setCommentCounts] = useState<{ [key: string]: number }>({});
   const [comments, setComments] = useState<{ [key: string]: any[] }>({});
   const [user, setUser] = useState<any>(null);
-  const [soundOn, setSoundOn] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
   const [commentModal, setCommentModal] = useState<{ open: boolean; videoId: string | null }>({
@@ -58,9 +58,6 @@ export default function VideoPage() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    setSoundOn(false);
-  }, [activeIndex]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -308,9 +305,9 @@ export default function VideoPage() {
   };
 
   useEffect(() => {
-    if (!videoId || videos.length === 0) return;
+    if (!videoId || filteredVideos.length === 0) return;
 
-    const index = videos.findIndex((v) => v.uniqueId === videoId);
+    const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
 
     if (index !== -1) {
       setActiveIndex(index);
@@ -318,31 +315,29 @@ export default function VideoPage() {
       setTimeout(() => {
         if (scrollRef.current) {
           scrollRef.current.scrollTo({
-            top: index * scrollRef.current.clientHeight,
+            top: index * window.innerHeight, // ✅ BEST FIX
             behavior: "smooth",
           });
         }
       }, 300);
     }
-  }, [videoId, videos]);
+  }, [videoId, filteredVideos]);
+
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;
 
-    // If not logged in → guest should enter name + phone
-    if (!user) {
-      if (!guestName.trim() || !guestPhone.trim()) {
-        toast.error("Please enter your Name and Phone Number.");
-        return;
-      }
+    if (!guestName.trim() || !guestPhone.trim()) {
+      toast.error("Please enter your Name and Phone Number.");
+      return;
     }
 
     const { error } = await supabase.from("video_comments").insert({
       video_unique_id: commentModal.videoId,
       user_id: user ? user.id : null,
       comment: newComment.trim(),
-      guest_name: user ? null : guestName.trim(),
-      guest_phone: user ? null : guestPhone.trim(),
+      guest_name: guestName.trim(),
+      guest_phone: guestPhone.trim(),
     });
 
     if (error) {
@@ -362,20 +357,11 @@ export default function VideoPage() {
 
 
   const handleService = (video: any) => {
-    if (!user) {
-      toast.error("Please login to access services 📋");
-      router.push("/login");
-      return;
-    }
+
     router.push(`/user/videoview?vendorId=${video.vendorId}&tab=services`);
   };
 
   const handleAds = (video: any) => {
-    if (!user) {
-      toast.error("Please login to access ads 📢");
-      router.push("/login");
-      return;
-    }
     router.push(`/user/videoview?vendorId=${video.vendorId}&tab=ads`);
   };
 
@@ -611,7 +597,7 @@ export default function VideoPage() {
           onScroll={(e) => {
             const container = e.target as HTMLDivElement;
             const scrollTop = container.scrollTop;
-            const screenHeight = container.clientHeight;
+            const screenHeight = window.innerHeight;
 
             const index = Math.min(
               filteredVideos.length - 1,
@@ -825,30 +811,28 @@ export default function VideoPage() {
                 {/* Input Section - Fixed at bottom */}
                 <div className="p-8 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md">
                   <div className="space-y-3">
-                    {!user && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 text-slate-300" size={16} />
-                          <input
-                            type="text"
-                            placeholder="Full Name"
-                            value={guestName}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
-                          />
-                        </div>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
-                          <input
-                            type="text"
-                            placeholder="Phone"
-                            value={guestPhone}
-                            onChange={(e) => setGuestPhone(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
-                          />
-                        </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 text-slate-300" size={16} />
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                        />
                       </div>
-                    )}
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
+                        <input
+                          type="text"
+                          placeholder="Phone"
+                          value={guestPhone}
+                          onChange={(e) => setGuestPhone(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                        />
+                      </div>
+                    </div>
 
                     <div className="relative">
                       <textarea
@@ -959,13 +943,14 @@ export default function VideoPage() {
                 ) : (
                   <video
                     src={video.url}
-                    autoPlay={activeIndex === index}
-                    muted={false}
+                    autoPlay
+                    muted
                     loop
                     playsInline
                     controls
                     className="w-full h-full object-cover"
                   />
+
                 )}
 
 
@@ -984,11 +969,15 @@ export default function VideoPage() {
                   </button>
 
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCommentModal({ open: true, videoId: video.uniqueId }) }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleComment(video.uniqueId);
+                    }}
                     className="p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white hover:bg-white hover:text-blue-500 transition-all shadow-lg"
                   >
                     <MessageSquare size={20} />
                   </button>
+
 
                   <button
                     onClick={(e) => {
@@ -1090,6 +1079,139 @@ export default function VideoPage() {
           ))}
         </div>
       </div>
+
+
+      {/* COMMENT MODAL */}
+      <AnimatePresence>
+        {commentModal.open && (
+          <motion.div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+            >
+              {/* Header - Fixed */}
+              <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 p-2 rounded-xl">
+                    <MessageSquare className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
+                      Comment
+                    </h3>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1">
+                      {(comments[commentModal.videoId!] || []).length} Thoughts shared
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCommentModal({ open: false, videoId: null })}
+                  className="p-2 hover:bg-slate-200/50 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Comments List - Scrollable */}
+              <div className="p-8 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white">
+                {comments[commentModal.videoId!]?.length > 0 ? (
+                  (comments[commentModal.videoId!] || []).map((c, i) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      key={i}
+                      className="group flex gap-4"
+                    >
+                      {/* Avatar Placeholder */}
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs border border-slate-200">
+                        {c.guest_name ? c.guest_name.charAt(0).toUpperCase() : <User size={16} />}
+                      </div>
+
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-slate-700">
+                            {c.guest_name || "Member"}
+                          </span>
+                          {c.guest_phone && (
+                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
+                              <Phone size={10} /> {c.guest_phone}
+                            </span>
+                          )}
+                        </div>
+                        <div className="bg-slate-50 group-hover:bg-blue-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-100 transition-colors">
+                          <p className="text-slate-600 text-sm leading-relaxed">
+                            {c.comment}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                    <Smile size={48} className="mb-4 text-slate-300" />
+                    <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+                      No comments yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Section - Fixed at bottom */}
+              <div className="p-8 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 text-slate-300" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 text-slate-300" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Phone"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your Comment..."
+                      className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none"
+                      rows={2}
+                    />
+                    <button
+                      onClick={submitComment}
+                      disabled={!newComment.trim()}
+                      className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-200 disabled:shadow-none active:scale-95"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal */}
       <AnimatePresence>
