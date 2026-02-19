@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -34,8 +34,8 @@ export default function VideoPage() {
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [viewCounts, setViewCounts] = useState<{ [key: string]: number }>({});
-const searchParams = useSearchParams();
-const videoId = searchParams.get("id");
+  const searchParams = useSearchParams();
+  const videoId = searchParams.get("id");
 
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
@@ -55,6 +55,7 @@ const videoId = searchParams.get("id");
   const [selectedArea, setSelectedArea] = useState("All Areas");
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -309,24 +310,24 @@ const videoId = searchParams.get("id");
   const handleComment = (uniqueId: string) => {
     setCommentModal({ open: true, videoId: uniqueId });
   };
-useEffect(() => {
-  if (!videoId || filteredVideos.length === 0) return;
+  useEffect(() => {
+    if (!videoId || filteredVideos.length === 0) return;
 
-  const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
+    const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
 
-  if (index !== -1) {
-    setActiveIndex(index);
+    if (index !== -1) {
+      setActiveIndex(index);
 
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          top: index * scrollRef.current.clientHeight,
-          behavior: "smooth",
-        });
-      }
-    }, 300);
-  }
-}, [videoId, filteredVideos]);
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({
+            top: index * scrollRef.current.clientHeight,
+            behavior: "smooth",
+          });
+        }
+      }, 300);
+    }
+  }, [videoId, filteredVideos]);
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;
@@ -574,6 +575,7 @@ useEffect(() => {
 
         {/* VIDEO SCROLL */}
         <div
+          ref={scrollRef}
           className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
           onScroll={(e) => {
             const container = e.target as HTMLDivElement;
