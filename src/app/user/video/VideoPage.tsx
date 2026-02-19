@@ -35,13 +35,15 @@ export default function VideoPage() {
   const [guestPhone, setGuestPhone] = useState("");
   const [viewCounts, setViewCounts] = useState<{ [key: string]: number }>({});
   const searchParams = useSearchParams();
-  const videoId = searchParams.get("id");
+  const videoId = searchParams.get("vid");
 
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
   const [commentCounts, setCommentCounts] = useState<{ [key: string]: number }>({});
   const [comments, setComments] = useState<{ [key: string]: any[] }>({});
   const [user, setUser] = useState<any>(null);
+  const [soundOn, setSoundOn] = useState(false);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
   const [commentModal, setCommentModal] = useState<{ open: boolean; videoId: string | null }>({
     open: false,
@@ -56,6 +58,9 @@ export default function VideoPage() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setSoundOn(false);
+  }, [activeIndex]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -143,16 +148,7 @@ export default function VideoPage() {
       );
 
       setVideos(allVideos);
-      // 👇 ADD THIS CODE HERE
-      const vid = searchParams.get("vid");
 
-      if (vid) {
-        const index = allVideos.findIndex((v) => v.uniqueId === vid);
-        if (index !== -1) {
-          setActiveIndex(index);
-
-        }
-      }
       await fetchLikesAndComments(allVideos);
       setLoading(false);
     };
@@ -310,10 +306,11 @@ export default function VideoPage() {
   const handleComment = (uniqueId: string) => {
     setCommentModal({ open: true, videoId: uniqueId });
   };
-  useEffect(() => {
-    if (!videoId || filteredVideos.length === 0) return;
 
-    const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
+  useEffect(() => {
+    if (!videoId || videos.length === 0) return;
+
+    const index = videos.findIndex((v) => v.uniqueId === videoId);
 
     if (index !== -1) {
       setActiveIndex(index);
@@ -327,7 +324,7 @@ export default function VideoPage() {
         }
       }, 300);
     }
-  }, [videoId, filteredVideos]);
+  }, [videoId, videos]);
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;
@@ -429,6 +426,25 @@ export default function VideoPage() {
 
     window.open(`https://wa.me/${phone}`, "_blank");
   };
+  useEffect(() => {
+    const activeVideoEl = videoRefs.current[activeIndex];
+
+    if (activeVideoEl) {
+      activeVideoEl.muted = !soundOn;
+
+      activeVideoEl.play().catch(() => {
+        console.log("Autoplay blocked by browser");
+      });
+    }
+  }, [soundOn, activeIndex]);
+  useEffect(() => {
+    videoRefs.current.forEach((vid, i) => {
+      if (vid && i !== activeIndex) {
+        vid.pause();
+        vid.currentTime = 0;
+      }
+    });
+  }, [activeIndex]);
 
 
   // --- MOBILE VIEW ---
@@ -483,6 +499,21 @@ export default function VideoPage() {
           {/* RIGHT ICON PANEL (ONLY ACTIVE VIDEO) */}
           {activeVideo && (
             <div className="fixed right-4 bottom-28 z-[160] flex flex-col gap-4 pointer-events-auto">
+              {/* SOUND TOGGLE */}
+              <button
+                onClick={() => setSoundOn((prev) => !prev)}
+                className="flex flex-col items-center gap-1"
+              >
+                <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                  <span className="text-white text-[20px]">
+                    {soundOn ? "🔊" : "🔇"}
+                  </span>
+                </div>
+
+                <span className="text-[9px] font-bold text-white uppercase">
+                  {soundOn ? "Sound" : "Mute"}
+                </span>
+              </button>
 
               {/* LIKE */}
               <button
@@ -598,26 +629,38 @@ export default function VideoPage() {
               {/* VIDEO */}
               <div className="absolute inset-0 z-0">
                 {video.isYouTube ? (
-                  <iframe
-                    key={`${video.ytId}-${activeIndex === index ? "active" : "inactive"}`}
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=${activeIndex === index ? 1 : 0
-                      }&mute=${activeIndex === index ? 0 : 1
-                      }&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-                    className="w-full h-full scale-[1.7] pointer-events-none"
-                    allow="autoplay; encrypted-media"
-                    allowFullScreen
-                  />
+                  <div className="w-full h-full bg-black flex items-center justify-center">
+                    <iframe
+                      key={`${video.uniqueId}-${activeIndex}-${soundOn}`}
+                      src={`https://www.youtube.com/embed/${video.ytId}?autoplay=${activeIndex === index ? 1 : 0
+                        }&mute=${activeIndex === index ? (soundOn ? 0 : 1) : 1
+                        }&loop=1&playlist=${video.ytId}&controls=1&modestbranding=1&rel=0&playsinline=1`}
+                      className="w-full h-full scale-[1.7]"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
 
+                  </div>
                 ) : (
                   <video
+                    ref={(el) => {
+                      videoRefs.current[index] = el;
+                    }}
+                    key={video.uniqueId}
                     src={video.url}
                     autoPlay={activeIndex === index}
-                    muted={activeIndex !== index}
+                    muted={activeIndex === index ? !soundOn : true}
                     loop
                     playsInline
+                    controls={activeIndex === index}
                     className="w-full h-full object-cover"
                   />
+
+
+
                 )}
+
+
               </div>
 
               <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 z-10 pointer-events-none" />
@@ -900,18 +943,27 @@ export default function VideoPage() {
               {/* VIDEO CONTAINER */}
               <div className="relative h-60 w-full overflow-hidden cursor-pointer" onClick={() => setSelectedVideo(video)}>
                 {video.isYouTube ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${video.ytId}?autoplay=0&mute=1&loop=1&playlist=${video.ytId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-                    className="w-full h-full scale-[1.7] pointer-events-none"
-                    allow="autoplay; encrypted-media"
-                  />
+                  activeIndex === index ? (
+                    <iframe
+                      key={video.uniqueId}
+                      src={`https://www.youtube.com/embed/${video.ytId}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1`}
+                      className="w-full h-full scale-[1.2]"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-black flex items-center justify-center">
+                      <p className="text-white text-sm font-bold opacity-50">Loading...</p>
+                    </div>
+                  )
                 ) : (
                   <video
                     src={video.url}
-                    autoPlay
-                    muted
+                    autoPlay={activeIndex === index}
+                    muted={false}
                     loop
                     playsInline
+                    controls
                     className="w-full h-full object-cover"
                   />
                 )}
