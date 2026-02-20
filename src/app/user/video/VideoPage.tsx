@@ -348,7 +348,8 @@ export default function VideoPage() {
       setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
     } else {
       await supabase.from("video_likes").insert({
-        video_unique_id: activeVid.uniqueId,
+        video_unique_id: uniqueId,
+        user_id: user.id,   // ✅ IMPORTANT (you forgot this)
       });
 
       setLikedVideos((prev) => new Set(prev).add(uniqueId));
