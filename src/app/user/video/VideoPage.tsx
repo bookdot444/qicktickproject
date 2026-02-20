@@ -163,98 +163,134 @@ export default function VideoPage() {
 
     if (viewedVideos.has(activeVid.uniqueId)) return;
 
-    let timer: NodeJS.Timeout;
-
-    const startTimer = () => {
-      timer = setTimeout(async () => {
-        const { error } = await supabase.from("video_views").insert({
+    const timer = setTimeout(async () => {
+      const { error } = await supabase
+        .from("video_views")
+        .insert({
           video_unique_id: activeVid.uniqueId,
-          user_id: user ? user.id : null,
+          user_id: user?.id || null,
         });
 
-        if (!error) {
-          setViewedVideos(prev => new Set(prev).add(activeVid.uniqueId));
-          setViewCounts(prev => ({
-            ...prev,
-            [activeVid.uniqueId]: (prev[activeVid.uniqueId] || 0) + 1
-          }));
-        }
-      }, 1000); // ✅ 2 seconds
-    };
+      if (error) {
+        console.error("View insert failed:", error);
+        return;
+      }
 
-    startTimer();
+      setViewedVideos(prev => new Set(prev).add(activeVid.uniqueId));
+      setViewCounts(prev => ({
+        ...prev,
+        [activeVid.uniqueId]: (prev[activeVid.uniqueId] || 0) + 1,
+      }));
+    }, 2000); // real 2 sec
 
-    return () => {
-      clearTimeout(timer); // ❌ cancel if user scrolls before 2 sec
-    };
-  }, [activeIndex]);
+    return () => clearTimeout(timer);
+  }, [activeIndex, user]);
+
 
   const fetchLikesAndComments = async (videos: any[]) => {
-    const videoIds = videos.map((v) => v.uniqueId);
-
-    // Fetch likes
-    const { data: likesData } = await supabase
-      .from("video_likes")
-      .select("video_unique_id, user_id")
-      .in("video_unique_id", videoIds);
-
-    const likesSet = new Set<string>();
-    const counts: { [key: string]: number } = {};
-
-    likesData?.forEach((like) => {
-      if (user && like.user_id === user.id) likesSet.add(like.video_unique_id);
-
-      counts[like.video_unique_id] = (counts[like.video_unique_id] || 0) + 1;
-    });
-
-    setLikedVideos(likesSet);
-    setLikeCounts(counts);
-
-    // Fetch comments
-    const { data: commentsData } = await supabase
-      .from("video_comments")
-      .select("video_unique_id, comment, created_at, user_id, guest_name, guest_phone")
-      .in("video_unique_id", videoIds)
-      .order("created_at", { ascending: false });
-
-    const commentMap: { [key: string]: any[] } = {};
-    const commentCountsMap: { [key: string]: number } = {};
-
-    commentsData?.forEach((comment) => {
-      if (!commentMap[comment.video_unique_id]) commentMap[comment.video_unique_id] = [];
-      commentMap[comment.video_unique_id].push(comment);
-
-      commentCountsMap[comment.video_unique_id] =
-        (commentCountsMap[comment.video_unique_id] || 0) + 1;
-    });
-
-    setComments(commentMap);
-    setCommentCounts(commentCountsMap);
-
-
-    // Fetch views count
-    // Fetch views count (CORRECT VERSION)
-    const { data: viewsData, error: viewsError } = await supabase
-      .from("video_views")
-      .select("video_unique_id")
-      .in("video_unique_id", videoIds);
-
-    if (viewsError) {
-      console.error("Error fetching views:", viewsError);
+    if (!videos || videos.length === 0) {
+      setLikedVideos(new Set());
+      setLikeCounts({});
+      setComments({});
+      setCommentCounts({});
+      setViewCounts({});
       return;
     }
 
-    const viewMap: { [key: string]: number } = {};
+    const videoIds = videos.map((v) => v.uniqueId);
 
-    viewsData?.forEach((view) => {
-      viewMap[view.video_unique_id] =
-        (viewMap[view.video_unique_id] || 0) + 1;
-    });
+    try {
+      const [
+        { data: likesData, error: likesError },
+        { data: commentsData, error: commentsError },
+        { data: viewsData, error: viewsError }
+      ] = await Promise.all([
+        supabase
+          .from("video_likes")
+          .select("video_unique_id, user_id")
+          .in("video_unique_id", videoIds),
 
-    setViewCounts(viewMap);
+        supabase
+          .from("video_comments")
+          .select("video_unique_id, comment, created_at, user_id, guest_name, guest_phone")
+          .in("video_unique_id", videoIds)
+          .order("created_at", { ascending: false }),
 
+        supabase
+          .from("video_views")
+          .select("video_unique_id")
+          .in("video_unique_id", videoIds)
+      ]);
+
+      if (likesError) console.error("Likes fetch error:", likesError);
+      if (commentsError) console.error("Comments fetch error:", commentsError);
+      if (viewsError) console.error("Views fetch error:", viewsError);
+
+      // -------------------------
+      // LIKES
+      // -------------------------
+      const likesSet = new Set<string>();
+      const likeCountsMap: { [key: string]: number } = {};
+
+      likesData?.forEach((like) => {
+        if (user && like.user_id === user.id) {
+          likesSet.add(like.video_unique_id);
+        }
+
+        likeCountsMap[like.video_unique_id] =
+          (likeCountsMap[like.video_unique_id] || 0) + 1;
+      });
+
+      setLikedVideos(likesSet);
+      setLikeCounts(likeCountsMap);
+
+      // -------------------------
+      // COMMENTS
+      // -------------------------
+      const commentMap: { [key: string]: any[] } = {};
+      const commentCountsMap: { [key: string]: number } = {};
+
+      commentsData?.forEach((comment) => {
+        if (!commentMap[comment.video_unique_id]) {
+          commentMap[comment.video_unique_id] = [];
+        }
+
+        commentMap[comment.video_unique_id].push(comment);
+
+        commentCountsMap[comment.video_unique_id] =
+          (commentCountsMap[comment.video_unique_id] || 0) + 1;
+      });
+
+      setComments(commentMap);
+      setCommentCounts(commentCountsMap);
+
+      // -------------------------
+      // VIEWS
+      // -------------------------
+      // -------------------------
+      // VIEWS (CORRECT COUNT QUERY)
+      // -------------------------
+      const { data: groupedViews, error: groupedError } =
+        await supabase.rpc("get_video_view_counts", {
+          video_ids: videoIds,
+        });
+
+      if (groupedError) {
+        console.error("View RPC error:", groupedError);
+      } else {
+        const viewMap: { [key: string]: number } = {};
+
+        groupedViews?.forEach((row: any) => {
+          viewMap[row.video_unique_id] = Number(row.count);
+        });
+
+        setViewCounts(viewMap);
+      }
+
+    } catch (error) {
+      console.error("Unexpected fetch error:", error);
+    }
   };
-
 
   const handleShare = async (video: any) => {
     try {
@@ -312,8 +348,7 @@ export default function VideoPage() {
       setLikeCounts((prev) => ({ ...prev, [uniqueId]: (prev[uniqueId] || 0) - 1 }));
     } else {
       await supabase.from("video_likes").insert({
-        video_unique_id: uniqueId,
-        user_id: user.id,
+        video_unique_id: activeVid.uniqueId,
       });
 
       setLikedVideos((prev) => new Set(prev).add(uniqueId));
