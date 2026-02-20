@@ -179,7 +179,7 @@ export default function VideoPage() {
             [activeVid.uniqueId]: (prev[activeVid.uniqueId] || 0) + 1
           }));
         }
-      }, 2000); // ✅ 2 seconds
+      }, 1000); // ✅ 2 seconds
     };
 
     startTimer();
