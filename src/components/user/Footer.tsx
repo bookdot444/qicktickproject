@@ -14,8 +14,7 @@ import {
 
 export default function Footer() {
   return (
-    <footer className="relative bg-[#05070a] text-slate-400 pt-8 pb-6 overflow-hidden border-t border-white/5">
-      {/* Background Decorative Element */}
+    <footer className="relative bg-[#05070a] text-slate-400 pt-8 pb-10 border-t border-white/5">      {/* Background Decorative Element */}
       <div className="absolute top-0 left-1/4 w-72 h-72 bg-amber-500/5 blur-[100px] rounded-full"></div>
 
       <div className="max-w-7xl mx-auto px-5 relative z-10">
@@ -160,10 +159,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-5 flex flex-col items-center text-center gap-1">
-          <p className="text-[10px] font-medium text-slate-500 tracking-wide">
-            © {new Date().getFullYear()} QICKTICK INDIA PRIVATE LIMITED.
-          </p>
+        <div className="mt-6 flex flex-col items-center justify-center text-center gap-2 pb-4">          <p className="text-[10px] font-medium text-slate-500 tracking-wide">
+          © {new Date().getFullYear()} QICKTICK INDIA PRIVATE LIMITED.
+        </p>
           <p className="text-[10px] text-slate-600">
             Developed by{" "}
             <a
