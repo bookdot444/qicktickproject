@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  Video, Plus, Trash2, Pencil, X, Upload, RefreshCw, 
-  ShieldCheck, Globe, Briefcase, CheckCircle2, 
+  Video, Plus, Trash2, Pencil, X, Upload, RefreshCw,
+  ShieldCheck, Globe, Briefcase, CheckCircle2,
   AlertCircle, TriangleAlert, Play
 } from "lucide-react";
 
@@ -97,7 +97,7 @@ export default function AdminVideosPage() {
   /* =======================
       DELETE LOGIC (The Fix)
   ======================= */
-const processDelete = async () => {
+  const processDelete = async () => {
     if (!deleteTarget) return;
     setLoading(true);
 
@@ -107,12 +107,12 @@ const processDelete = async () => {
       if (deleteTarget.video_url.includes("vendor-videos")) {
         const urlParts = deleteTarget.video_url.split("vendor-videos/");
         const filePath = urlParts[1]; // This is the actual filename in the bucket
-        
+
         if (filePath) {
           const { error: storageError } = await supabase.storage
             .from("vendor-videos")
             .remove([filePath]);
-          
+
           if (storageError) {
             console.error("Storage Deletion Error:", storageError);
             // We continue anyway; if the file is missing, we still want to clean the DB
@@ -225,7 +225,18 @@ const processDelete = async () => {
         : [...prev.business_sector, s]
     }));
   };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
 
+    // 50 MB max
+    if (selected.size > 50 * 1024 * 1024) {
+      showToast(`File ${selected.name} is too large. Max size is 50MB.`, 'error');
+      return;
+    }
+
+    setFile(selected);
+  };
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-20">
       {/* TOAST */}
@@ -236,7 +247,7 @@ const processDelete = async () => {
         </div>
       )}
 
-  
+
       {/* --- MASTER YELLOW BANNER --- */}
       <div className="bg-yellow-300 pt-10 pb-28 px-6 md:px-10 rounded-b-[3rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-yellow-400 rounded-full opacity-20 blur-3xl" />
@@ -257,15 +268,14 @@ const processDelete = async () => {
             </div>
 
             <div className="flex items-center gap-4">
-               {/* SOURCE FILTER TABS */}
-               <div className="bg-white/40 backdrop-blur-md p-1.5 rounded-full border border-white/50 flex gap-1">
+              {/* SOURCE FILTER TABS */}
+              <div className="bg-white/40 backdrop-blur-md p-1.5 rounded-full border border-white/50 flex gap-1">
                 {["all", "admin", "vendor"].map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f as any)}
-                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase transition-all ${
-                      filter === f ? "bg-black text-white shadow-lg" : "text-red-900/60 hover:text-red-900"
-                    }`}
+                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase transition-all ${filter === f ? "bg-black text-white shadow-lg" : "text-red-900/60 hover:text-red-900"
+                      }`}
                   >
                     {f}
                   </button>
@@ -350,11 +360,16 @@ const processDelete = async () => {
             </div>
             <div className="p-10 space-y-6 overflow-y-auto max-h-[75vh]">
               <input type="text" value={form.video_title} onChange={(e) => setForm({ ...form, video_title: e.target.value })} placeholder="Video Title" className="w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold" />
-              
+
               <div onClick={() => document.getElementById('videoFile')?.click()} className="h-44 border-4 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer bg-slate-50">
                 {file ? <p className="text-xs font-black text-red-600">{file.name}</p> : <p className="text-[9px] font-black uppercase">Click to Upload Video</p>}
-                <input id="videoFile" type="file" accept="video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              </div>
+                <input
+                  id="videoFile"
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />              </div>
 
               <div className="flex flex-wrap gap-2">
                 {["Manufacturer", "Industrial", "Distributor", "Retailer", "Service Provider"].map(s => (
@@ -383,4 +398,3 @@ const processDelete = async () => {
     </div>
   );
 }
-   

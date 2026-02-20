@@ -35,24 +35,24 @@ export default function Footer() {
             <p className="text-[13px] leading-relaxed text-slate-400 max-w-sm">
               Empowering local economies through digital discovery. We connect millions of users with verified local experts and businesses across India.
             </p>
-            
+
             {/* Updated Social Links */}
             <div className="flex gap-3 pt-1">
               {[
-                { 
-                    icon: <Instagram size={18} />, 
-                    color: "hover:bg-pink-600", 
-                    href: "https://www.instagram.com/qicktick4?igsh=MWF5NGxwcGFtM3pyag==" 
+                {
+                  icon: <Instagram size={18} />,
+                  color: "hover:bg-pink-600",
+                  href: "https://www.instagram.com/qicktick4?igsh=MWF5NGxwcGFtM3pyag=="
                 },
-                { 
-                    icon: <Youtube size={18} />, 
-                    color: "hover:bg-red-600", 
-                    href: "https://youtube.com/@qicktick-2045?si=g5xqkrG7P9TZyII2" 
+                {
+                  icon: <Youtube size={18} />,
+                  color: "hover:bg-red-600",
+                  href: "https://youtube.com/@qicktick-2045?si=g5xqkrG7P9TZyII2"
                 },
-                { 
-                    icon: <MessageCircle size={18} />, 
-                    color: "hover:bg-green-600", 
-                    href: "https://WA.me/917892999063" 
+                {
+                  icon: <MessageCircle size={18} />,
+                  color: "hover:bg-green-600",
+                  href: "https://WA.me/917892999063"
                 }
               ].map((social, i) => (
                 <a
@@ -128,6 +128,15 @@ export default function Footer() {
                 <span>INR (₹)</span>
               </div>
             </div>
+
+            <a
+              href="/terms.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-10 block text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-amber-500"
+            >
+              Terms & Conditions
+            </a>
           </div>
         </div>
 
@@ -151,26 +160,22 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-5 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-medium text-slate-500 tracking-wide">
-              © {new Date().getFullYear()} QICKTICK INDIA PRIVATE LIMITED.
-            </p>
-            <p className="text-[10px] text-slate-600">
-              Developed by <a href="https://rakvih.in/" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">Rakivh</a>
-            </p>
-          </div>
-
-          <a
-            href="/terms.pdf"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-amber-500"
-          >
-            Terms & Conditions
-          </a>
+        <div className="mt-5 flex flex-col items-center text-center gap-1">
+          <p className="text-[10px] font-medium text-slate-500 tracking-wide">
+            © {new Date().getFullYear()} QICKTICK INDIA PRIVATE LIMITED.
+          </p>
+          <p className="text-[10px] text-slate-600">
+            Developed by{" "}
+            <a
+              href="https://rakvih.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-500 uppercase hover:underline"
+            >
+              Rakivh
+            </a>
+          </p>
         </div>
-
       </div>
     </footer>
   );

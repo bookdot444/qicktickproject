@@ -44,7 +44,7 @@ export default function VideoPage() {
   const [user, setUser] = useState<any>(null);
   const [soundOn, setSoundOn] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-
+  const [viewedVideos, setViewedVideos] = useState<Set<string>>(new Set());
   const [commentModal, setCommentModal] = useState<{ open: boolean; videoId: string | null }>({
     open: false,
     videoId: null,
@@ -161,18 +161,33 @@ export default function VideoPage() {
     const activeVid = filteredVideos[activeIndex];
     if (!activeVid) return;
 
-    const saveView = async () => {
-      await supabase.from("video_views").insert({
-        video_unique_id: activeVid.uniqueId,
-        user_id: user ? user.id : null,
-      });
+    if (viewedVideos.has(activeVid.uniqueId)) return;
 
-      fetchLikesAndComments(videos);
+    let timer: NodeJS.Timeout;
+
+    const startTimer = () => {
+      timer = setTimeout(async () => {
+        const { error } = await supabase.from("video_views").insert({
+          video_unique_id: activeVid.uniqueId,
+          user_id: user ? user.id : null,
+        });
+
+        if (!error) {
+          setViewedVideos(prev => new Set(prev).add(activeVid.uniqueId));
+          setViewCounts(prev => ({
+            ...prev,
+            [activeVid.uniqueId]: (prev[activeVid.uniqueId] || 0) + 1
+          }));
+        }
+      }, 2000); // ✅ 2 seconds
     };
 
-    saveView();
-  }, [activeIndex, user, videos]);
+    startTimer();
 
+    return () => {
+      clearTimeout(timer); // ❌ cancel if user scrolls before 2 sec
+    };
+  }, [activeIndex]);
 
   const fetchLikesAndComments = async (videos: any[]) => {
     const videoIds = videos.map((v) => v.uniqueId);
@@ -218,15 +233,22 @@ export default function VideoPage() {
 
 
     // Fetch views count
-    const { data: viewsData } = await supabase
+    // Fetch views count (CORRECT VERSION)
+    const { data: viewsData, error: viewsError } = await supabase
       .from("video_views")
       .select("video_unique_id")
       .in("video_unique_id", videoIds);
 
+    if (viewsError) {
+      console.error("Error fetching views:", viewsError);
+      return;
+    }
+
     const viewMap: { [key: string]: number } = {};
 
-    viewsData?.forEach((v) => {
-      viewMap[v.video_unique_id] = (viewMap[v.video_unique_id] || 0) + 1;
+    viewsData?.forEach((view) => {
+      viewMap[view.video_unique_id] =
+        (viewMap[view.video_unique_id] || 0) + 1;
     });
 
     setViewCounts(viewMap);
@@ -304,15 +326,15 @@ export default function VideoPage() {
     setCommentModal({ open: true, videoId: uniqueId });
   };
 
-useEffect(() => {
-  if (!videoId || filteredVideos.length === 0) return;
+  useEffect(() => {
+    if (!videoId || filteredVideos.length === 0) return;
 
-  const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
+    const index = filteredVideos.findIndex((v) => v.uniqueId === videoId);
 
-  if (index !== -1) {
-    setActiveIndex(index);
-  }
-}, [videoId, filteredVideos]);
+    if (index !== -1) {
+      setActiveIndex(index);
+    }
+  }, [videoId, filteredVideos]);
 
   const submitComment = async () => {
     if (!newComment.trim() || !commentModal.videoId) return;

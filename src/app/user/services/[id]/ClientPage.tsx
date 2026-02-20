@@ -172,11 +172,6 @@ export default function ServiceCategoryPage() {
                     ) : (
                       <div className="flex h-full items-center justify-center text-gray-200"><Building size={32} /></div>
                     )}
-                    <div className="absolute top-2 left-2 md:top-3 md:left-3">
-                      <span className="bg-yellow-400 text-black px-2 py-0.5 md:px-3 md:py-1 rounded-full text-[7px] md:text-[9px] font-black uppercase border-2 border-black shadow-[1px_1px_0px_#000]">
-                        {vendor.city || "Global"}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="p-3 md:p-6 flex flex-col flex-1">
@@ -191,7 +186,7 @@ export default function ServiceCategoryPage() {
                       <div className="flex flex-col">
                         <span className="text-[6px] md:text-[8px] font-black text-gray-400 uppercase tracking-widest">Base Area</span>
                         <span className="text-[10px] md:text-sm font-black text-gray-900 tracking-tighter uppercase max-w-[50px] md:max-w-none whitespace-normal break-words">
-  {vendor.area || "N/A"}
+                        {vendor.city || "Global"}
 </span>
 
                       </div>

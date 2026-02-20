@@ -27,7 +27,7 @@ export default function InfluencerUploadPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [name, setName] = useState("");
-  const [file, setFile] = useState<File | null>(null); 
+  const [file, setFile] = useState<File | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const BUCKET = "influencers";
@@ -114,7 +114,7 @@ export default function InfluencerUploadPage() {
 
   const deleteItem = async (item: any) => {
     if (!confirm(`Permanently delete ${item.name}?`)) return;
-    
+
     if (item.media_url.includes(BUCKET)) {
       const fileName = item.media_url.split('/').pop();
       await supabase.storage.from(BUCKET).remove([fileName]);
@@ -125,6 +125,21 @@ export default function InfluencerUploadPage() {
       showToast("Deleted", "success");
       fetchData();
     }
+  };
+  // Inside your component
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    // --- MAX SIZE CHECK: 50MB ---
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      showToast("File too large. Max 50MB allowed.", "error");
+      e.target.value = ""; // Reset file input
+      setFile(null);
+      return;
+    }
+
+    setFile(selectedFile);
   };
 
   return (
@@ -172,12 +187,12 @@ export default function InfluencerUploadPage() {
                   ) : (
                     <video src={item.media_url} muted loop autoPlay playsInline className="w-full h-full object-cover opacity-80" />
                   )}
-                  
+
                   <div className="absolute top-4 left-4">
-                     <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-2">
-                        {item.media_type === "image" ? <ImageIcon size={12}/> : <Video size={12}/>}
-                        {item.media_type}
-                     </span>
+                    <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-2">
+                      {item.media_type === "image" ? <ImageIcon size={12} /> : <Video size={12} />}
+                      {item.media_type}
+                    </span>
                   </div>
 
                   <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
@@ -220,20 +235,25 @@ export default function InfluencerUploadPage() {
                 className={`h-52 border-4 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center cursor-pointer transition-all ${file ? 'border-red-600 bg-red-50' : 'border-slate-100 bg-slate-50 hover:bg-yellow-50'}`}
               >
                 {file ? (
-                   <div className="flex flex-col items-center text-center p-4">
-                      <FileCheck className="text-green-600 mb-3" size={40}/>
-                      <p className="text-[11px] font-black uppercase text-slate-700 truncate max-w-[250px]">{file.name}</p>
-                      <p className="text-[9px] font-bold text-slate-400 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB Ready</p>
-                   </div>
+                  <div className="flex flex-col items-center text-center p-4">
+                    <FileCheck className="text-green-600 mb-3" size={40} />
+                    <p className="text-[11px] font-black uppercase text-slate-700 truncate max-w-[250px]">{file.name}</p>
+                    <p className="text-[9px] font-bold text-slate-400 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB Ready</p>
+                  </div>
                 ) : (
-                   <div className="text-center">
-                      <UploadCloud size={50} className="mx-auto text-slate-300 mb-3" />
-                      <p className="text-[11px] font-black uppercase text-slate-400">Tap to browse files</p>
-                      <p className="text-[9px] font-bold text-slate-300 uppercase mt-1">Video or Image only</p>
-                   </div>
+                  <div className="text-center">
+                    <UploadCloud size={50} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-[11px] font-black uppercase text-slate-400">Tap to browse files</p>
+                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-1">Video or Image only</p>
+                  </div>
                 )}
-                <input id="nativeUpload" type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              </div>
+                <input
+                  id="nativeUpload"
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />              </div>
 
               <button
                 onClick={handleSave}

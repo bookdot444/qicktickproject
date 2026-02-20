@@ -71,7 +71,7 @@ export default function PodcastAdminPage() {
   const handleSave = async () => {
     if (!title.trim()) return showToast("Title is required", "error");
     if (!editingPodcast && !file) return showToast("Please select a video file", "error");
-    
+
     setActionLoading(true);
 
     try {
@@ -139,7 +139,7 @@ export default function PodcastAdminPage() {
         const urlParts = videoToDelete.video_url.split('/');
         const fileName = urlParts[urlParts.length - 1];
         const folder = urlParts[urlParts.length - 2];
-        
+
         // Only attempt storage deletion if it looks like a Supabase URL
         if (videoToDelete.video_url.includes(BUCKET_NAME)) {
           await supabase.storage
@@ -162,6 +162,19 @@ export default function PodcastAdminPage() {
       setActionLoading(false);
       setDeleteConfirm(null);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    // 50 MB max
+    if (selected.size > 50 * 1024 * 1024) {
+      showToast(`File ${selected.name} is too large. Max size is 50MB.`, 'error');
+      return;
+    }
+
+    setFile(selected);
   };
 
   return (
@@ -302,8 +315,13 @@ export default function PodcastAdminPage() {
                     <p className="text-[8px] text-slate-300 mt-1 uppercase font-bold">MP4, MOV up to 50MB</p>
                   </div>
                 )}
-                <input id="podFile" type="file" accept="video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              </div>
+                <input
+                  id="podFile"
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />              </div>
 
               <div className="flex gap-4 pt-4">
                 <button onClick={() => setShowModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Discard</button>
