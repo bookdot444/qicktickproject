@@ -653,9 +653,10 @@ function SearchSearchResults() {
                                             <h3 className="font-black text-sm text-gray-900 uppercase leading-tight truncate group-hover:text-red-600 transition-colors">{vendor.company_name}</h3>
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate mb-4">{vendor.user_type?.join(", ") || "Business"}</p>
                                             <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
-                                                <span className="text-lg font-black text-gray-900 tracking-tighter">
-                                                    {vendor.city || "Global"}
-                                                </span>
+                                               <span className="text-[5px] md:text-sm font-black text-gray-900 tracking-tighter uppercase 
+                 max-w-[100px] md:max-w-none truncate">
+  {vendor.city || "Global"}
+</span>
                                                 <div className="bg-red-600 group-hover:text-white p-2 rounded-lg transition-colors"><ArrowRight size={14} /></div>
                                             </div>
                                         </div>
