@@ -181,7 +181,7 @@ export default function VideoPage() {
         ...prev,
         [activeVid.uniqueId]: (prev[activeVid.uniqueId] || 0) + 1,
       }));
-    }, 1000); // real 2 sec
+    }, 1000); // real 1 sec
 
     return () => clearTimeout(timer);
   }, [activeIndex, user]);
