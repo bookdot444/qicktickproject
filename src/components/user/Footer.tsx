@@ -159,7 +159,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-6 flex flex-col items-center justify-center text-center gap-2 pb-4">          <p className="text-[10px] font-medium text-slate-500 tracking-wide">
+        <div className="mt-6 flex flex-col items-center justify-center text-center gap-2 pb-4">        
+            <p className="text-[10px] font-medium text-slate-500 tracking-wide">
           © {new Date().getFullYear()} QICKTICK INDIA PRIVATE LIMITED.
         </p>
           <p className="text-[10px] text-slate-600">
