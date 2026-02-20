@@ -76,10 +76,12 @@ export default function DigitalBranding() {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      showToast("File too large. Max 50MB allowed.", "error");
-      return;
-    }
+  if (selectedFile.size > 1024 * 1024 * 1024) {
+    showToast("File too large. Max 1GB allowed.", "error");
+    e.target.value = ""; // Reset file input
+    setFile(null);
+    return;
+  }
 
     setFile(selectedFile);
     setPreviewUrl(URL.createObjectURL(selectedFile));

@@ -230,8 +230,10 @@ export default function AdminVideosPage() {
     if (!selected) return;
 
     // 50 MB max
-    if (selected.size > 50 * 1024 * 1024) {
-      showToast(`File ${selected.name} is too large. Max size is 50MB.`, 'error');
+    if (selected.size > 1024 * 1024 * 1024) {
+      showToast("File too large. Max 1GB allowed.", "error");
+      e.target.value = ""; // Reset file input
+      setFile(null);
       return;
     }
 

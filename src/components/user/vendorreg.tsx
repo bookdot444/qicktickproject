@@ -203,8 +203,8 @@ export default function VendorRegister({
     setError(null);
     try {
       for (const file of Array.from(files)) {
-        if (file.size > 50 * 1024 * 1024) { // Max 50MB for videos
-          throw new Error(`File ${file.name} is too large. Max size is 50MB.`);
+        if (file.size > 1024 * 1024 * 1024) { // Max 1GB for videos
+          throw new Error(`File ${file.name} is too large. Max size is 1GB.`);
         }
         const path = `vendor/videos/${Date.now()}-${file.name}`;
         const url = await uploadToBucket(file, 'media', path);
