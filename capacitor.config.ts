@@ -3,7 +3,11 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.qicktick.app',
   appName: 'Qicktick',
-  webDir: 'out',
+  webDir: 'out', // leave this, but it won’t be used
+  server: {
+    url: 'https://qicktick.com/',
+    cleartext: true
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
@@ -13,4 +17,5 @@ const config: CapacitorConfig = {
     }
   }
 };
+
 export default config;
