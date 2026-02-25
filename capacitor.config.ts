@@ -4,10 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.qicktick.app',
   appName: 'Qicktick',
   webDir: 'out',
-  server: {
-    url: 'https://qicktick.com/',
-    cleartext: true
-  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
@@ -17,5 +13,4 @@ const config: CapacitorConfig = {
     }
   }
 };
-
 export default config;
