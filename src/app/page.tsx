@@ -38,7 +38,5 @@ const styles = {
     animation: "spin 1s linear infinite",
   },
 <<<<<<< HEAD
-};
 =======
-};
->>>>>>> c422b904b647d5c519046bddfc97b25b851dc8bb
+>>>>>>>
