@@ -456,12 +456,12 @@ export default function UserFeed() {
   ];
 
   return (
+
     <div className="pt-16 bg-black">
       {/* ---------------- HEADER ---------------- */}
       <header
-        className={`fixed top-0 left-0 right-0 z-[9999] h-16 bg-black/80 backdrop-blur-sm border-b border-red-50 shadow-sm transition-all duration-300
-${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}
-  `}
+        className={`fixed top-0 pt-[20px] left-0 right-0 z-[9999] h-[84px] bg-black border-b border-red-50 shadow-sm transition-all duration-300
+${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
       >
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6">
           {/* 1. Logo Section: Optimized sizing */}

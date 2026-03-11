@@ -97,7 +97,7 @@ function ViewMoreContent() {
   const activeUrl =
     activeItem?.media_url || activeItem?.image_url || activeItem?.video_url;
 
-  const isActiveVideo = activeItem?.media_type === "video";  // Fixed: Rely on media_type instead of video_url
+const isActiveVideo = activeUrl?.includes(".mp4");
 
   // ✅ Next button for modal
   const nextMedia = () => {
@@ -197,44 +197,53 @@ function ViewMoreContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                 {paginatedData.map((item, index) => {
                   const mediaUrl =
-                    item.media_url || item.image_url || item.video_url;
+                    item.video || item.media_url || item.image_url || item.video_url;
 
-                  const isVideo = item.media_type === "video";  // Fixed: Rely on media_type instead of video_url
-
+                  console.log("MEDIA URL:", mediaUrl);
+                  const isVideo =
+                    mediaUrl &&
+                    (mediaUrl.includes(".mp4") ||
+                      mediaUrl.includes(".webm") ||
+                      mediaUrl.includes(".mov"));
                   return (
                     <div key={item.id} className="group">
                       <div className="relative aspect-video rounded-3xl overflow-hidden border bg-white">
-                        {isVideo ? (
-                          <div
-                            onClick={() => setActiveIndex(index)}
-                            className="cursor-pointer w-full h-full"
-                          >
-                            <video
-                              src={mediaUrl}
-                              className="w-full h-full object-cover"
-                              muted
-                              autoPlay
-                              loop
-                              playsInline
-                              preload="metadata"
-                            />
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                              <PlayCircle size={40} className="text-white" />
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => setActiveIndex(index)}
-                            className="cursor-pointer w-full h-full"
-                          >
-                            <Image
-                              src={mediaUrl}
-                              alt=""
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        )}
+                       {mediaUrl && mediaUrl.includes(".mp4") ? (
+  <div
+    onClick={() => setActiveIndex(index)}
+    className="cursor-pointer w-full h-full"
+  >
+    <video
+      src={mediaUrl}
+      className="w-full h-full object-cover"
+      muted
+      autoPlay
+      loop
+      playsInline
+      preload="metadata"
+    />
+    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+      <PlayCircle size={40} className="text-white" />
+    </div>
+  </div>
+) : mediaUrl ? (
+  <div
+    onClick={() => setActiveIndex(index)}
+    className="cursor-pointer w-full h-full"
+  >
+    <Image
+      src={mediaUrl}
+      alt=""
+      fill
+      className="object-cover"
+      unoptimized
+    />
+  </div>
+) : (
+  <div className="flex items-center justify-center h-full text-gray-400">
+    No media
+  </div>
+)}
                       </div>
 
                       <h3 className="mt-4 text-lg font-extrabold text-black uppercase">
@@ -262,10 +271,9 @@ function ViewMoreContent() {
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((prev) => prev - 1)}
                     className={`px-5 py-2 rounded-full font-bold text-sm transition
-                      ${
-                        currentPage === 1
-                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                          : "bg-yellow-500 text-black hover:bg-yellow-600"
+                      ${currentPage === 1
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : "bg-yellow-500 text-black hover:bg-yellow-600"
                       }`}
                   >
                     Prev
@@ -277,10 +285,9 @@ function ViewMoreContent() {
                       key={page}
                       onClick={() => setCurrentPage(page)}
                       className={`w-10 h-10 rounded-full font-extrabold transition
-                        ${
-                          currentPage === page
-                            ? "bg-black text-white"
-                            : "bg-white border border-yellow-300 text-black hover:bg-yellow-100"
+                        ${currentPage === page
+                          ? "bg-black text-white"
+                          : "bg-white border border-yellow-300 text-black hover:bg-yellow-100"
                         }`}
                     >
                       {page}
@@ -292,10 +299,9 @@ function ViewMoreContent() {
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage((prev) => prev + 1)}
                     className={`px-5 py-2 rounded-full font-bold text-sm transition
-                      ${
-                        currentPage === totalPages
-                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                          : "bg-yellow-500 text-black hover:bg-yellow-600"
+                      ${currentPage === totalPages
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : "bg-yellow-500 text-black hover:bg-yellow-600"
                       }`}
                   >
                     Next
