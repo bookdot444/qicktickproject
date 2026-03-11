@@ -9,7 +9,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       router.replace("/user");
-    }, 1000); // 1.5 sec loading
+    }, 1000); // 1 sec loading
 
     return () => clearTimeout(timer);
   }, [router]);
@@ -37,6 +37,4 @@ const styles = {
     borderRadius: "50%",
     animation: "spin 1s linear infinite",
   },
-<<<<<<< HEAD
-=======
->>>>>>>
+};
