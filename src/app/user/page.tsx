@@ -1221,7 +1221,7 @@ export default function Home() {
                             Community Impact
                         </span>
                         <h2 className="text-5xl md:text-5xl font-black text-gray-900 tracking-tight">
-                            Help & <span className="text-red-600">Earn</span>
+                             SAMRUDHI <span className="text-red-600"> COIN</span>
                         </h2>
                         <div className="w-12 h-1 bg-red-600 mx-auto mt-3 rounded-full" />
                         <p className="text-gray-500 mt-4 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
