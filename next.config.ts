@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  images: {
+images: {
+    unoptimized: true, // Add this to fix the live site timeout
     remotePatterns: [
       {
         protocol: "https",
@@ -14,7 +15,6 @@ const nextConfig = {
         pathname: "/storage/v1/object/public/**",
       },
     ],
-    minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
   },
   output: 'standalone', 

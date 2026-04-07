@@ -168,7 +168,11 @@ export default function ServiceCategoryPage() {
                   {/* Reduced height for mobile images to keep cards compact */}
                   <div className="relative h-32 md:h-44 bg-gray-50 border-b-2 border-gray-900">
                     {vendor.company_logo ? (
-                      <Image src={vendor.company_logo} alt={vendor.company_name} fill className="object-cover" />
+<img
+  src={vendor.company_logo}
+  alt={vendor.company_name}
+  className="w-full h-full object-cover"
+/>
                     ) : (
                       <div className="flex h-full items-center justify-center text-gray-200"><Building size={32} /></div>
                     )}
