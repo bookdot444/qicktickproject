@@ -443,7 +443,7 @@ export default function UserFeed() {
     { name: "Video", href: "/user/video" },
     { name: "Transport", href: "/user/transport" },
     { name: "Enquiry", href: "/user/enquiry" },
-    { name: "Help & Earn", href: "/user/help" },
+    { name: "Samrudhi", href: "/user/help" },
   ];
 
   // Bottom nav items (subset of navLinks + Profile conditionally)

@@ -100,7 +100,7 @@ export default function Footer() {
                   { name: 'Enquiry', href: '/enquiry' },
                   { name: 'Listing', href: '/listing' },
                   { name: 'Video Services', href: '/video' },
-                  { name: 'Help & Earn', href: '/help-earn' }
+                  { name: 'SAMRUDHI COIN ', href: '/help-earn' }
                 ].map((item) => (
                   <li key={item.name}>
                     <Link href={item.href} className="text-xs hover:text-amber-400 transition-colors">

@@ -145,8 +145,8 @@ export default function HelpAndEarn() {
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-yellow-800">Support Protocol v2.0</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 leading-none">
-              GIVE <span className="text-black">&</span> <br />
-              <span className="underline decoration-yellow-400 decoration-4 underline-offset-4">EARN REWARDS</span>
+             SAMRUDHI COIN   <br />
+              <span className="text-4xl underline decoration-yellow-400 decoration-4 underline-offset-4">Help And Earn Rewards</span>
             </h1>
           </div>
           <div className="hidden lg:block bg-white p-6 rounded-[2.5rem] -rotate-3 shadow-xl border border-yellow-100">
