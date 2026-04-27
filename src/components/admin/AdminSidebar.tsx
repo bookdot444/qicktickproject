@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HiOutlineVideoCamera } from "react-icons/hi";
+import { FaBoxOpen } from "react-icons/fa"; // ✅ ADD THIS ICON
 import {
   HiOutlineHome, HiOutlineOfficeBuilding, HiOutlineClipboardList,
   HiOutlineLogout, HiOutlinePhotograph, HiOutlineTemplate, HiOutlineShieldCheck
@@ -130,7 +131,9 @@ export default function AdminSidebar() {
           <NavLink href="/admin/vendor-enquiry" icon={HiOutlineChatAlt2}>
             Vendor Enquiries
           </NavLink>
-
+          <NavLink href="/admin/product-orders" icon={FaBoxOpen}>
+            Product Orders
+          </NavLink>
           {role === "admin" && (
             <NavLink href="/admin/subadmins" icon={FaUserTie}>Staff Access</NavLink>
           )}

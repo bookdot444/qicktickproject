@@ -120,7 +120,7 @@ export default function LoginPage() {
                   <button
                     onClick={sendOtp}
                     disabled={loading}
-                    className="py-4 bg-black hover:bg-zinc-800 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center"
+                    className="py-4 bg-yellow-400  text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center"
                   >
                     {loading && step === 'email' ? <RefreshCw className="animate-spin" size={16} /> : "Send OTP"}
                   </button>

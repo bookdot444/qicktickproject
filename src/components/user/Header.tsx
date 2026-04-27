@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  LogOut, PlusCircle, UserPlus,
+  LogOut, PlusCircle, UserPlus, Heart,
   UserCircle,
   ChevronDown,
   User as UserIcon,
@@ -15,7 +15,7 @@ import {
   X,
   Home,
   PlayCircle,
-  MessageSquare,
+  MessageSquare, ShoppingCart,
   Package,
   MoreHorizontal,
   X as CloseIcon,
@@ -605,111 +605,135 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
                   </div>
                 </>
               ) : (
-                /* Profile Dropdown */
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
-                    className="flex items-center space-x-3 p-2 rounded-full border border-white/20 bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-inner"
-                  >
-                    <div className="relative flex-shrink-0">
-                      {/* Vendor Medal as Avatar */}
-                      {userRole === "vendor" && profileMedal ? (
-                        <div
-                          className="relative flex items-center justify-center 
+                <div className="flex items-center space-x-3">
+                 {user && userRole !== "vendor" && (
+  <div className="flex items-center space-x-3">
+    <Link href="/user/cart" className="p-2">
+      <ShoppingCart size={20} className="text-white" />
+    </Link>
+
+    <Link href="/user/wishlist" className="p-2">
+      <Heart size={20} className="text-white" />
+    </Link>
+
+    <Link
+      href="/user/orders"
+      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-yellow-500 text-yellow-600 rounded-xl active:scale-95 transition-all hover:bg-yellow-500 hover:text-white flex items-center justify-center text-center"
+    >
+      My Orders
+    </Link>
+  </div>
+)}
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
+                      className="flex items-center space-x-3 p-2 rounded-full border border-white/20 bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-inner"
+                    >
+                      <div className="relative flex-shrink-0">
+                        {/* Vendor Medal as Avatar */}
+                        {userRole === "vendor" && profileMedal ? (
+                          <div
+                            className="relative flex items-center justify-center 
                      rounded-full shadow-lg border-2 border-white
                      animate-in zoom-in duration-500
                      hover:scale-110 transition-transform
                      px-3 py-2 min-w-[2.5rem] max-w-[5rem]"
-                          style={{
-                            backgroundColor: '#000000', // black background for medal
-                            boxShadow: `0 0 15px ${profileColor}60`,
-                          }}
-                          title="Vendor Rank"
-                        >
-                          <span
-                            className={`text-sm font-bold text-white select-none drop-shadow-md ${profileMedal.length > 2 ? 'text-[10px]' : 'text-sm'
+                            style={{
+                              backgroundColor: '#000000', // black background for medal
+                              boxShadow: `0 0 15px ${profileColor}60`,
+                            }}
+                            title="Vendor Rank"
+                          >
+                            <span
+                              className={`text-sm font-bold text-white select-none drop-shadow-md ${profileMedal.length > 2 ? 'text-[10px]' : 'text-sm'
+                                }`}
+                            >
+                              {profileMedal}
+                            </span>
+                            {/* Glow Ring */}
+                            <div className="absolute inset-0 rounded-full border border-yellow-400 opacity-40 animate-pulse" />
+                          </div>
+                        ) : (
+                          /* Regular User Avatar */
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center border-2 transition-transform group-hover:scale-105 overflow-hidden"
+                            style={{
+                              backgroundColor: profileColor,
+                              borderColor: 'rgba(255,255,255,0.9)',
+                              boxShadow: `0 0 20px ${profileColor}60`,
+                            }}
+                          >
+                            <UserCircle size={28} className="text-white drop-shadow-md" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Profile Info */}
+                      <div className="flex flex-col items-start pr-4">
+                        <span className="text-[10px] font-black text-white/70 uppercase tracking-widest leading-none mb-1">
+                          {userRole === "vendor" ? "Premium Vendor" : "Member"}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold text-white tracking-tight">Account</span>
+                          <ChevronDown
+                            size={14}
+                            className={`text-yellow-400 transition-transform duration-300 ${openMenu === "profile" ? 'rotate-180' : ''
                               }`}
-                          >
-                            {profileMedal}
-                          </span>
-                          {/* Glow Ring */}
-                          <div className="absolute inset-0 rounded-full border border-yellow-400 opacity-40 animate-pulse" />
+                          />
                         </div>
-                      ) : (
-                        /* Regular User Avatar */
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center border-2 transition-transform group-hover:scale-105 overflow-hidden"
-                          style={{
-                            backgroundColor: profileColor,
-                            borderColor: 'rgba(255,255,255,0.9)',
-                            boxShadow: `0 0 20px ${profileColor}60`,
-                          }}
+                      </div>
+                    </button>
+
+                    {/* DROPDOWN MENU */}
+                    {openMenu === "profile" && (
+                      <div className="absolute right-0 mt-3 bg-gradient-to-b from-yellow-50 to-yellow-100 border border-yellow-200 shadow-2xl rounded-2xl py-2 w-60 text-sm z-50 animate-in fade-in slide-in-from-top-2">
+                        {/* Header */}
+                        <div className="px-4 py-2 mb-1 border-b border-yellow-200">
+                          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Account</p>
+                        </div>
+
+                        {/* My Profile - Always shown */}
+                        <Link
+                          href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
+                          className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
                         >
-                          <UserCircle size={28} className="text-white drop-shadow-md" />
-                        </div>
-                      )}
-                    </div>
+                          My Profile
+                        </Link>
 
-                    {/* Profile Info */}
-                    <div className="flex flex-col items-start pr-4">
-                      <span className="text-[10px] font-black text-white/70 uppercase tracking-widest leading-none mb-1">
-                        {userRole === "vendor" ? "Premium Vendor" : "Member"}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-bold text-white tracking-tight">Account</span>
-                        <ChevronDown
-                          size={14}
-                          className={`text-yellow-400 transition-transform duration-300 ${openMenu === "profile" ? 'rotate-180' : ''
-                            }`}
-                        />
+                        {userRole === "vendor" && (
+                          <>
+                            <Link
+                              href="/vendor/products"
+                              className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
+                            >
+                              Products
+                            </Link>
+                            <Link
+                              href="/vendor/orderplaced"
+                              className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
+                            >
+                              Order Placed
+                            </Link>
+                            <Link
+                              href="/vendor/enquiry"
+                              className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
+                            >
+                              Enquiries
+                            </Link>
+                          </>
+                        )}
+
+                        {/* Logout - Always shown */}
+                        <button
+                          onClick={logout}
+                          className="flex w-full px-4 py-2.5 hover:bg-red-100 text-left text-red-600 font-bold mt-1 rounded-b-2xl transition-colors duration-200"
+                        >
+                          Logout
+                        </button>
                       </div>
-                    </div>
-                  </button>
-
-                  {/* DROPDOWN MENU */}
-                  {openMenu === "profile" && (
-                    <div className="absolute right-0 mt-3 bg-gradient-to-b from-yellow-50 to-yellow-100 border border-yellow-200 shadow-2xl rounded-2xl py-2 w-60 text-sm z-50 animate-in fade-in slide-in-from-top-2">
-                      {/* Header */}
-                      <div className="px-4 py-2 mb-1 border-b border-yellow-200">
-                        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Account</p>
-                      </div>
-
-                      {/* My Profile - Always shown */}
-                      <Link
-                        href={userRole === "vendor" ? "/user/vendor-profile" : "/user/profile"}
-                        className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
-                      >
-                        My Profile
-                      </Link>
-
-                      {userRole === "vendor" && (
-                        <>
-                          <Link
-                            href="/vendor/products"
-                            className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
-                          >
-                            Products
-                          </Link>
-                          <Link
-                            href="/vendor/enquiry"
-                            className="flex items-center px-4 py-2.5 hover:bg-yellow-200 hover:text-gray-900 font-medium text-gray-800 transition-colors duration-200"
-                          >
-                            Enquiries
-                          </Link>
-                        </>
-                      )}
-
-                      {/* Logout - Always shown */}
-                      <button
-                        onClick={logout}
-                        className="flex w-full px-4 py-2.5 hover:bg-red-100 text-left text-red-600 font-bold mt-1 rounded-b-2xl transition-colors duration-200"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-
               )}
             </div>
           </div>
@@ -1019,7 +1043,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
                   <button
                     onClick={sendLoginOtp}
                     disabled={loginLoading}
-                    className="py-3 bg-black text-slate">
+                    className="py-3 bg-yellow-200 text-slate">
                     {loginLoading ? "Sending..." : "Send OTP"}
                   </button>
                   <button

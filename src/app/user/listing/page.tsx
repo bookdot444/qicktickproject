@@ -4,18 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Package,
-  Zap,
-  ArrowRight,
-  Loader2,
-  Search,
-  ShieldCheck,
-  TrendingUp,
-  Award,
-  Hash,
-  MapPin,
-  Briefcase,
-  ArrowUpDown
+  Package, Zap, ArrowRight, Loader2, Search, ShieldCheck,
+  TrendingUp, Award, Hash, MapPin, Briefcase, ArrowUpDown,
+  Heart, ShoppingCart
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -23,78 +14,122 @@ export default function VendorProductsPage() {
   const [findInput, setFindInput] = useState("");
   const [cityInput, setCityInput] = useState("");
   const [typeInput, setTypeInput] = useState("");
-  const [sortOrder, setSortOrder] = useState("newest"); // 'newest', 'price_low', 'price_high'
+  const [sortOrder, setSortOrder] = useState("newest");
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+  const [cartIds, setCartIds] = useState<string[]>([]);
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 40;
 
-  // --- FETCH PRODUCTS FROM SUPABASE ---
-const fetchProducts = useCallback(async () => {
-  try {
-    setLoading(true);
-    let query = supabase
-      .from("vendor_products")
-      .select(`
-        id, product_name, description, price, product_image, vendor_id, created_at,
-        vendor:vendor_register!inner(company_name, city, user_type, sector)
-      `)
-      .eq("is_active", true);
-
-    // --- FILTERS ---
-    if (findInput) query = query.ilike("product_name", `%${findInput}%`);
-    if (cityInput) query = query.ilike("vendor.city", `%${cityInput}%`);
-
-    // --- FILTER BY SECTOR ---
-   // --- FILTER BY USER TYPE ARRAY ONLY ---
-if (typeInput && typeInput !== "") {
-  query = query.contains("vendor.user_type", [typeInput.toLowerCase()]);
-}
-
-    // --- FILTER BY USER TYPE ARRAY ---
-    // Example: typeInput could be "Manufacturer", "Distributor", etc.
-    // We'll check if the array contains that value
-    if (typeInput && typeInput !== "") {
-      query = query.contains("vendor.user_type", [typeInput]);
-    }
-
-    // --- SORTING ---
-    if (sortOrder === "price_low") query = query.order("price", { ascending: true });
-    else if (sortOrder === "price_high") query = query.order("price", { ascending: false });
-    else query = query.order("created_at", { ascending: false });
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // --- PROCESS IMAGES ---
-    const processedProducts = (data || []).map((p) => {
-      let imageUrls: string[] = [];
-      if (p.product_image) {
-        const paths = p.product_image.split("|||");
-        imageUrls = paths
-          .map((path: string) => {
-            if (path.startsWith("http") || path.startsWith("data:")) return path;
-            const { data: urlData } = supabase.storage.from("products").getPublicUrl(path);
-            return urlData?.publicUrl || null;
-          })
-          .filter(Boolean) as string[];
-      }
-      return { ...p, product_image: imageUrls };
+  // Check Auth
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setUser(data.user);
     });
+  }, []);
 
-    setProducts(processedProducts);
-  } catch (err: any) {
-    console.error("Fetch error:", err.message);
-  } finally {
-    setLoading(false);
-  }
-}, [findInput, cityInput, typeInput, sortOrder]);
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
+        .from("vendor_products")
+        .select(`
+          id, product_name, description, price, product_image, vendor_id, created_at,
+          vendor:vendor_register!inner(company_name, city, user_type)
+        `, { count: "exact" })
+        .eq("is_active", true);
+
+      if (findInput) query = query.ilike("product_name", `%${findInput}%`);
+      if (cityInput) query = query.ilike("vendor.city", `%${cityInput}%`);
+      if (typeInput) query = query.contains("vendor.user_type", [typeInput.toLowerCase()]);
+
+      if (sortOrder === "price_low") query = query.order("price", { ascending: true });
+      else if (sortOrder === "price_high") query = query.order("price", { ascending: false });
+      else query = query.order("created_at", { ascending: false });
+
+      const { data, error, count } = await query.range(from, to);
+      if (error) throw error;
+      if (count !== null) setTotalCount(count);
+
+      const processed = (data || []).map((p) => {
+        const images = p.product_image?.split("|||").map((path: string) => {
+          if (path.startsWith("http")) return path;
+          return supabase.storage.from("products").getPublicUrl(path).data.publicUrl;
+        }) || [];
+        return { ...p, product_image: images };
+      });
+
+      setProducts(processed);
+    } finally {
+      setLoading(false);
+    }
+  }, [findInput, cityInput, typeInput, sortOrder, page]);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // ACTION HANDLERS
+  const handleWishlist = async (productId: string) => {
+    if (!user) return alert("Please login!");
+
+    const { error } = await supabase
+      .from("user_wishlist")
+      .insert({ user_id: user.id, product_id: productId });
+
+    if (!error) {
+      setWishlistIds(prev => [...prev, productId]);
+    }
+  };
+
+  const handleAddToCart = async (productId: string) => {
+    if (!user) return alert("Please login!");
+
+    const { error } = await supabase
+      .from("user_cart")
+      .upsert({ user_id: user.id, product_id: productId });
+
+    if (!error) {
+      setCartIds(prev => [...prev, productId]);
+    }
+  };
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    if (!user) return;
+
+    const fetchUserData = async () => {
+      // WISHLIST
+      const { data: wishlist } = await supabase
+        .from("user_wishlist")
+        .select("product_id")
+        .eq("user_id", user.id);
+
+      if (wishlist) {
+        setWishlistIds(wishlist.map(item => item.product_id));
+      }
+
+      // CART
+      const { data: cart } = await supabase
+        .from("user_cart")
+        .select("product_id")
+        .eq("user_id", user.id);
+
+      if (cart) {
+        setCartIds(cart.map(item => item.product_id));
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-16 font-sans selection:bg-yellow-200">
-
+    <div className="min-h-screen bg-[#FFFDF5] pb-16 font-sans">
+      {/* Hero omitted for brevity, keep your original Hero code here */}
       {/* --- HERO SECTION --- */}
       <div className="bg-gradient-to-b from-[#FEF3C7] to-[#FFFDF5] pt-16 pb-32 px-6 relative overflow-hidden border-b border-yellow-100">
         <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#F59E0B_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
@@ -112,143 +147,145 @@ if (typeInput && typeInput !== "") {
           </div>
         </div>
       </div>
-
       <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20">
-
-        {/* --- FILTER BAR --- */}
         <FilterBar
-          findInput={findInput}
-          setFindInput={setFindInput}
-          cityInput={cityInput}
-          setCityInput={setCityInput}
-          typeInput={typeInput}
-          setTypeInput={setTypeInput}
-          sortOrder={sortOrder}
-          setSortOrder={setSortOrder}
-          fetchProducts={fetchProducts}
+          findInput={findInput} setFindInput={setFindInput}
+          cityInput={cityInput} setCityInput={setCityInput}
+          typeInput={typeInput} setTypeInput={setTypeInput}
+          sortOrder={sortOrder} setSortOrder={setSortOrder}
+          fetchProducts={() => { setPage(0); fetchProducts(); }}
         />
 
-        {/* --- PRODUCT GRID --- */}
-        <div className="min-h-[400px]">
-          {loading ? (
-            <LoadingState />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <AnimatePresence mode="popLayout">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </AnimatePresence>
-              </div>
-
-              {products.length === 0 && <NoDataFound />}
-            </>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <AnimatePresence mode="popLayout">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onWishlist={() => handleWishlist(product.id)}
+                onCart={() => handleAddToCart(product.id)}
+                isWishlisted={wishlistIds.includes(product.id)}
+                isInCart={cartIds.includes(product.id)}
+              />
+            ))}
+          </AnimatePresence>
         </div>
 
-        {/* --- TRUST FOOTER --- */}
-        <div className="mt-20 flex justify-center gap-12 border-t border-yellow-100 pt-10">
-          <TrustCard icon={<ShieldCheck size={16} />} label="Secure" />
-          <TrustCard icon={<Hash size={16} />} label="Tracked" />
-          <TrustCard icon={<Award size={16} />} label="Verified" />
-          <TrustCard icon={<TrendingUp size={16} />} label="Growth" />
-        </div>
+        <Pagination currentPage={page} totalItems={totalCount} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
     </div>
   );
 }
 
-// --- IMAGE SLIDER ---
-function ImageSlider({ images }: { images: string[] }) {
-  const [current, setCurrent] = useState(0);
-  const [fade, setFade] = useState(true);
-
-  useEffect(() => {
-    if (images.length <= 1) return;
-    const interval = setInterval(() => {
-      setFade(false);
-      setTimeout(() => {
-        setCurrent((prev) => (prev + 1) % images.length);
-        setFade(true);
-      }, 300);
-    }, 1500);
-    return () => clearInterval(interval);
-  }, [images]);
-
+function ProductCard({ product, onWishlist, onCart, isWishlisted, isInCart }: any) {
   return (
-    <img
-      src={images[current]}
-      alt="Product Image"
-      className={`w-full h-full object-cover transition-opacity duration-300 ${fade ? "opacity-100" : "opacity-0"}`}
-    />
-  );
-}
+    <motion.div layout className="group bg-white rounded-2xl border border-yellow-100 hover:border-yellow-400 shadow-md transition-all overflow-hidden flex flex-col relative">
 
-// --- PRODUCT CARD ---
-function ProductCard({ product }: { product: any }) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      className="group bg-white rounded-xl border border-yellow-100 hover:border-yellow-400 shadow-md hover:shadow-xl transition-all duration-500 overflow-hidden flex flex-col"
-    >
-      <Link href={`/vendor/view/${product.vendor_id}`} className="flex flex-col h-full">
+      {/* WISHLIST BUTTON */}
+      <button
+        onClick={onWishlist}
+        className={`absolute top-3 right-3 z-30 p-2 rounded-full shadow-sm border transition-all active:scale-90
+  ${isWishlisted
+            ? "bg-red-500 text-white border-red-500"
+            : "bg-white/90 text-gray-400 hover:text-red-500 border-yellow-50"
+          }`}
+      >
+        <Heart size={16} fill={isWishlisted ? "white" : "none"} />
+      </button>
 
-        {/* IMAGE */}
-        <div className="relative h-40 bg-[#FEF3C7]/10 overflow-hidden">
-          {product.product_image && product.product_image.length > 0 ? (
-            <ImageSlider images={product.product_image} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-yellow-600/20">
-              <Package size={36} />
-            </div>
-          )}
+      {/* IMAGE SLIDER */}
+      <div className="relative h-44 overflow-hidden bg-gray-50">
+        {product.product_image?.length > 0 ? (
+          <ImageSlider images={product.product_image} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-yellow-200"><Package size={40} /></div>
+        )}
+      </div>
 
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
-            <span className="bg-white/90 backdrop-blur-md text-gray-900 px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest shadow-sm border border-yellow-50">
-              {product.vendor?.company_name}
-            </span>
-            <span className="bg-black/80 text-white px-2 py-0.5 rounded text-[6px] font-bold uppercase tracking-widest self-start">
-              {product.vendor?.city}
-            </span>
-          </div>
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex justify-between items-start mb-2">
+          <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">{product.vendor?.company_name}</span>
+          <span className="text-[9px] font-medium text-gray-400">{product.vendor?.city}</span>
         </div>
 
-        {/* CONTENT */}
-       <div className="p-4 flex flex-col">
-  <h3 className="text-sm font-black uppercase tracking-tight text-gray-900 mb-1 line-clamp-1 group-hover:text-red-600 transition-colors">
-    {product.product_name}
-  </h3>
+        <h3 className="text-sm font-black text-gray-900 mb-1 line-clamp-1">{product.product_name}</h3>
+        <p className="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">{product.description}</p>
 
-  <p className="text-gray-500 text-[10px] font-medium leading-snug mb-2 line-clamp-2">
-    {product.description || "Premium quality catalog item available for verified procurement."}
-  </p>
+        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+          <div>
+            <p className="text-[8px] font-bold text-gray-400 uppercase">Price</p>
+            <p className="text-lg font-black text-gray-900">₹{Number(product.price).toLocaleString()}</p>
+          </div>
 
-  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-    <div>
-      <span className="text-[7px] font-black uppercase tracking-widest text-gray-400 block mb-0.5">Price</span>
-      <p className="text-lg font-black tracking-tighter text-gray-900">₹{Number(product.price).toLocaleString()}</p>
-    </div>
-    <div className="bg-gray-900 group-hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:-rotate-6">
-      <ArrowRight size={16} />
-    </div>
-  </div>
-</div>
+          <div className="flex gap-2">
+            {/* ADD TO CART */}
+            <button
+              onClick={onCart}
+              className={`px-3 py-2 rounded-xl transition-all active:scale-90 shadow-sm flex items-center gap-1 text-xs font-bold
+  ${isInCart
+                  ? "bg-green-500 text-white"
+                  : "bg-yellow-500 hover:bg-yellow-600 text-black"
+                }`}
+            >
+              {isInCart ? (
+                <>
+                  ✓ Added
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={16} /> Add
+                </>
+              )}
+            </button>
 
-      </Link>
+            {/* GO TO DETAILS ARROW --> */}
+            <Link href={`/user/products/${product.id}`} className="bg-gray-900 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all hover:translate-x-1 shadow-md">
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-// --- FILTER BAR COMPONENT ---
+// ... Keep existing ImageSlider, FilterBar, LoadingState, Pagination components from previous response ...
+
+function Pagination({ currentPage, totalItems, pageSize, onPageChange }: any) {
+  const totalPages = Math.ceil(totalItems / pageSize);
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-4 mt-12 pb-10">
+      <button
+        disabled={currentPage === 0}
+        onClick={() => onPageChange(currentPage - 1)}
+        className="px-4 py-2 bg-white border border-yellow-200 rounded-xl disabled:opacity-20 hover:bg-yellow-50 transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2"
+      >
+        <ArrowRight size={14} className="rotate-180" /> Prev
+      </button>
+
+      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+        Page <span className="text-gray-900">{currentPage + 1}</span> of {totalPages}
+      </span>
+
+      <button
+        disabled={currentPage >= totalPages - 1}
+        onClick={() => onPageChange(currentPage + 1)}
+        className="px-4 py-2 bg-white border border-yellow-200 rounded-xl disabled:opacity-20 hover:bg-yellow-50 transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2"
+      >
+        Next <ArrowRight size={14} />
+      </button>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS (Kept from original) ---
+
 function FilterBar({ findInput, setFindInput, cityInput, setCityInput, typeInput, setTypeInput, sortOrder, setSortOrder, fetchProducts }: any) {
   return (
     <div className="bg-gray-900 shadow-2xl p-3 md:p-4 rounded-[2rem] border border-white/10 mb-12">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* SEARCH */}
         <div className="flex items-center px-5 py-2 bg-white/5 rounded-xl border border-white/5 focus-within:border-yellow-500/50 transition-all">
           <Search size={16} className="text-yellow-500 mr-3" />
           <div className="flex flex-col flex-1">
@@ -262,7 +299,6 @@ function FilterBar({ findInput, setFindInput, cityInput, setCityInput, typeInput
           </div>
         </div>
 
-        {/* CITY */}
         <div className="flex items-center px-5 py-2 bg-white/5 rounded-xl border border-white/5 focus-within:border-red-500/50 transition-all">
           <MapPin size={16} className="text-red-500 mr-3" />
           <div className="flex flex-col flex-1">
@@ -276,12 +312,11 @@ function FilterBar({ findInput, setFindInput, cityInput, setCityInput, typeInput
           </div>
         </div>
 
-        {/* CATEGORY */}
         <div className="flex items-center px-5 py-2 bg-white/5 rounded-xl border border-white/5 focus-within:border-yellow-500/50 transition-all">
           <Briefcase size={16} className="text-yellow-500 mr-3" />
           <div className="flex flex-col flex-1">
             <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Category</span>
-                       <select
+            <select
               value={typeInput}
               onChange={(e) => setTypeInput(e.target.value)}
               className="bg-transparent border-none outline-none text-white font-bold text-xs appearance-none cursor-pointer"
@@ -295,7 +330,6 @@ function FilterBar({ findInput, setFindInput, cityInput, setCityInput, typeInput
           </div>
         </div>
 
-        {/* SORT */}
         <div className="flex items-center px-5 py-2 bg-white/5 rounded-xl border border-white/5 focus-within:border-blue-500/50 transition-all">
           <ArrowUpDown size={16} className="text-blue-400 mr-3" />
           <div className="flex flex-col flex-1">
@@ -323,7 +357,31 @@ function FilterBar({ findInput, setFindInput, cityInput, setCityInput, typeInput
   );
 }
 
-// --- LOADING STATE ---
+function ImageSlider({ images }: { images: string[] }) {
+  const [current, setCurrent] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const interval = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setCurrent((prev) => (prev + 1) % images.length);
+        setFade(true);
+      }, 300);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [images]);
+
+  return (
+    <img
+      src={images[current]}
+      alt="Product Image"
+      className={`w-full h-full object-cover transition-opacity duration-300 ${fade ? "opacity-100" : "opacity-0"}`}
+    />
+  );
+}
+
 function LoadingState() {
   return (
     <div className="flex flex-col items-center justify-center py-20">
@@ -333,18 +391,15 @@ function LoadingState() {
   );
 }
 
-// --- NO DATA FOUND ---
 function NoDataFound() {
   return (
     <div className="bg-white p-16 rounded-[3rem] border-2 border-dashed border-yellow-100 text-center">
       <Package size={48} className="text-yellow-200 mx-auto mb-4" />
       <h2 className="text-2xl font-black tracking-tighter text-yellow-800/40 uppercase">No Data Found</h2>
-      <p className="font-bold text-yellow-700/30 mt-1 uppercase text-[9px] tracking-[0.2em]">Adjust filters for regional availability</p>
     </div>
   );
 }
 
-// --- TRUST CARD ---
 function TrustCard({ icon, label }: { icon: React.ReactNode, label: string }) {
   return (
     <div className="flex flex-col items-center gap-2 opacity-40 hover:opacity-100 transition-opacity cursor-default">
