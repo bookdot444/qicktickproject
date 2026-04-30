@@ -33,44 +33,56 @@ export default function VendorProductsPage() {
   }, []);
 
   const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+  try {
+    setLoading(true);
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
-      let query = supabase
-        .from("vendor_products")
-        .select(`
-          id, product_name, description, price, product_image, vendor_id, created_at,
-          vendor:vendor_register!inner(company_name, city, user_type)
-        `, { count: "exact" })
-        .eq("is_active", true);
+    let query = supabase
+      .from("vendor_products")
+      .select(`
+        id, product_name, description, price, product_image, vendor_id, created_at,
+        vendor:vendor_register!inner(company_name, city, user_type)
+      `, { count: "exact" })
+      .eq("is_active", true);
 
-      if (findInput) query = query.ilike("product_name", `%${findInput}%`);
-      if (cityInput) query = query.ilike("vendor.city", `%${cityInput}%`);
-      if (typeInput) query = query.contains("vendor.user_type", [typeInput.toLowerCase()]);
+    if (findInput) query = query.ilike("product_name", `%${findInput}%`);
+    if (cityInput) query = query.ilike("vendor.city", `%${cityInput}%`);
+    if (typeInput) query = query.contains("vendor.user_type", [typeInput.toLowerCase()]);
 
-      if (sortOrder === "price_low") query = query.order("price", { ascending: true });
-      else if (sortOrder === "price_high") query = query.order("price", { ascending: false });
-      else query = query.order("created_at", { ascending: false });
+    if (sortOrder === "price_low") query = query.order("price", { ascending: true });
+    else if (sortOrder === "price_high") query = query.order("price", { ascending: false });
+    else query = query.order("created_at", { ascending: false });
 
-      const { data, error, count } = await query.range(from, to);
-      if (error) throw error;
-      if (count !== null) setTotalCount(count);
+    const { data, error, count } = await query.range(from, to);
+    if (error) throw error;
+    if (count !== null) setTotalCount(count);
 
-      const processed = (data || []).map((p) => {
-        const images = p.product_image?.split("|||").map((path: string) => {
-          if (path.startsWith("http")) return path;
-          return supabase.storage.from("products").getPublicUrl(path).data.publicUrl;
-        }) || [];
-        return { ...p, product_image: images };
+    const processed = (data || []).map((p) => {
+      // 1. Split the string into an array of paths
+      const allPaths = p.product_image?.split("|||") || [];
+      
+      // 2. FILTER: Only keep files that are NOT videos
+      const imageOnlyPaths = allPaths.filter((path: string) => {
+        const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(path);
+        return !isVideo;
       });
 
-      setProducts(processed);
-    } finally {
-      setLoading(false);
-    }
-  }, [findInput, cityInput, typeInput, sortOrder, page]);
+      // 3. Convert remaining paths to Public URLs
+      const images = imageOnlyPaths.map((path: string) => {
+        if (path.startsWith("http")) return path;
+        return supabase.storage.from("products").getPublicUrl(path).data.publicUrl;
+      });
+
+      return { ...p, product_image: images };
+    });
+
+    setProducts(processed);
+  } finally {
+    setLoading(false);
+  }
+}, [findInput, cityInput, typeInput, sortOrder, page]);
+
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -156,7 +168,8 @@ export default function VendorProductsPage() {
           fetchProducts={() => { setPage(0); fetchProducts(); }}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Change grid-cols-1 to grid-cols-2 */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <AnimatePresence mode="popLayout">
             {products.map((product) => (
               <ProductCard
@@ -361,8 +374,19 @@ function ImageSlider({ images }: { images: string[] }) {
   const [current, setCurrent] = useState(0);
   const [fade, setFade] = useState(true);
 
+  // Safety Check: If no images remain after filtering, show placeholder
+  if (!images || images.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-yellow-200">
+        <Package size={40} />
+      </div>
+    );
+  }
+
   useEffect(() => {
+    // Only start the slider if there is more than one image
     if (images.length <= 1) return;
+
     const interval = setInterval(() => {
       setFade(false);
       setTimeout(() => {
@@ -370,14 +394,17 @@ function ImageSlider({ images }: { images: string[] }) {
         setFade(true);
       }, 300);
     }, 1500);
+
     return () => clearInterval(interval);
   }, [images]);
 
   return (
     <img
       src={images[current]}
-      alt="Product Image"
-      className={`w-full h-full object-cover transition-opacity duration-300 ${fade ? "opacity-100" : "opacity-0"}`}
+      alt="Product"
+      className={`w-full h-full object-cover transition-opacity duration-300 ${
+        fade ? "opacity-100" : "opacity-0"
+      }`}
     />
   );
 }

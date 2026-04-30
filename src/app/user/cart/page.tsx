@@ -59,7 +59,8 @@ export default function CartPage() {
   const taxRate = 0.18; // 18% Tax
   const taxAmount = subtotal * taxRate;
   const shipping = subtotal > 1000 || subtotal === 0 ? 0 : 100;
-  const grandTotal = subtotal + taxAmount + shipping;
+  // const grandTotal = subtotal + taxAmount + shipping;
+  const grandTotal = subtotal + taxAmount ;
 
   if (loading) {
     return (

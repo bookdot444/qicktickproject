@@ -12,7 +12,8 @@ import {
   ArrowRight,
   ChevronLeft,
   Truck,
-  ReceiptIndianRupee
+  ReceiptIndianRupee,
+  Navigation
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,13 +23,21 @@ export default function CheckoutPage() {
 
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
+  
+  // Updated Address State with specific fields
   const [address, setAddress] = useState({
     name: "",
     phone: "",
-    address: "",
+    building: "",
+    street: "",
+    area: "",
+    landmark: "",
     city: "",
+    state: "",
     pincode: "",
   });
+  
   const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
@@ -48,28 +57,67 @@ export default function CheckoutPage() {
     setLoading(false);
   };
 
+  // ---------------- AUTO FETCH LOCATION ----------------
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      return alert("Geolocation is not supported by your browser");
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+
+      try {
+        // Using OpenStreetMap's Nominatim API (Free, no key required for low volume)
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+        );
+        const data = await res.json();
+        const addr = data.address;
+
+        setAddress((prev) => ({
+          ...prev,
+          street: addr.road || addr.suburb || "",
+          area: addr.neighbourhood || addr.city_district || "",
+          city: addr.city || addr.town || addr.village || "",
+          state: addr.state || "",
+          pincode: addr.postcode || "",
+        }));
+      } catch (error) {
+        console.error("Error fetching address:", error);
+        alert("Could not fetch address details automatically.");
+      } finally {
+        setLocating(false);
+      }
+    }, (error) => {
+      setLocating(false);
+      alert("Location access denied. Please enter manually.");
+    });
+  };
+
   // ---------------- TOTALS & SHIPPING ----------------
   const subTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const tax = subTotal * 0.18;
-  
-  // Shipping: ₹100 if subtotal < 1000, else Free
   const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
-  
-  const grandTotal = subTotal + tax + shipping;
+  const grandTotal = subTotal + tax ;
+  //const grandTotal = subTotal + tax + shipping;
 
   // ---------------- VALIDATION ----------------
   const validate = () => {
     let err: any = {};
     if (!address.name) err.name = "Full name is required";
     if (!address.phone || address.phone.length !== 10) err.phone = "Enter a valid 10-digit number";
-    if (!address.address) err.address = "Street address is required";
+    if (!address.building) err.building = "Building name is required";
+    if (!address.street) err.street = "Street/Locality is required";
+    if (!address.area) err.area = "Area/Zone is required";
     if (!address.city) err.city = "City is required";
+    if (!address.state) err.state = "State is required";
     if (!address.pincode || address.pincode.length !== 6) err.pincode = "6-digit pincode required";
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
-  // ---------------- PAYMENT ----------------
+  // ---------------- PAYMENT (Razorpay Logic) ----------------
   const loadRazorpay = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -100,25 +148,33 @@ export default function CheckoutPage() {
       currency: "INR",
       name: "The Vault",
       order_id: order.id,
-      handler: async (response: any) => {
-        const { data: userData } = await supabase.auth.getUser();
-        const orderPayload = {
-          user_id: userData.user?.id,
-          total_amount: grandTotal,
-          sub_total: subTotal,
-          tax: tax,
-          shipping: shipping,
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          payment_status: "paid",
-          address,
-          items: cart,
-        };
+     handler: async (response: any) => {
+  const { data: userData } = await supabase.auth.getUser();
 
-        const { error } = await supabase.from("orders").insert([orderPayload]);
-        if (error) return alert("Order save failed");
-        router.push("/user/orders");
-      },
+  const orderPayload = {
+    user_id: userData.user?.id,
+    total_amount: grandTotal,
+    sub_total: subTotal,
+    tax: tax,
+    shipping: shipping, // This will work once you run the ALTER TABLE command above
+    razorpay_order_id: response.razorpay_order_id,
+    razorpay_payment_id: response.razorpay_payment_id,
+    payment_status: "paid",
+    // Use JSON.stringify if you want to store as Text, 
+    // but since your table uses JSONB, you can send the objects directly:
+    address: address, 
+    items: cart,
+  };
+
+  const { error } = await supabase.from("orders").insert([orderPayload]);
+  
+  if (error) {
+    console.error("Insert Error:", error);
+    return alert("Order save failed: " + error.message);
+  }
+  
+  router.push("/user/orders");
+},
       theme: { color: "#EAB308" }
     };
 
@@ -172,18 +228,30 @@ export default function CheckoutPage() {
           {/* LEFT: SHIPPING FORM */}
           <div className="lg:col-span-7 space-y-8">
             <section className="bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-10 shadow-sm relative overflow-hidden">
-              <div className="flex items-center gap-4 mb-10">
-                <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center">
-                  <MapPin size={20} className="text-yellow-600" />
+              <div className="flex items-center justify-between gap-4 mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center">
+                    <MapPin size={20} className="text-yellow-600" />
+                  </div>
+                  <h2 className="text-xl font-black uppercase tracking-tight italic">Shipping Details</h2>
                 </div>
-                <h2 className="text-xl font-black uppercase tracking-tight italic">Shipping Details</h2>
+                
+                <button 
+                  onClick={fetchCurrentLocation}
+                  disabled={locating}
+                  className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-100 disabled:text-gray-400 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-yellow-200"
+                >
+                  <Navigation size={14} className={locating ? "animate-pulse" : ""} />
+                  {locating ? "Locating..." : "Use My Location"}
+                </button>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
+              <div className="grid md:grid-cols-2 gap-x-6 gap-y-6">
                 <div className="md:col-span-2">
-                  <InputLabel label="Recipient Full Name" />
+                  <InputLabel label="Recipient Full Name *" />
                   <input
                     type="text"
+                    value={address.name}
                     placeholder="John Doe"
                     className={`w-full p-4 bg-slate-50 border ${errors.name ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
                     onChange={(e) => setAddress({ ...address, name: e.target.value })}
@@ -192,9 +260,10 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <InputLabel label="Mobile Number" />
+                  <InputLabel label="Mobile Number *" />
                   <input
                     type="tel"
+                    value={address.phone}
                     placeholder="99999 00000"
                     className={`w-full p-4 bg-slate-50 border ${errors.phone ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
                     onChange={(e) => setAddress({ ...address, phone: e.target.value })}
@@ -203,9 +272,10 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <InputLabel label="Pincode" />
+                  <InputLabel label="Pincode *" />
                   <input
                     type="text"
+                    value={address.pincode}
                     placeholder="600001"
                     className={`w-full p-4 bg-slate-50 border ${errors.pincode ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
                     onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
@@ -214,25 +284,74 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <InputLabel label="Complete Address" />
-                  <textarea
-                    rows={3}
-                    placeholder="Flat, House no., Building, Apartment name"
-                    className={`w-full p-4 bg-slate-50 border ${errors.address ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
-                    onChange={(e) => setAddress({ ...address, address: e.target.value })}
+                  <InputLabel label="Building / Apartment Name *" />
+                  <input
+                    type="text"
+                    value={address.building}
+                    placeholder="E.g. Sunshine Apartments, Flat 402"
+                    className={`w-full p-4 bg-slate-50 border ${errors.building ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
+                    onChange={(e) => setAddress({ ...address, building: e.target.value })}
                   />
-                  {errors.address && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.address}</p>}
+                  {errors.building && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.building}</p>}
+                </div>
+
+                <div>
+                  <InputLabel label="Street / Locality *" />
+                  <input
+                    type="text"
+                    value={address.street}
+                    placeholder="Main Road, 5th Cross"
+                    className={`w-full p-4 bg-slate-50 border ${errors.street ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
+                    onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                  />
+                  {errors.street && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.street}</p>}
+                </div>
+
+                <div>
+                  <InputLabel label="Area / Zone *" />
+                  <input
+                    type="text"
+                    value={address.area}
+                    placeholder="Andheri West"
+                    className={`w-full p-4 bg-slate-50 border ${errors.area ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
+                    onChange={(e) => setAddress({ ...address, area: e.target.value })}
+                  />
+                  {errors.area && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.area}</p>}
                 </div>
 
                 <div className="md:col-span-2">
-                  <InputLabel label="Town / City" />
+                  <InputLabel label="Landmark (Optional)" />
                   <input
                     type="text"
+                    value={address.landmark}
+                    placeholder="Near City Bank ATM"
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm"
+                    onChange={(e) => setAddress({ ...address, landmark: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <InputLabel label="City / Town *" />
+                  <input
+                    type="text"
+                    value={address.city}
                     placeholder="Mumbai"
                     className={`w-full p-4 bg-slate-50 border ${errors.city ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
                     onChange={(e) => setAddress({ ...address, city: e.target.value })}
                   />
                   {errors.city && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.city}</p>}
+                </div>
+
+                <div>
+                  <InputLabel label="State *" />
+                  <input
+                    type="text"
+                    value={address.state}
+                    placeholder="Maharashtra"
+                    className={`w-full p-4 bg-slate-50 border ${errors.state ? 'border-red-500' : 'border-slate-100'} rounded-2xl focus:outline-none focus:border-yellow-400 transition-all font-bold text-sm`}
+                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                  />
+                  {errors.state && <p className="text-red-500 text-[9px] font-black uppercase mt-2 ml-2">{errors.state}</p>}
                 </div>
               </div>
             </section>
