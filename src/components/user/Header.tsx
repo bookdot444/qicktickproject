@@ -1,3 +1,6 @@
+Components/header.tsx
+
+
 "use client";
 
 import Link from "next/link";
@@ -475,6 +478,7 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
               priority
             />
           </Link>
+          
           {/* MOBILE ACTIONS (NO HAMBURGER) */}
           <div className="flex lg:hidden items-center gap-2">
             {!user && (
@@ -507,13 +511,27 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
             )}
 
             {user && (
-              <button
-                onClick={() => setShowMoreMenu(true)}
-                className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90"
-                style={{ backgroundColor: profileColor }}
-              >
-                <UserCircle size={22} className="text-white" />
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Cart and Wishlist Icons for Mobile */}
+                {userRole !== "vendor" && (
+                  <div className="flex items-center gap-2">
+                    <Link href="/user/cart" className="p-1 active:scale-95 transition-transform">
+                      <ShoppingCart size={22} className="text-white hover:text-yellow-400 transition-colors" />
+                    </Link>
+                    <Link href="/user/wishlist" className="p-1 active:scale-95 transition-transform">
+                      <Heart size={22} className="text-white hover:text-yellow-400 transition-colors" />
+                    </Link>
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => setShowMoreMenu(true)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-90"
+                  style={{ backgroundColor: profileColor }}
+                >
+                  <UserCircle size={22} className="text-white" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -607,23 +625,23 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
               ) : (
                 <div className="flex items-center space-x-3">
                  {user && userRole !== "vendor" && (
-  <div className="flex items-center space-x-3">
-    <Link href="/user/cart" className="p-2">
-      <ShoppingCart size={20} className="text-white" />
-    </Link>
+                  <div className="flex items-center space-x-3">
+                    <Link href="/user/cart" className="p-2">
+                      <ShoppingCart size={20} className="text-white" />
+                    </Link>
 
-    <Link href="/user/wishlist" className="p-2">
-      <Heart size={20} className="text-white" />
-    </Link>
+                    <Link href="/user/wishlist" className="p-2">
+                      <Heart size={20} className="text-white" />
+                    </Link>
 
-    <Link
-      href="/user/orders"
-      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-yellow-500 text-yellow-600 rounded-xl active:scale-95 transition-all hover:bg-yellow-500 hover:text-white flex items-center justify-center text-center"
-    >
-      My Orders
-    </Link>
-  </div>
-)}
+                    <Link
+                      href="/user/orders"
+                      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-yellow-500 text-yellow-600 rounded-xl active:scale-95 transition-all hover:bg-yellow-500 hover:text-white flex items-center justify-center text-center"
+                    >
+                      My Orders
+                    </Link>
+                  </div>
+                )}
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
