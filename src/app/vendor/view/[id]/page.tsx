@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Share2 } from "lucide-react";
+import { toast, Toaster } from "sonner"; // Using sonner for high-quality toasts
 import {
-  Phone, MapPin, ShieldCheck, Building2,
+  Share2, Phone, MapPin, ShieldCheck, Building2,
   User, ArrowLeft, Info, Smartphone, Mail,
   ChevronDown, Image as ImageIcon, ShoppingBag,
-  Play, X, Maximize2, Briefcase, Award, Camera
+  Play, X, Maximize2, Briefcase, Award, Heart,
+  ShoppingCart, Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,13 +18,54 @@ export default function VendorDetailPage() {
   const router = useRouter();
   const [vendor, setVendor] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  // ... existing states
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null); // Add this
+  const [showLoginPopup, setShowLoginPopup] = useState(false); // Add this
   const [openSection, setOpenSection] = useState<string | null>("media");
   const [showAllMedia, setShowAllMedia] = useState(false);
   const [showAllCertificates, setShowAllCertificates] = useState(false);
-
+  const [wishlistedIds, setWishlistedIds] = useState<string[]>([]);
+  const [cartIds, setCartIds] = useState<string[]>([]);
   // --- POPUP STATE ---
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchVendorAndUser = async () => {
+      setLoading(true);
+
+      // 1. Get the current user session
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+
+      // 2. Fetch vendor and products
+      const [vendorRes, productsRes] = await Promise.all([
+        supabase.from("vendor_register").select("*").eq("id", id).single(),
+        supabase.from("vendor_products").select("*").eq("vendor_id", id).eq("is_active", true)
+      ]);
+
+      if (vendorRes.data) setVendor(vendorRes.data);
+      if (productsRes.data) setProducts(productsRes.data);
+
+      // 3. Fetch Wishlist and Cart (ONLY if user is logged in)
+      // This was previously floating outside, causing your error
+      if (currentUser) {
+        const [wishRes, cartRes] = await Promise.all([
+          supabase.from("user_wishlist").select("product_id").eq("user_id", currentUser.id),
+          supabase.from("user_cart").select("product_id").eq("user_id", currentUser.id)
+        ]);
+
+        if (wishRes.data) setWishlistedIds(wishRes.data.map(item => item.product_id));
+        if (cartRes.data) setCartIds(cartRes.data.map(item => item.product_id));
+      }
+
+      setLoading(false);
+    };
+
+    if (id) fetchVendorAndUser();
+  }, [id]);
+
+
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -140,9 +182,68 @@ export default function VendorDetailPage() {
     }
   };
 
+  const handleWishlist = async (e: React.MouseEvent, productId: string) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!user) return setShowLoginPopup(true);
+
+    const isWishlisted = wishlistedIds.includes(productId);
+
+    if (isWishlisted) {
+      // Optional: Logic to REMOVE from wishlist
+      const { error } = await supabase.from("user_wishlist").delete().eq("user_id", user.id).eq("product_id", productId);
+      if (!error) {
+        setWishlistedIds(prev => prev.filter(id => id !== productId));
+        toast.info("Removed from Wishlist");
+      }
+    } else {
+      const { error } = await supabase.from("user_wishlist").insert([{ user_id: user.id, product_id: productId }]);
+      if (!error) {
+        setWishlistedIds(prev => [...prev, productId]);
+        toast.success("Added to Wishlist!");
+      }
+    }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent, productId: string) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!user) return setShowLoginPopup(true);
+
+    const isInCart = cartIds.includes(productId);
+    if (isInCart) return toast.info("Already in your cart");
+
+    const { error } = await supabase.from("user_cart").insert([{ user_id: user.id, product_id: productId, quantity: 1 }]);
+    if (!error) {
+      setCartIds(prev => [...prev, productId]);
+      toast.success("Added to Cart!");
+    }
+  };
 
   return (
     <div className="w-full bg-white font-sans selection:bg-yellow-100">
+      <Toaster position="top-center" richColors /> {/* Add this line */}
+
+      <AnimatePresence>
+        {showLoginPopup && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-[2rem] max-w-sm w-full text-center shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock size={30} />
+              </div>
+              <h3 className="text-2xl font-black mb-2">Member Only</h3>
+              <p className="text-slate-500 mb-6 font-medium">Please login to save products or add them to your cart.</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => router.push('/login')} className="w-full bg-black text-white py-4 rounded-2xl font-bold">Login Now</button>
+                <button onClick={() => setShowLoginPopup(false)} className="w-full py-2 text-slate-400 font-bold">Maybe Later</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* --- MEDIA LIGHTBOX (MODAL) --- */}
       <AnimatePresence>
@@ -463,50 +564,90 @@ export default function VendorDetailPage() {
           </AccordionSection>
 
           {/* PRODUCT CATALOG */}
+          {/* PRODUCT CATALOG */}
           <AccordionSection
             title="Product Catalog"
             icon={<ShoppingBag size={20} />}
             isOpen={openSection === "products"}
             onToggle={() => setOpenSection(openSection === "products" ? null : "products")}
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {products.length > 0 ? (
-                products.map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-white border border-slate-100 rounded-2xl p-2 hover:shadow-xl hover:border-yellow-400 transition-all group"
-                  >
-                    <div
-                      onClick={() => {
-                        if (!p.product_image) return;
-                        const firstImageUrl = getProductImageUrl(p.product_image.split("|||")[0]);
-                        openMediaByUrl(firstImageUrl);
-                      }}
-                      className="aspect-square bg-slate-50 rounded-xl mb-3 overflow-hidden cursor-zoom-in relative"
-                    >
-                      {p.product_image ? (
-                        <ImageSlider images={p.product_image.split("|||").map(getProductImageUrl)} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-yellow-600/30">
-                          <ShoppingBag size={36} />
-                        </div>
-                      )}
-                    </div>
+                products.map((p) => {
+                  const isWishlisted = wishlistedIds.includes(p.id);
+                  const isInCart = cartIds.includes(p.id);
 
-                    <div className="px-1 pb-1">
-                      <h5 className="text-xs font-black text-slate-900 truncate uppercase tracking-tight">
-                        {p.product_name}
-                      </h5>
-                      <p className="text-red-600 font-black text-sm mt-1">
-                        ₹{p.price}
-                      </p>
+                  // Split images by separator or default to empty array
+                  const productImages = p.product_image
+                    ? p.product_image.split("|||").map((img: string) => getProductImageUrl(img))
+                    : [];
+
+                  return (
+                    <div key={p.id} className="group relative bg-white border-2 border-slate-50 rounded-[2.5rem] p-3 hover:shadow-2xl hover:border-yellow-400 transition-all duration-500 cursor-pointer">
+
+                      {/* --- IMAGE CONTAINER --- */}
+                      <div className="aspect-square w-full rounded-[2rem] overflow-hidden mb-4 bg-slate-100 relative">
+                        {productImages.length > 0 ? (
+                          <ImageSlider images={productImages} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <ImageIcon size={48} />
+                          </div>
+                        )}
+
+                        {/* --- WISHLIST BUTTON (Top Right of Image) --- */}
+                        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                          <button
+                            onClick={(e) => handleWishlist(e, p.id)}
+                            className={`p-3 rounded-2xl shadow-xl backdrop-blur-md transition-all ${isWishlisted
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white/90 text-slate-400 hover:text-red-500'
+                              }`}
+                          >
+                            <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+                          </button>
+                        </div>
+
+                        {/* --- QUICK VIEW OVERLAY --- */}
+                        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                      </div>
+
+                      {/* --- PRODUCT DETAILS --- */}
+                      <div className="px-3 pb-2">
+                        <div className="flex justify-between items-start mb-1">
+                          <h5 className="text-sm font-black text-slate-900 truncate uppercase tracking-tight flex-1">
+                            {p.product_name}
+                          </h5>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Price</span>
+                            <p className="text-xl font-black text-black">₹{p.price}</p>
+                          </div>
+
+                          {/* --- CART BUTTON --- */}
+                          <button
+                            onClick={(e) => handleAddToCart(e, p.id)}
+                            className={`p-4 rounded-2xl transition-all duration-300 ${isInCart
+                                ? 'bg-green-500 text-white scale-110 shadow-lg shadow-green-200'
+                                : 'bg-yellow-400 text-black hover:bg-black hover:text-white shadow-md'
+                              }`}
+                          >
+                            <ShoppingCart size={20} fill={isInCart ? "currentColor" : "none"} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <p className="text-slate-400 text-sm font-bold col-span-full py-10 text-center ">
-                  No products listed by this vendor.
-                </p>
+                <div className="col-span-full py-20 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                    <ShoppingBag size={30} />
+                  </div>
+                  <p className="text-slate-400 text-sm font-bold">No products listed by this vendor.</p>
+                </div>
               )}
             </div>
           </AccordionSection>

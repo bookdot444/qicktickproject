@@ -52,15 +52,15 @@ export default function ProductDetails() {
                 let videoUrl: string | null = null;
 
                 rawMedia.forEach((path: string) => {
-                    const fullUrl = path.startsWith("http") 
-                        ? path 
+                    const fullUrl = path.startsWith("http")
+                        ? path
                         : supabase.storage.from("products").getPublicUrl(path).data.publicUrl;
                     if (fullUrl.match(/\.(mp4|webm|ogg)$/i)) videoUrl = fullUrl;
                     else images.push(fullUrl);
                 });
 
                 if (images.length === 0 && videoUrl) images.push(videoUrl);
-                
+
                 setProduct({ ...mainProduct, images, videoUrl });
                 setActiveMedia({
                     type: images.length > 0 ? 'image' : 'video',
@@ -69,14 +69,14 @@ export default function ProductDetails() {
                 });
 
                 // Fetch other products from same vendor
-             // This part fetches the data
-const { data: others } = await supabase
-    .from("vendor_products")
-    .select("*")
-    .eq("vendor_id", mainProduct.vendor_id) // Matches the same vendor
-    .neq("id", id) // Excludes the current product being viewed
-    .limit(8);
-setOtherProducts(others || []);
+                // This part fetches the data
+                const { data: others } = await supabase
+                    .from("vendor_products")
+                    .select("*")
+                    .eq("vendor_id", mainProduct.vendor_id) // Matches the same vendor
+                    .neq("id", id) // Excludes the current product being viewed
+                    .limit(8);
+                setOtherProducts(others || []);
             }
 
             if (user) {
@@ -137,20 +137,20 @@ setOtherProducts(others || []);
             </nav>
 
             <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 mt-8">
-                
-                {/* LEFT SIDE: MEDIA GALLERY */}
-                <div className="lg:col-span-7 space-y-8">
-                    <div className="relative aspect-[4/5] md:aspect-square bg-white rounded-[3.5rem] overflow-hidden shadow-2xl border border-yellow-100 group">
+    {/* LEFT SIDE: MEDIA GALLERY (Now spans only 5 columns) */}
+    <div className="lg:col-span-5 space-y-8">
+                    {/* Added max-w-2xl and mx-auto to shrink the main container */}
+                    <div className="relative max-w-2xl mx-auto aspect-square bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-yellow-100 group">
                         <AnimatePresence mode="wait">
                             {activeMedia.type === 'video' ? (
-                                <motion.video 
+                                <motion.video
                                     key="video" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    src={activeMedia.url} controls className="w-full h-full object-cover" autoPlay 
+                                    src={activeMedia.url} controls className="w-full h-full object-cover" autoPlay
                                 />
                             ) : (
-                                <motion.img 
+                                <motion.img
                                     key={activeMedia.url} initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                                    src={activeMedia.url} className="w-full h-full object-cover" 
+                                    src={activeMedia.url} className="w-full h-full object-cover"
                                 />
                             )}
                         </AnimatePresence>
@@ -182,7 +182,7 @@ setOtherProducts(others || []);
                 </div>
 
                 {/* RIGHT SIDE: PRODUCT INFO */}
-                <div className="lg:col-span-5 space-y-10">
+              <div className="lg:col-span-7 space-y-10">
                     <div>
                         <div className="flex items-center gap-2 text-red-600 mb-6">
                             <MapPin size={14} strokeWidth={3} />
@@ -242,17 +242,17 @@ setOtherProducts(others || []);
 
                     {/* ACTION BUTTONS */}
                     <div className="flex gap-4 pt-6">
-                      <button 
-    onClick={async () => {
-        // 1. Ensure item is in cart first
-        await handleAddToCart(id as string, isMainInCart);
-        // 2. Navigate straight to checkout
-        router.push("/user/checkout");
-    }}
-    className="flex-[3] h-20 bg-yellow-400 hover:bg-black hover:text-white transition-all duration-500 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-yellow-200 active:scale-95"
->
-    Buy Now
-</button>
+                        <button
+                            onClick={async () => {
+                                // 1. Ensure item is in cart first
+                                await handleAddToCart(id as string, isMainInCart);
+                                // 2. Navigate straight to checkout
+                                router.push("/user/checkout");
+                            }}
+                            className="flex-[3] h-20 bg-yellow-400 hover:bg-black hover:text-white transition-all duration-500 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-yellow-200 active:scale-95"
+                        >
+                            Buy Now
+                        </button>
                         <button
                             onClick={() => handleAddToCart(id as string, isMainInCart)}
                             className={`flex-1 h-20 rounded-[2rem] flex items-center justify-center border-2 transition-all duration-500 ${isMainInCart ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 bg-white hover:border-black'}`}
@@ -294,7 +294,7 @@ setOtherProducts(others || []);
                             const imgs = item.product_image?.split("|||") || [];
                             const firstImg = imgs[0]?.startsWith("http") ? imgs[0] : supabase.storage.from("products").getPublicUrl(imgs[0]).data.publicUrl;
                             const isThisWishlisted = wishlistIds.includes(item.id);
-                            
+
                             return (
                                 <motion.div
                                     key={item.id}
