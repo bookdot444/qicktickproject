@@ -8,11 +8,16 @@ import {
   Trash2, Pencil, Loader, LayoutGrid, Eye,
   ChevronLeft, ChevronRight, Film,
   Building2, User, Landmark, CreditCard, Wallet, Hash,
-  Tag, Info, Shirt, ShoppingBag, Calendar
+  Tag, Info, Shirt, ShoppingBag, Calendar, ListPlus, Sparkles
 } from "lucide-react";
 
 // --- Interfaces ---
 interface Category { id: string; name: string; }
+interface ProductFeature {
+  header: string;
+  description: string;
+}
+
 interface Product {
   id: string;
   product_name: string;
@@ -24,6 +29,7 @@ interface Product {
   material?: string;
   care_instructions?: string;
   tags?: string;
+  features: ProductFeature[];
   created_at: string;
 }
 
@@ -60,8 +66,8 @@ const ProductMediaSlider: React.FC<{ urls: string[]; isActive?: boolean; classNa
       )}
       {urls.length > 1 && (
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-2 pointer-events-none z-20">
-          <button type="button" onClick={(e) => { e.stopPropagation(); setIndex(i => i === 0 ? urls.length - 1 : i - 1); }} className="pointer-events-auto w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"><ChevronLeft size={20} /></button>
-          <button type="button" onClick={(e) => { e.stopPropagation(); setIndex(i => i === urls.length - 1 ? 0 : i + 1); }} className="pointer-events-auto w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"><ChevronRight size={20} /></button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setIndex(i => i === 0 ? urls.length - 1 : i - 1); }} className="pointer-events-auto w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"><ChevronLeft size={20} className="text-black" /></button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setIndex(i => i === urls.length - 1 ? 0 : i + 1); }} className="pointer-events-auto w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"><ChevronRight size={20} className="text-black" /></button>
         </div>
       )}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
@@ -90,6 +96,10 @@ export default function VendorInventoryStudio() {
   const [fileObjects, setFileObjects] = useState<File[]>([]);
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  
+  const [productFeatures, setProductFeatures] = useState<ProductFeature[]>([]);
+  const [currentFeature, setCurrentFeature] = useState({ header: '', description: '' });
+
   const [formData, setFormData] = useState({
     product_name: '', price: '', description: '', category_id: '', 
     is_active: true, material: '', care_instructions: '', tags: ''
@@ -130,6 +140,17 @@ export default function VendorInventoryStudio() {
     setFileObjects(prev => prev.filter((_, i) => i !== index));
   };
 
+  const addFeature = () => {
+    if (currentFeature.header.trim() && currentFeature.description.trim()) {
+      setProductFeatures([...productFeatures, currentFeature]);
+      setCurrentFeature({ header: '', description: '' });
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    setProductFeatures(productFeatures.filter((_, i) => i !== index));
+  };
+
   const handleBankSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -166,11 +187,20 @@ export default function VendorInventoryStudio() {
         catId = newCat?.id;
       }
 
-      const payload = { ...formData, price: parseFloat(formData.price), product_image: finalMediaString, vendor_id: vendorRecord?.id, category_id: catId };
+      const payload = { 
+        ...formData, 
+        price: parseFloat(formData.price), 
+        product_image: finalMediaString, 
+        vendor_id: vendorRecord?.id, 
+        category_id: catId,
+        features: productFeatures 
+      };
+
       if (editingId) await supabase.from('vendor_products').update(payload).eq('id', editingId);
       else await supabase.from('vendor_products').insert([payload]);
 
       setFormData({ product_name: '', price: '', description: '', category_id: '', is_active: true, material: '', care_instructions: '', tags: '' });
+      setProductFeatures([]);
       setMediaPreviews([]);
       setFileObjects([]);
       setEditingId(null);
@@ -191,33 +221,35 @@ export default function VendorInventoryStudio() {
       care_instructions: item.care_instructions || '',
       tags: item.tags || ''
     });
+    setProductFeatures(item.features || []);
     setMediaPreviews(item.product_image ? item.product_image.split('|||') : []);
     setFileObjects([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] pb-12 font-sans">
+    // FORCED LIGHT MODE: Added "bg-white text-gray-900" to the main wrapper
+    <div className="min-h-screen bg-white text-gray-900 pb-12 font-sans selection:bg-yellow-200">
       
       {/* BANK MODAL */}
       <AnimatePresence>
         {showBankModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative">
-              <button onClick={() => setShowBankModal(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><X size={20}/></button>
+              <button onClick={() => setShowBankModal(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><X size={20} className="text-black"/></button>
               <div className="mb-6">
-                <h2 className="text-2xl font-black uppercase tracking-tight">Bank <span className="text-red-600">Details</span></h2>
+                <h2 className="text-2xl font-black uppercase tracking-tight text-black">Bank <span className="text-red-600">Details</span></h2>
                 <p className="text-gray-400 text-sm font-bold mt-1">For receiving your payments</p>
               </div>
               <form onSubmit={handleBankSubmit} className="space-y-4">
-                <div className="relative"><Building2 className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="Bank Name" value={bankDetails.bank_name} onChange={e => setBankDetails({...bankDetails, bank_name: e.target.value})} /></div>
-                <div className="relative"><User className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="Account Holder Name" value={bankDetails.holder_name} onChange={e => setBankDetails({...bankDetails, holder_name: e.target.value})} /></div>
-                <div className="relative"><Hash className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="Account Number" value={bankDetails.account_number} onChange={e => setBankDetails({...bankDetails, account_number: e.target.value})} /></div>
+                <div className="relative"><Building2 className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="Bank Name" value={bankDetails.bank_name} onChange={e => setBankDetails({...bankDetails, bank_name: e.target.value})} /></div>
+                <div className="relative"><User className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="Account Holder Name" value={bankDetails.holder_name} onChange={e => setBankDetails({...bankDetails, holder_name: e.target.value})} /></div>
+                <div className="relative"><Hash className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="Account Number" value={bankDetails.account_number} onChange={e => setBankDetails({...bankDetails, account_number: e.target.value})} /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="IFSC Code" value={bankDetails.ifsc_code} onChange={e => setBankDetails({...bankDetails, ifsc_code: e.target.value})} />
-                  <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="Branch Name" value={bankDetails.branch} onChange={e => setBankDetails({...bankDetails, branch: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="IFSC Code" value={bankDetails.ifsc_code} onChange={e => setBankDetails({...bankDetails, ifsc_code: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="Branch Name" value={bankDetails.branch} onChange={e => setBankDetails({...bankDetails, branch: e.target.value})} />
                 </div>
-                <div className="relative"><Wallet className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-yellow-400" placeholder="UPI ID" value={bankDetails.upi_id} onChange={e => setBankDetails({...bankDetails, upi_id: e.target.value})} /></div>
+                <div className="relative"><Wallet className="absolute left-4 top-4 text-gray-400" size={18}/><input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" placeholder="UPI ID" value={bankDetails.upi_id} onChange={e => setBankDetails({...bankDetails, upi_id: e.target.value})} /></div>
                 <button type="submit" disabled={loading} className="w-full bg-black text-white py-5 rounded-2xl font-black uppercase tracking-widest active:scale-95 disabled:bg-gray-300 transition-transform">
                   {loading ? <Loader className="animate-spin mx-auto" size={20}/> : "Save Bank Details"}
                 </button>
@@ -232,13 +264,13 @@ export default function VendorInventoryStudio() {
         {viewingProduct && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white w-full max-w-5xl rounded-[3rem] overflow-hidden shadow-2xl relative flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[90vh]">
-                    <button onClick={() => setViewingProduct(null)} className="absolute top-6 right-6 z-30 p-3 bg-white/90 backdrop-blur shadow-lg rounded-full hover:scale-110 transition-transform"><X size={24}/></button>
+                    <button onClick={() => setViewingProduct(null)} className="absolute top-6 right-6 z-30 p-3 bg-white/90 backdrop-blur shadow-lg rounded-full hover:scale-110 transition-transform"><X size={24} className="text-black"/></button>
                     
                     <div className="w-full md:w-1/2 bg-gray-100">
                         <ProductMediaSlider urls={viewingProduct.product_image.split('|||')} className="h-full aspect-auto min-h-[400px]" />
                     </div>
 
-                    <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto bg-white">
+                    <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto bg-white text-black">
                         <div className="space-y-6">
                             <div className="flex items-center gap-2">
                                 <span className="px-3 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -257,16 +289,20 @@ export default function VendorInventoryStudio() {
                             <div className="space-y-4">
                                 <p className="text-gray-500 font-medium leading-relaxed">{viewingProduct.description}</p>
                                 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 bg-gray-50 rounded-2xl"><Shirt size={20} className="text-gray-400"/></div>
-                                        <div><p className="text-[10px] font-black text-gray-400 uppercase">Material</p><p className="font-bold text-sm">{viewingProduct.material || 'N/A'}</p></div>
+                                {viewingProduct.features && viewingProduct.features.length > 0 && (
+                                  <div className="pt-4 space-y-4">
+                                    <p className="text-[10px] font-black uppercase text-gray-400 flex items-center gap-2 tracking-widest"><Sparkles size={14} className="text-yellow-500"/> Key Features</p>
+                                    <div className="grid grid-cols-1 gap-3">
+                                      {viewingProduct.features.map((f, i) => (
+                                        <div key={i} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                          <h4 className="font-black text-xs uppercase text-gray-900 mb-1">{f.header}</h4>
+                                          <p className="text-sm text-red-600 font-bold">{f.description}</p>
+                                        </div>
+                                      ))}
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 bg-gray-50 rounded-2xl"><Info size={20} className="text-gray-400"/></div>
-                                        <div><p className="text-[10px] font-black text-gray-400 uppercase">Care</p><p className="font-bold text-sm">{viewingProduct.care_instructions || 'N/A'}</p></div>
-                                    </div>
-                                </div>
+                                  </div>
+                                )}
+
                             </div>
 
                             {viewingProduct.tags && (
@@ -292,14 +328,14 @@ export default function VendorInventoryStudio() {
       {/* HERO SECTION */}
       <div className="bg-[#FEF3C7] pt-10 pb-32 px-6 border-b border-yellow-200">
         <div className="max-w-7xl mx-auto flex justify-end mb-8">
-           <button onClick={() => setShowBankModal(true)} className="flex items-center gap-3 bg-white border border-yellow-200 px-6 py-3 rounded-full font-black text-xs uppercase hover:bg-yellow-400 transition-all shadow-sm">
+           <button onClick={() => setShowBankModal(true)} className="flex items-center gap-3 bg-white border border-yellow-200 px-6 py-3 rounded-full font-black text-xs uppercase text-black hover:bg-yellow-400 transition-all shadow-sm">
              <Landmark size={16} className="text-yellow-600" />
              {bankDetails.bank_name ? "Edit Bank Details" : "Add Bank Details"}
            </button>
         </div>
 
         <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-6xl md:text-7xl font-black tracking-tighter uppercase leading-none">
+          <h1 className="text-6xl md:text-7xl font-black tracking-tighter uppercase leading-none text-black">
             Inventory <span className="text-red-600">Studio</span>
           </h1>
           
@@ -329,7 +365,7 @@ export default function VendorInventoryStudio() {
           {/* Form */}
           <div className="lg:col-span-5">
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8 space-y-6">
-               <h2 className="font-black text-xl flex items-center gap-3 uppercase tracking-tight">
+               <h2 className="font-black text-xl flex items-center gap-3 uppercase tracking-tight text-black">
                   {editingId ? <Pencil className="text-yellow-500" size={24}/> : <PlusCircle className="text-red-500" size={24}/>}
                   {editingId ? 'Edit Product' : 'New Listing'}
                </h2>
@@ -337,25 +373,46 @@ export default function VendorInventoryStudio() {
                <form onSubmit={handleSubmit} className="space-y-4">
                  <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase text-gray-400 ml-2">General Info</p>
-                    <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-yellow-400" value={formData.product_name} onChange={(e) => setFormData({ ...formData, product_name: e.target.value })} placeholder="Product Name" />
+                    <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" value={formData.product_name} onChange={(e) => setFormData({ ...formData, product_name: e.target.value })} placeholder="Product Name" />
                     <div className="grid grid-cols-2 gap-4">
-                        <input type="number" required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-yellow-400" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="Price (₹)" />
-                        <select required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none" value={formData.category_id} onChange={(e) => { setFormData({ ...formData, category_id: e.target.value }); setIsOtherSelected(e.target.value === "other"); }}>
+                        <input type="number" required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none focus:ring-2 ring-yellow-400" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="Price (₹)" />
+                        <select required className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none" value={formData.category_id} onChange={(e) => { setFormData({ ...formData, category_id: e.target.value }); setIsOtherSelected(e.target.value === "other"); }}>
                             <option value="">Category</option>
                             {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                             <option value="other">+ New Category</option>
                         </select>
                     </div>
-                    {isOtherSelected && <input className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 font-bold" placeholder="New Category Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />}
-                    <textarea rows={2} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold outline-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Description..." />
+                    {isOtherSelected && <input className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 font-bold text-black" placeholder="New Category Name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />}
+                    <textarea rows={2} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-black outline-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Description..." />
                  </div>
 
                  <div className="space-y-3 pt-2">
-                    <p className="text-[10px] font-black uppercase text-gray-400 ml-2">Extra Details</p>
-                    <div className="relative"><Shirt className="absolute left-4 top-4 text-gray-300" size={18}/><input className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none" placeholder="Material (e.g. Cotton)" value={formData.material} onChange={e => setFormData({...formData, material: e.target.value})} /></div>
-                    <div className="relative"><Info className="absolute left-4 top-4 text-gray-300" size={18}/><input className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none" placeholder="Care Instructions" value={formData.care_instructions} onChange={e => setFormData({...formData, care_instructions: e.target.value})} /></div>
-                    <div className="relative"><Tag className="absolute left-4 top-4 text-gray-300" size={18}/><input className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none" placeholder="Tags (comma separated)" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} /></div>
+                    <p className="text-[10px] font-black uppercase text-gray-400 ml-2">Product Features (JSON)</p>
+                    <div className="p-4 bg-gray-50 rounded-[2rem] border border-gray-100 space-y-3">
+                      <div className="space-y-2">
+                        <input className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-bold text-black" placeholder="Feature Header (e.g. Color)" value={currentFeature.header} onChange={e => setCurrentFeature({...currentFeature, header: e.target.value})} />
+                        <input className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm font-bold text-red-600" placeholder="Short Description (e.g. Crimson Red)" value={currentFeature.description} onChange={e => setCurrentFeature({...currentFeature, description: e.target.value})} />
+                        <button type="button" onClick={addFeature} className="w-full py-2 bg-yellow-400 text-black rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                          <ListPlus size={14}/> Add Feature
+                        </button>
+                      </div>
+
+                      {productFeatures.length > 0 && (
+                        <div className="pt-2 space-y-2">
+                          {productFeatures.map((f, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                              <div>
+                                <p className="text-[10px] font-black uppercase text-gray-400">{f.header}</p>
+                                <p className="text-xs font-bold text-red-600">{f.description}</p>
+                              </div>
+                              <button type="button" onClick={() => removeFeature(i)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={16}/></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                  </div>
+
                  
                  <div className="space-y-3 pt-2">
                     <div className="flex justify-between items-center ml-2">
@@ -394,7 +451,7 @@ export default function VendorInventoryStudio() {
           {/* Catalog */}
           <div className="lg:col-span-7 space-y-6">
             <div className="flex items-center justify-between py-4">
-              <h2 className="font-black text-2xl flex items-center gap-3 tracking-tighter uppercase"><LayoutGrid size={24} className="text-red-500" /> My Collection</h2>
+              <h2 className="font-black text-2xl flex items-center gap-3 tracking-tighter uppercase text-black"><LayoutGrid size={24} className="text-red-500" /> My Collection</h2>
               <span className="bg-black text-white px-5 py-2 rounded-2xl text-[10px] font-black shadow-lg uppercase tracking-widest">{products.length} Items</span>
             </div>
 
@@ -415,7 +472,7 @@ export default function VendorInventoryStudio() {
                             <button onClick={() => { if(confirm("Delete this listing?")) supabase.from('vendor_products').delete().eq('id', item.id).then(() => fetchInitialData()) }} className="p-3 bg-white text-red-600 rounded-full shadow-xl hover:bg-red-600 hover:text-white transition-colors"><Trash2 size={18}/></button>
                         </div>
                     </div>
-                    <div className="p-7">
+                    <div className="p-7 text-black">
                         <div className="flex justify-between items-start mb-3">
                             <div>
                                 <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">{categories.find(c => c.id === item.category_id)?.name || 'Default'}</p>

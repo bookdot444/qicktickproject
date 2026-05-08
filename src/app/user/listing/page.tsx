@@ -87,15 +87,35 @@ export default function VendorProductsPage() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // ACTION HANDLERS
-  const handleWishlist = async (productId: string) => {
+const handleWishlist = async (productId: string) => {
     if (!user) return alert("Please login!");
 
-    const { error } = await supabase
-      .from("user_wishlist")
-      .insert({ user_id: user.id, product_id: productId });
+    const isAlreadyWishlisted = wishlistIds.includes(productId);
 
-    if (!error) {
-      setWishlistIds(prev => [...prev, productId]);
+    if (isAlreadyWishlisted) {
+      // REMOVE FROM WISHLIST
+      const { error } = await supabase
+        .from("user_wishlist")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("product_id", productId);
+
+      if (!error) {
+        setWishlistIds(prev => prev.filter(id => id !== productId));
+      } else {
+        console.error("Error removing from wishlist:", error);
+      }
+    } else {
+      // ADD TO WISHLIST
+      const { error } = await supabase
+        .from("user_wishlist")
+        .insert({ user_id: user.id, product_id: productId });
+
+      if (!error) {
+        setWishlistIds(prev => [...prev, productId]);
+      } else {
+        console.error("Error adding to wishlist:", error);
+      }
     }
   };
 
@@ -189,70 +209,79 @@ export default function VendorProductsPage() {
     </div>
   );
 }
-
 function ProductCard({ product, onWishlist, onCart, isWishlisted, isInCart }: any) {
   return (
     <motion.div layout className="group bg-white rounded-2xl border border-yellow-100 hover:border-yellow-400 shadow-md transition-all overflow-hidden flex flex-col relative">
 
-      {/* WISHLIST BUTTON */}
-      <button
-        onClick={onWishlist}
-        className={`absolute top-3 right-3 z-30 p-2 rounded-full shadow-sm border transition-all active:scale-90
-  ${isWishlisted
-            ? "bg-red-500 text-white border-red-500"
-            : "bg-white/90 text-gray-400 hover:text-red-500 border-yellow-50"
+      {/* WISHLIST BUTTON - TOGGLE DESIGN */}
+      <motion.button
+        whileTap={{ scale: 0.8 }}
+        onClick={(e) => {
+          e.preventDefault();
+          onWishlist();
+        }}
+        className={`absolute top-3 right-3 z-30 p-2 rounded-full shadow-md border transition-all 
+          ${isWishlisted 
+            ? "bg-red-500 text-white border-red-500" 
+            : "bg-white/90 text-gray-400 hover:text-red-500 border-slate-100"
           }`}
       >
-        <Heart size={16} fill={isWishlisted ? "white" : "none"} />
-      </button>
+        <Heart 
+          size={16} 
+          fill={isWishlisted ? "currentColor" : "none"} 
+          strokeWidth={isWishlisted ? 0 : 2}
+        />
+      </motion.button>
 
       {/* IMAGE SLIDER */}
       <div className="relative h-44 overflow-hidden bg-gray-50">
         {product.product_image?.length > 0 ? (
           <ImageSlider images={product.product_image} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-yellow-200"><Package size={40} /></div>
+          <div className="w-full h-full flex items-center justify-center text-yellow-200">
+            <Package size={40} />
+          </div>
         )}
       </div>
 
       <div className="p-5 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-2">
-          <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">{product.vendor?.company_name}</span>
-          <span className="text-[9px] font-medium text-gray-400">{product.vendor?.city}</span>
+          <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
+            {product.vendor?.company_name}
+          </span>
+          <span className="text-[9px] font-medium text-gray-400">
+            {product.vendor?.city}
+          </span>
         </div>
 
-        <h3 className="text-sm font-black text-gray-900 mb-1 line-clamp-1">{product.product_name}</h3>
-        <p className="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">{product.description}</p>
+        <h3 className="text-sm font-black text-gray-900 mb-1 line-clamp-1">
+          {product.product_name}
+        </h3>
+        <p className="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+          {product.description}
+        </p>
 
         <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
           <div>
             <p className="text-[8px] font-bold text-gray-400 uppercase">Price</p>
-            <p className="text-lg font-black text-gray-900">₹{Number(product.price).toLocaleString()}</p>
+            <p className="text-lg font-black text-gray-900">
+              ₹{Number(product.price).toLocaleString()}
+            </p>
           </div>
 
           <div className="flex gap-2">
-            {/* ADD TO CART */}
             <button
               onClick={onCart}
               className={`px-3 py-2 rounded-xl transition-all active:scale-90 shadow-sm flex items-center gap-1 text-xs font-bold
-  ${isInCart
-                  ? "bg-green-500 text-white"
-                  : "bg-yellow-500 hover:bg-yellow-600 text-black"
-                }`}
+                ${isInCart ? "bg-green-500 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-black"}`}
             >
-              {isInCart ? (
-                <>
-                  ✓ Added
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={16} /> Add
-                </>
-              )}
+              {isInCart ? "✓ Added" : <><ShoppingCart size={16} /> Add</>}
             </button>
 
-            {/* GO TO DETAILS ARROW --> */}
-            <Link href={`/user/products/${product.id}`} className="bg-gray-900 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all hover:translate-x-1 shadow-md">
+            <Link 
+              href={`/user/products/${product.id}`} 
+              className="bg-gray-900 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all hover:translate-x-1 shadow-md"
+            >
               <ArrowRight size={18} />
             </Link>
           </div>

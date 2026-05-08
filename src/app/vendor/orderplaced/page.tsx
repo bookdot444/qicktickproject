@@ -17,7 +17,7 @@ import {
   History
 } from "lucide-react";
 import Link from "next/link"; // Assuming you use Next.js for routing
-
+import { PrintableInvoice } from "@/components/PrintableInvoice";
 export default function VendorOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
@@ -115,27 +115,31 @@ export default function VendorOrdersPage() {
     }
   };
 
-  const handleShipOrder = async (order: any) => {
-    const confirmShip = confirm("Push to Shiprocket?");
-    if (!confirmShip) return;
+ const handleShipOrder = async (order: any) => {
+  const confirmShip = confirm("Push to Shiprocket?");
+  if (!confirmShip) return;
 
-    try {
-      const res = await fetch("/api/shiprocket/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id, orderData: order }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("✅ Order shipped successfully!");
-        loadData();
-      } else {
-        alert("ERROR: " + JSON.stringify(data));
-      }
-    } catch (err) {
-      alert("❌ Request failed");
+  try {
+    const res = await fetch("/api/shiprocket/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        orderId: order.id, 
+        orderData: order,
+        vendorProfile: vendorProfile // Pass the profile here
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Order created in Shiprocket!");
+      loadData();
+    } else {
+      alert("ERROR: " + (data.error?.message || JSON.stringify(data.error)));
     }
-  };
+  } catch (err) {
+    alert("❌ Request failed");
+  }
+};
 
   const filteredOrders = orders.filter((order) => {
     const status = order.order_status?.toLowerCase() || "pending";
@@ -148,12 +152,23 @@ export default function VendorOrdersPage() {
   return (
     <div className="min-h-screen bg-[#FFFDF5] text-slate-900 pb-24 font-sans">
       <style jsx global>{`
-        @media print {
-          @page { size: auto; margin: 5mm; }
-          .no-print { display: none !important; }
-          #printable-invoice { visibility: visible !important; width: 100%; }
-        }
-      `}</style>
+  @media screen {
+    .print-only { display: none !important; }
+  }
+  @media print {
+    body * { visibility: hidden; }
+    .no-print { display: none !important; }
+    .print-only, .print-only * { visibility: visible; }
+    .print-only {
+      display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    @page { size: A4; margin: 0; }
+  }
+`}</style>
 
       {/* VENDOR HEADER */}
       <header className="bg-white border-b-2 border-slate-100 pt-12 pb-8 px-6 no-print">
@@ -252,6 +267,10 @@ export default function VendorOrdersPage() {
                         <p className="text-[10px] font-bold uppercase">{new Date(order.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
+
+                    <div className="print-only">
+      <PrintableInvoice order={order} vendorProfile={vendorProfile} />
+    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-8">
                       <div className="border-2 border-black p-6 rounded-xl">

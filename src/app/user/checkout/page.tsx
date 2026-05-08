@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   Truck,
   ReceiptIndianRupee,
-  Navigation
+  Navigation,
+  History // Added for the UI
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,7 +26,6 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   
-  // Updated Address State with specific fields
   const [address, setAddress] = useState({
     name: "",
     phone: "",
@@ -41,18 +41,44 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
-    fetchCart();
+    fetchInitialData();
   }, []);
 
-  const fetchCart = async () => {
+  const fetchInitialData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
+    
     if (user) {
-      const { data } = await supabase
+      // 1. Fetch Cart
+      const { data: cartData } = await supabase
         .from("user_cart")
         .select(`id, quantity, product:vendor_products (*)`)
         .eq("user_id", user.id);
-      setCart(data || []);
+      setCart(cartData || []);
+
+      // 2. Fetch Previous Order Address
+      const { data: lastOrder, error: orderError } = await supabase
+        .from("orders")
+        .select("address")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastOrder && lastOrder.address) {
+        // Map the saved address JSON back to our state
+        setAddress({
+          name: lastOrder.address.name || "",
+          phone: lastOrder.address.phone || "",
+          building: lastOrder.address.building || "",
+          street: lastOrder.address.street || "",
+          area: lastOrder.address.area || "",
+          landmark: lastOrder.address.landmark || "",
+          city: lastOrder.address.city || "",
+          state: lastOrder.address.state || "",
+          pincode: lastOrder.address.pincode || "",
+        });
+      }
     }
     setLoading(false);
   };
@@ -68,7 +94,6 @@ export default function CheckoutPage() {
       const { latitude, longitude } = position.coords;
 
       try {
-        // Using OpenStreetMap's Nominatim API (Free, no key required for low volume)
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
         );
@@ -99,8 +124,7 @@ export default function CheckoutPage() {
   const subTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const tax = subTotal * 0.18;
   const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
-  const grandTotal = subTotal + tax ;
-  //const grandTotal = subTotal + tax + shipping;
+  const grandTotal = subTotal + tax;
 
   // ---------------- VALIDATION ----------------
   const validate = () => {
@@ -117,7 +141,7 @@ export default function CheckoutPage() {
     return Object.keys(err).length === 0;
   };
 
-  // ---------------- PAYMENT (Razorpay Logic) ----------------
+  // ---------------- PAYMENT ----------------
   const loadRazorpay = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -148,33 +172,31 @@ export default function CheckoutPage() {
       currency: "INR",
       name: "The Vault",
       order_id: order.id,
-     handler: async (response: any) => {
-  const { data: userData } = await supabase.auth.getUser();
+      handler: async (response: any) => {
+        const { data: userData } = await supabase.auth.getUser();
 
-  const orderPayload = {
-    user_id: userData.user?.id,
-    total_amount: grandTotal,
-    sub_total: subTotal,
-    tax: tax,
-    shipping: shipping, // This will work once you run the ALTER TABLE command above
-    razorpay_order_id: response.razorpay_order_id,
-    razorpay_payment_id: response.razorpay_payment_id,
-    payment_status: "paid",
-    // Use JSON.stringify if you want to store as Text, 
-    // but since your table uses JSONB, you can send the objects directly:
-    address: address, 
-    items: cart,
-  };
+        const orderPayload = {
+          user_id: userData.user?.id,
+          total_amount: grandTotal,
+          sub_total: subTotal,
+          tax: tax,
+          shipping: shipping,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          payment_status: "paid",
+          address: address, 
+          items: cart,
+        };
 
-  const { error } = await supabase.from("orders").insert([orderPayload]);
-  
-  if (error) {
-    console.error("Insert Error:", error);
-    return alert("Order save failed: " + error.message);
-  }
-  
-  router.push("/user/orders");
-},
+        const { error } = await supabase.from("orders").insert([orderPayload]);
+        
+        if (error) {
+          console.error("Insert Error:", error);
+          return alert("Order save failed: " + error.message);
+        }
+        
+        router.push("/user/orders");
+      },
       theme: { color: "#EAB308" }
     };
 
@@ -233,17 +255,22 @@ export default function CheckoutPage() {
                   <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center">
                     <MapPin size={20} className="text-yellow-600" />
                   </div>
-                  <h2 className="text-xl font-black uppercase tracking-tight italic">Shipping Details</h2>
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight italic">Shipping Details</h2>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Pre-filled from your last order</p>
+                  </div>
                 </div>
                 
-                <button 
-                  onClick={fetchCurrentLocation}
-                  disabled={locating}
-                  className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-100 disabled:text-gray-400 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-yellow-200"
-                >
-                  <Navigation size={14} className={locating ? "animate-pulse" : ""} />
-                  {locating ? "Locating..." : "Use My Location"}
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                    onClick={fetchCurrentLocation}
+                    disabled={locating}
+                    className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-100 disabled:text-gray-400 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-yellow-200"
+                    >
+                    <Navigation size={14} className={locating ? "animate-pulse" : ""} />
+                    {locating ? "Locating..." : "Use GPS"}
+                    </button>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-6">

@@ -265,9 +265,6 @@ export default function VideoPage() {
       setCommentCounts(commentCountsMap);
 
       // -------------------------
-      // VIEWS
-      // -------------------------
-      // -------------------------
       // VIEWS (CORRECT COUNT QUERY)
       // -------------------------
       const { data: groupedViews, error: groupedError } =
@@ -294,7 +291,7 @@ export default function VideoPage() {
 
   const handleShare = async (video: any) => {
     try {
-      const shareUrl = `${window.location.origin}/user/video?vid=${video.uniqueId}`; // Changed from /user/videos to /user/video
+      const shareUrl = `${window.location.origin}/user/video?vid=${video.uniqueId}`;
 
       if (navigator.share) {
         await navigator.share({
@@ -349,7 +346,7 @@ export default function VideoPage() {
     } else {
       await supabase.from("video_likes").insert({
         video_unique_id: uniqueId,
-        user_id: user.id,   // ✅ IMPORTANT (you forgot this)
+        user_id: user.id,
       });
 
       setLikedVideos((prev) => new Set(prev).add(uniqueId));
@@ -460,6 +457,7 @@ export default function VideoPage() {
 
     window.open(`https://wa.me/${phone}`, "_blank");
   };
+  
   useEffect(() => {
     const activeVideoEl = videoRefs.current[activeIndex];
 
@@ -471,6 +469,7 @@ export default function VideoPage() {
       });
     }
   }, [soundOn, activeIndex]);
+  
   useEffect(() => {
     videoRefs.current.forEach((vid, i) => {
       if (vid && i !== activeIndex) {
@@ -489,7 +488,7 @@ export default function VideoPage() {
       <div className="h-[100dvh] w-full bg-black overflow-hidden relative">
         <Toaster position="top-center" />
 
-        {/* SEARCH + FILTER */}
+        {/* SEARCH + FILTER (RESTORED TO ORIGINAL) */}
         <div className="fixed inset-0 z-[150] pointer-events-none">
           <div className="absolute top-24 left-0 right-0 px-4 pointer-events-auto space-y-2">
             <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center gap-2 p-3 shadow-2xl">
@@ -530,21 +529,21 @@ export default function VideoPage() {
             </div>
           </div>
 
-          {/* RIGHT ICON PANEL (ONLY ACTIVE VIDEO) */}
+          {/* RIGHT ICON PANEL (ONLY ACTIVE VIDEO) - AGGRESSIVELY SHRUNK SIZES */}
           {activeVideo && (
-            <div className="fixed right-4 bottom-28 z-[160] flex flex-col gap-4 pointer-events-auto">
+            <div className="fixed right-2 bottom-28 z-[160] flex flex-col gap-2 pointer-events-auto">
               {/* SOUND TOGGLE */}
               <button
                 onClick={() => setSoundOn((prev) => !prev)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-0.5"
               >
-                <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                  <span className="text-white text-[20px]">
+                {/* Fixed w-9 h-9 ensures the circle is small regardless of padding */}
+                <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                  <span className="text-white text-[14px] leading-none">
                     {soundOn ? "🔊" : "🔇"}
                   </span>
                 </div>
-
-                <span className="text-[9px] font-bold text-white uppercase">
+                <span className="text-[7px] font-black text-white uppercase tracking-wider mt-0.5">
                   {soundOn ? "Sound" : "Mute"}
                 </span>
               </button>
@@ -552,44 +551,42 @@ export default function VideoPage() {
               {/* LIKE */}
               <button
                 onClick={() => toggleLike(activeVideo.uniqueId)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-0.5"
               >
-                <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
                   <FontAwesomeIcon
                     icon={faHandsClapping}
                     className={likedVideos.has(activeVideo.uniqueId) ? "text-yellow-400" : "text-white"}
-                    style={{ fontSize: "24px" }}
+                    style={{ fontSize: "16px" }}
                   />
                 </div>
-
-                <span className="text-[10px] font-bold text-white">
+                <span className="text-[7px] font-black text-white mt-0.5">
                   {likeCounts[activeVideo.uniqueId] || 0}
                 </span>
               </button>
 
-
               {/* COMMENT */}
               <button
                 onClick={() => handleComment(activeVideo.uniqueId)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-0.5"
               >
-                <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                  <MessageSquare size={24} className="text-white" />
+                <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                  <MessageSquare size={16} className="text-white" />
                 </div>
-                <span className="text-[10px] font-bold text-white">
+                <span className="text-[7px] font-black text-white mt-0.5">
                   {commentCounts[activeVideo.uniqueId] || 0}
                 </span>
               </button>
 
+              {/* SHARE */}
               <button
                 onClick={() => handleShare(activeVideo)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-0.5"
               >
-                <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                  <Share2 size={24} className="text-white" />
+                <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                  <Share2 size={16} className="text-white" />
                 </div>
-
-                <span className="text-[9px] font-bold text-white uppercase">
+                <span className="text-[7px] font-black text-white uppercase tracking-wider mt-0.5">
                   Share
                 </span>
               </button>
@@ -598,11 +595,11 @@ export default function VideoPage() {
               {activeVideo.source === "register" && (
                 <>
                   {/* SERVICE */}
-                  <button onClick={() => handleService(activeVideo)} className="flex flex-col items-center gap-1">
-                    <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                      <Briefcase size={24} className="text-yellow-400" />
+                  <button onClick={() => handleService(activeVideo)} className="flex flex-col items-center gap-0.5">
+                    <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                      <Briefcase size={16} className="text-yellow-400" />
                     </div>
-                    <span className="text-[9px] font-bold text-white uppercase">
+                    <span className="text-[7px] font-black text-white uppercase tracking-wider mt-0.5">
                       Update
                     </span>
                   </button>
@@ -611,23 +608,23 @@ export default function VideoPage() {
                   {activeVideo.websites?.length > 0 && (
                     <button
                       onClick={() => handleWebsite(activeVideo)}
-                      className="flex flex-col items-center gap-1"
+                      className="flex flex-col items-center gap-0.5"
                     >
-                      <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                        <Globe size={24} className="text-blue-400" />
+                      <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                        <Globe size={16} className="text-blue-400" />
                       </div>
-                      <span className="text-[9px] font-bold text-white uppercase">
+                      <span className="text-[7px] font-black text-white uppercase tracking-wider mt-0.5">
                         Site
                       </span>
                     </button>
                   )}
 
                   {/* ADS */}
-                  <button onClick={() => handleAds(activeVideo)} className="flex flex-col items-center gap-1">
-                    <div className="p-3 rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
-                      <Megaphone size={24} className="text-pink-400" />
+                  <button onClick={() => handleAds(activeVideo)} className="flex flex-col items-center gap-0.5">
+                    <div className="w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-xl border border-white/20">
+                      <Megaphone size={16} className="text-pink-400" />
                     </div>
-                    <span className="text-[9px] font-bold text-white uppercase">
+                    <span className="text-[7px] font-black text-white uppercase tracking-wider mt-0.5">
                       Ads
                     </span>
                   </button>
@@ -635,7 +632,6 @@ export default function VideoPage() {
               )}
             </div>
           )}
-
         </div>
 
         {/* VIDEO SCROLL */}
@@ -654,9 +650,7 @@ export default function VideoPage() {
 
             setActiveIndex(index);
           }}
-
         >
-
           {filteredVideos.map((video, index) => (
             <div key={video.uniqueId} className="h-[100dvh] w-full snap-start relative bg-black">
 
@@ -689,12 +683,7 @@ export default function VideoPage() {
                     controls={activeIndex === index}
                     className="w-full h-full object-cover"
                   />
-
-
-
                 )}
-
-
               </div>
 
               <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 z-10 pointer-events-none" />
@@ -771,7 +760,6 @@ export default function VideoPage() {
             </div>
           ))}
         </div>
-
 
         {/* COMMENT MODAL */}
         <AnimatePresence>
@@ -1128,7 +1116,6 @@ export default function VideoPage() {
         </div>
       </div>
 
-
       {/* COMMENT MODAL */}
       <AnimatePresence>
         {commentModal.open && (
@@ -1255,37 +1242,6 @@ export default function VideoPage() {
                     </button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal */}
-      <AnimatePresence>
-        {selectedVideo && (
-          <motion.div
-            className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedVideo(null)}
-          >
-            <motion.div className="w-full max-w-4xl bg-white rounded-[2rem] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="aspect-video w-full bg-black">
-                {selectedVideo.isYouTube ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${selectedVideo.ytId}?autoplay=1`} className="w-full h-full" allowFullScreen allow="autoplay" />
-                ) : (
-                  <video src={selectedVideo.url} controls autoPlay className="w-full h-full" />
-                )}
-              </div>
-
-              <div className="p-6 flex justify-between items-center">
-                <h2 className="text-xl font-black uppercase">{selectedVideo.title}</h2>
-                <button onClick={() => setSelectedVideo(null)} className="bg-gray-100 text-gray-500 px-5 py-2 rounded-xl text-xs font-black">
-                  CLOSE
-                </button>
               </div>
             </motion.div>
           </motion.div>
