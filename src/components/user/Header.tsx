@@ -1,6 +1,3 @@
-Components/header.tsx
-
-
 "use client";
 
 import Link from "next/link";
@@ -1205,3 +1202,4 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
     </div>
   );
 }
+
