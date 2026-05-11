@@ -24,7 +24,7 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
-  
+
   // Address Management
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [selectedAddressIndex, setSelectedAddressIndex] = useState<number | null>(null);
@@ -41,7 +41,7 @@ export default function CheckoutPage() {
     state: "",
     pincode: "",
   });
-  
+
   const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function CheckoutPage() {
   const fetchInitialData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (user) {
       // 1. Fetch Cart
       const { data: cartData } = await supabase
@@ -82,7 +82,7 @@ export default function CheckoutPage() {
         });
 
         setSavedAddresses(uniqueAddresses);
-        
+
         // Default to the most recent address
         setSelectedAddressIndex(0);
         setAddress(uniqueAddresses[0]);
@@ -103,7 +103,7 @@ export default function CheckoutPage() {
   const handleAddNewAddressClick = () => {
     setSelectedAddressIndex(null);
     setAddress({
-      name: "", phone: "", building: "", street: "", 
+      name: "", phone: "", building: "", street: "",
       area: "", landmark: "", city: "", state: "", pincode: ""
     });
     setShowNewAddressForm(true);
@@ -155,10 +155,25 @@ export default function CheckoutPage() {
     setErrors(err);
     return Object.keys(err).length === 0;
   };
+  useEffect(() => {
+  const script = document.createElement("script");
+  script.src = "https://checkout.razorpay.com/v1/checkout.js";
+  script.async = true;
+
+  script.onload = () => {
+    console.log("Razorpay Loaded");
+  };
+
+  document.body.appendChild(script);
+
+  return () => {
+    document.body.removeChild(script);
+  };
+}, []);
 
   const handlePayment = async () => {
     if (!validate()) return;
-    
+
     // Razorpay Logic (Simplified for brevity as per your original)
     const res = await fetch("/api/razorpay/order", {
       method: "POST",
@@ -173,7 +188,7 @@ export default function CheckoutPage() {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
       amount: order.amount,
       currency: "INR",
-      name: "The Vault",
+      name: "Qicktick",
       order_id: order.id,
       handler: async (response: any) => {
         const { data: userData } = await supabase.auth.getUser();
@@ -186,7 +201,7 @@ export default function CheckoutPage() {
           razorpay_order_id: response.razorpay_order_id,
           razorpay_payment_id: response.razorpay_payment_id,
           payment_status: "paid",
-          address: address, 
+          address: address,
           items: cart,
         };
         await supabase.from("orders").insert([orderPayload]);
@@ -194,6 +209,11 @@ export default function CheckoutPage() {
       },
       theme: { color: "#000000" }
     };
+
+    if (!(window as any).Razorpay) {
+      alert("Razorpay SDK failed to load");
+      return;
+    }
 
     const rzp = new (window as any).Razorpay(options);
     rzp.open();
@@ -203,30 +223,30 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] text-slate-900 pb-24 font-sans">
-      
+
       {/* HEADER */}
       <header className="pt-16 pb-12 px-6 max-w-6xl mx-auto">
-          <Link href="/user/cart" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black mb-6">
-            <ChevronLeft size={14} /> Review Cart
-          </Link>
-          <h1 className="text-5xl font-black uppercase italic leading-none tracking-tighter">Checkout</h1>
+        <Link href="/user/cart" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black mb-6">
+          <ChevronLeft size={14} /> Review Cart
+        </Link>
+        <h1 className="text-5xl font-black uppercase italic leading-none tracking-tighter">Checkout</h1>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 grid lg:grid-cols-12 gap-10">
-        
+
         {/* LEFT: ADDRESS SELECTION */}
         <div className="lg:col-span-7 space-y-6">
-          
+
           {/* Saved Addresses Section */}
           <section className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
-               <BookUser size={20} className="text-yellow-500" />
-               <h2 className="text-sm font-black uppercase tracking-widest">Saved Addresses</h2>
+              <BookUser size={20} className="text-yellow-500" />
+              <h2 className="text-sm font-black uppercase tracking-widest">Saved Addresses</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {savedAddresses.map((addr, idx) => (
-                <div 
+                <div
                   key={idx}
                   onClick={() => selectSavedAddress(idx)}
                   className={`p-5 rounded-[1.5rem] border-2 cursor-pointer transition-all relative overflow-hidden ${selectedAddressIndex === idx && !showNewAddressForm ? 'border-black bg-white shadow-xl' : 'border-slate-100 bg-slate-50/50 opacity-70 hover:opacity-100'}`}
@@ -243,7 +263,7 @@ export default function CheckoutPage() {
                 </div>
               ))}
 
-              <button 
+              <button
                 onClick={handleAddNewAddressClick}
                 className={`p-5 rounded-[1.5rem] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${showNewAddressForm ? 'border-yellow-500 bg-yellow-50/50' : 'border-slate-200 hover:border-slate-400 text-slate-400'}`}
               >
@@ -256,46 +276,46 @@ export default function CheckoutPage() {
           {/* New Address Form */}
           <AnimatePresence>
             {showNewAddressForm && (
-              <motion.section 
+              <motion.section
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white border-2 border-yellow-400 rounded-[2.5rem] p-8 shadow-xl"
               >
                 <div className="flex justify-between items-center mb-8">
-                   <h3 className="text-lg font-black uppercase italic">Delivery Details</h3>
-                   <button onClick={fetchCurrentLocation} className="flex items-center gap-2 text-[10px] font-black uppercase text-yellow-600 bg-yellow-50 px-3 py-2 rounded-full">
-                     <Navigation size={12} /> {locating ? 'Searching...' : 'Use GPS'}
-                   </button>
+                  <h3 className="text-lg font-black uppercase italic">Delivery Details</h3>
+                  <button onClick={fetchCurrentLocation} className="flex items-center gap-2 text-[10px] font-black uppercase text-yellow-600 bg-yellow-50 px-3 py-2 rounded-full">
+                    <Navigation size={12} /> {locating ? 'Searching...' : 'Use GPS'}
+                  </button>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <InputLabel label="Full Name *" />
-                    <input type="text" className="checkout-input" value={address.name} onChange={e => setAddress({...address, name: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.name} onChange={e => setAddress({ ...address, name: e.target.value })} />
                   </div>
                   <div>
                     <InputLabel label="Phone *" />
-                    <input type="tel" className="checkout-input" value={address.phone} onChange={e => setAddress({...address, phone: e.target.value})} />
+                    <input type="tel" className="checkout-input" value={address.phone} onChange={e => setAddress({ ...address, phone: e.target.value })} />
                   </div>
                   <div>
                     <InputLabel label="Pincode *" />
-                    <input type="text" className="checkout-input" value={address.pincode} onChange={e => setAddress({...address, pincode: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.pincode} onChange={e => setAddress({ ...address, pincode: e.target.value })} />
                   </div>
                   <div className="md:col-span-2">
                     <InputLabel label="Building / House *" />
-                    <input type="text" className="checkout-input" value={address.building} onChange={e => setAddress({...address, building: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.building} onChange={e => setAddress({ ...address, building: e.target.value })} />
                   </div>
                   <div className="md:col-span-2">
                     <InputLabel label="Area / Locality *" />
-                    <input type="text" className="checkout-input" value={address.area} onChange={e => setAddress({...address, area: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.area} onChange={e => setAddress({ ...address, area: e.target.value })} />
                   </div>
                   <div>
                     <InputLabel label="City *" />
-                    <input type="text" className="checkout-input" value={address.city} onChange={e => setAddress({...address, city: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.city} onChange={e => setAddress({ ...address, city: e.target.value })} />
                   </div>
                   <div>
                     <InputLabel label="State *" />
-                    <input type="text" className="checkout-input" value={address.state} onChange={e => setAddress({...address, state: e.target.value})} />
+                    <input type="text" className="checkout-input" value={address.state} onChange={e => setAddress({ ...address, state: e.target.value })} />
                   </div>
                 </div>
               </motion.section>
@@ -305,35 +325,35 @@ export default function CheckoutPage() {
 
         {/* RIGHT: SUMMARY (UNCHANGED) */}
         <div className="lg:col-span-5">
-           <div className="bg-black text-white rounded-[2.5rem] p-8 sticky top-10 shadow-2xl">
-              <h2 className="text-xl font-black uppercase italic mb-8 border-b border-white/10 pb-4">Order Summary</h2>
-              
-              <div className="space-y-4 mb-8">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center gap-4">
-                    <p className="text-[10px] font-bold uppercase truncate flex-1">{item.product.product_name} x {item.quantity}</p>
-                    <p className="text-xs font-black italic">₹{(item.product.price * item.quantity).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="bg-black text-white rounded-[2.5rem] p-8 sticky top-10 shadow-2xl">
+            <h2 className="text-xl font-black uppercase italic mb-8 border-b border-white/10 pb-4">Order Summary</h2>
 
-              <div className="space-y-3 pt-6 border-t border-white/10">
-                <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400">
-                  <span>Subtotal</span>
-                  <span>₹{subTotal.toLocaleString()}</span>
+            <div className="space-y-4 mb-8">
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between items-center gap-4">
+                  <p className="text-[10px] font-bold uppercase truncate flex-1">{item.product.product_name} x {item.quantity}</p>
+                  <p className="text-xs font-black italic">₹{(item.product.price * item.quantity).toLocaleString()}</p>
                 </div>
-                <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400">
-                  <span>Shipping</span>
-                  <span className={shipping === 0 ? "text-yellow-400" : ""}>{shipping === 0 ? "FREE" : `₹${shipping}`}</span>
-                </div>
-                <div className="flex justify-between pt-4 border-t border-white/20">
-                   <p className="text-2xl font-black italic">₹{grandTotal.toLocaleString()}</p>
-                   <button onClick={handlePayment} className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:scale-105 transition-transform">
-                     Pay Now
-                   </button>
-                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3 pt-6 border-t border-white/10">
+              <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400">
+                <span>Subtotal</span>
+                <span>₹{subTotal.toLocaleString()}</span>
               </div>
-           </div>
+              <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400">
+                <span>Shipping</span>
+                <span className={shipping === 0 ? "text-yellow-400" : ""}>{shipping === 0 ? "FREE" : `₹${shipping}`}</span>
+              </div>
+              <div className="flex justify-between pt-4 border-t border-white/20">
+                <p className="text-2xl font-black italic">₹{grandTotal.toLocaleString()}</p>
+                <button onClick={handlePayment} className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:scale-105 transition-transform">
+                  Pay Now
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
