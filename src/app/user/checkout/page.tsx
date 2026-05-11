@@ -142,8 +142,8 @@ export default function CheckoutPage() {
 
   const subTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   // const tax = subTotal * 0.18;
- //  const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
-  const grandTotal = subTotal ;
+  //  const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
+  const grandTotal = subTotal;
 
   const validate = () => {
     let err: any = {};
@@ -155,68 +155,115 @@ export default function CheckoutPage() {
     setErrors(err);
     return Object.keys(err).length === 0;
   };
-  useEffect(() => {
-  const script = document.createElement("script");
-  script.src = "https://checkout.razorpay.com/v1/checkout.js";
-  script.async = true;
 
-  script.onload = () => {
-    console.log("Razorpay Loaded");
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+
+      script.onload = () => {
+        resolve(true);
+      };
+
+      script.onerror = () => {
+        resolve(false);
+      };
+
+      document.body.appendChild(script);
+    });
   };
-
-  document.body.appendChild(script);
-
-  return () => {
-    document.body.removeChild(script);
-  };
-}, []);
 
   const handlePayment = async () => {
-    if (!validate()) return;
 
-    // Razorpay Logic (Simplified for brevity as per your original)
-    const res = await fetch("/api/razorpay/order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Math.round(grandTotal) }),
-    });
-
-    const order = await res.json();
-    if (!order?.id) return alert("Order creation failed");
-
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: order.amount,
-      currency: "INR",
-      name: "Qicktick",
-      order_id: order.id,
-      handler: async (response: any) => {
-        const { data: userData } = await supabase.auth.getUser();
-        const orderPayload = {
-          user_id: userData.user?.id,
-          total_amount: grandTotal,
-          sub_total: subTotal,
-          // tax: tax,
-          // shipping: shipping,
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          payment_status: "paid",
-          address: address,
-          items: cart,
-        };
-        await supabase.from("orders").insert([orderPayload]);
-        router.push("/user/orders");
-      },
-      theme: { color: "#000000" }
-    };
-
-    if (!(window as any).Razorpay) {
-      alert("Razorpay SDK failed to load");
+    if (!validate()) {
+      console.log("Validation failed:", errors);
+      alert("Please fill in all required fields: " + Object.keys(errors).join(", "));
       return;
     }
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+    const isLoaded = await loadRazorpay();
+
+    if (!isLoaded) {
+      alert("Razorpay SDK Failed to load");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/razorpay/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: Math.round(grandTotal),
+        }),
+      });
+
+      const order = await res.json();
+
+      console.log(order);
+
+      if (!order.id) {
+        alert("Order creation failed");
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+
+        amount: order.amount,
+
+        currency: "INR",
+
+        name: "Qicktick",
+
+        description: "Order Payment",
+
+        order_id: order.id,
+
+        handler: async function (response: any) {
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+
+            await supabase.from("orders").insert([
+              {
+                user_id: userData.user?.id,
+                total_amount: grandTotal,
+                sub_total: subTotal,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                payment_status: "paid",
+                address,
+                items: cart,
+              },
+            ]);
+
+            router.push("/user/orders");
+          } catch (err) {
+            console.log(err);
+            alert("Failed to save order");
+          }
+        },
+
+        prefill: {
+          name: address.name,
+          contact: address.phone,
+        },
+
+        theme: {
+          color: "#000000",
+        },
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+
+      paymentObject.open();
+
+    } catch (error) {
+      console.log(error);
+      alert("Payment Failed");
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-[#FFFDF5] flex items-center justify-center font-black italic uppercase animate-pulse">Syncing Vault...</div>;
@@ -304,6 +351,16 @@ export default function CheckoutPage() {
                   <div className="md:col-span-2">
                     <InputLabel label="Building / House *" />
                     <input type="text" className="checkout-input" value={address.building} onChange={e => setAddress({ ...address, building: e.target.value })} />
+                  </div>
+                  {/* Add this inside your "New Address Form" grid */}
+                  <div className="md:col-span-2">
+                    <InputLabel label="Street / Road *" />
+                    <input
+                      type="text"
+                      className="checkout-input"
+                      value={address.street}
+                      onChange={e => setAddress({ ...address, street: e.target.value })}
+                    />
                   </div>
                   <div className="md:col-span-2">
                     <InputLabel label="Area / Locality *" />
