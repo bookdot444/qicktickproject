@@ -141,9 +141,9 @@ export default function CheckoutPage() {
   };
 
   const subTotal = cart.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
-  const tax = subTotal * 0.18;
-  const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
-  const grandTotal = subTotal + tax + shipping;
+  // const tax = subTotal * 0.18;
+ //  const shipping = subTotal > 0 && subTotal < 1000 ? 100 : 0;
+  const grandTotal = subTotal ;
 
   const validate = () => {
     let err: any = {};
@@ -196,8 +196,8 @@ export default function CheckoutPage() {
           user_id: userData.user?.id,
           total_amount: grandTotal,
           sub_total: subTotal,
-          tax: tax,
-          shipping: shipping,
+          // tax: tax,
+          // shipping: shipping,
           razorpay_order_id: response.razorpay_order_id,
           razorpay_payment_id: response.razorpay_payment_id,
           payment_status: "paid",
@@ -342,10 +342,11 @@ export default function CheckoutPage() {
                 <span>Subtotal</span>
                 <span>₹{subTotal.toLocaleString()}</span>
               </div>
+              {/* 
               <div className="flex justify-between text-[10px] font-bold uppercase text-gray-400">
                 <span>Shipping</span>
                 <span className={shipping === 0 ? "text-yellow-400" : ""}>{shipping === 0 ? "FREE" : `₹${shipping}`}</span>
-              </div>
+              </div> */}
               <div className="flex justify-between pt-4 border-t border-white/20">
                 <p className="text-2xl font-black italic">₹{grandTotal.toLocaleString()}</p>
                 <button onClick={handlePayment} className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:scale-105 transition-transform">
