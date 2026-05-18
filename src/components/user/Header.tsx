@@ -842,10 +842,20 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
                       My Profile
                     </Link>
 
+                    {/* ✅ ADDED: Regular User My Orders */}
+                    {userRole !== "vendor" && (
+                      <Link href="/user/orders" className="block px-5 py-4 text-sm font-semibold" onClick={() => setIsMobileMenuOpen(false)}>
+                        My Orders
+                      </Link>
+                    )}
+
                     {userRole === "vendor" && (
                       <>
                         <Link href="/vendor/products" className="block px-5 py-4 text-sm font-semibold" onClick={() => setIsMobileMenuOpen(false)}>
                           Products
+                        </Link>
+                        <Link href="/vendor/orderplaced" className="block px-5 py-4 text-sm font-semibold" onClick={() => setIsMobileMenuOpen(false)}>
+                          Order Placed
                         </Link>
                         <Link href="/vendor/enquiry" className="block px-5 py-4 text-sm font-semibold" onClick={() => setIsMobileMenuOpen(false)}>
                           Enquiries
@@ -932,14 +942,33 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
                     My Profile
                   </Link>
 
+                  {/* ✅ ADDED: Regular User My Orders */}
+                  {userRole !== "vendor" && (
+                    <Link
+                      href="/user/orders"
+                      onClick={() => setShowMoreMenu(false)}
+                      className="block py-2 px-3 text-black rounded-lg hover:bg-gray-100 font-semibold"
+                    >
+                      My Orders
+                    </Link>
+                  )}
+
                   {userRole === "vendor" && (
                     <>
                       <Link
                         href="/vendor/products"
                         onClick={() => setShowMoreMenu(false)}
-                        className="block py-2 px-3 text-black  rounded-lg hover:bg-gray-100 font-semibold"
+                        className="block py-2 px-3 text-black rounded-lg hover:bg-gray-100 font-semibold"
                       >
                         Products
+                      </Link>
+
+                      <Link
+                        href="/vendor/orderplaced"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="block py-2 px-3 text-black rounded-lg hover:bg-gray-100 font-semibold"
+                      >
+                        Order Placed
                       </Link>
 
                       <Link
@@ -1202,4 +1231,3 @@ ${showLoginPopup || showRegisterPopup || openVendor ? "lg:hidden" : "block"}`}
     </div>
   );
 }
-
