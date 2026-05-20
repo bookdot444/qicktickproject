@@ -462,53 +462,53 @@ export default function VendorInventoryStudio() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {products.map((item) => (
-  <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-xl transition-all group">
-    <div className={`relative ${!item.is_active ? "opacity-40 grayscale" : ""}`}>
-      <ProductMediaSlider urls={item.product_image.split("|||")} isActive={item.is_active} />
+                {products.map((item) => (
+                  <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-xl transition-all group">
+                    <div className={`relative ${!item.is_active ? "opacity-40 grayscale" : ""}`}>
+                      <ProductMediaSlider urls={item.product_image.split("|||")} isActive={item.is_active} />
 
-      {!item.is_active && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="bg-black text-white text-xs font-black px-4 py-2 rounded-xl uppercase tracking-widest">
-            Disabled
-          </span>
-        </div>
-      )}
+                      {!item.is_active && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="bg-black text-white text-xs font-black px-4 py-2 rounded-xl uppercase tracking-widest">
+                            Disabled
+                          </span>
+                        </div>
+                      )}
 
-      {/* CHANGED: Removed opacity-0 and group-hover:opacity-100 so buttons are always visible */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-        <button onClick={() => setViewingProduct(item)} className="p-3 bg-white text-black rounded-full shadow-xl hover:bg-black hover:text-white transition-colors">
-          <Eye size={18} />
-        </button>
+                      {/* CHANGED: Removed opacity-0 and group-hover:opacity-100 so buttons are always visible */}
+                      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+                        <button onClick={() => setViewingProduct(item)} className="p-3 bg-white text-black rounded-full shadow-xl hover:bg-black hover:text-white transition-colors">
+                          <Eye size={18} />
+                        </button>
 
-        <button onClick={() => startEdit(item)} className="p-3 bg-white text-yellow-600 rounded-full shadow-xl hover:bg-yellow-500 hover:text-white transition-colors">
-          <Pencil size={18} />
-        </button>
+                        <button onClick={() => startEdit(item)} className="p-3 bg-white text-yellow-600 rounded-full shadow-xl hover:bg-yellow-500 hover:text-white transition-colors">
+                          <Pencil size={18} />
+                        </button>
 
-        <button onClick={() => {
-          if (confirm("Delete this listing?"))
-            supabase.from('vendor_products').delete().eq('id', item.id).then(() => fetchInitialData())
-        }} className="p-3 bg-white text-red-600 rounded-full shadow-xl hover:bg-red-600 hover:text-white transition-colors">
-          <Trash2 size={18} />
-        </button>
-      </div>
-    </div>
-    <div className="p-7 text-black">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">{categories.find(c => c.id === item.category_id)?.name || 'Default'}</p>
-          <h3 className="font-black text-xl truncate uppercase tracking-tight text-gray-900">{item.product_name}</h3>
-        </div>
-      </div>
-      <div className="flex items-center justify-between mt-6">
-        <p className="text-3xl font-black text-gray-900 tracking-tighter">₹{item.price.toLocaleString()}</p>
-        <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${item.is_active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
-          {item.is_active ? 'Active' : 'Hidden'}
-        </div>
-      </div>
-    </div>
-  </div>
-))}
+                        <button onClick={() => {
+                          if (confirm("Delete this listing?"))
+                            supabase.from('vendor_products').delete().eq('id', item.id).then(() => fetchInitialData())
+                        }} className="p-3 bg-white text-red-600 rounded-full shadow-xl hover:bg-red-600 hover:text-white transition-colors">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-7 text-black">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">{categories.find(c => c.id === item.category_id)?.name || 'Default'}</p>
+                          <h3 className="font-black text-xl truncate uppercase tracking-tight text-gray-900">{item.product_name}</h3>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-3xl font-black text-gray-900 tracking-tighter">₹{item.price.toLocaleString()}</p>
+                        <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${item.is_active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
+                          {item.is_active ? 'Active' : 'Hidden'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

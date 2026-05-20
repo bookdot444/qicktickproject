@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package, Zap, ArrowRight, Loader2, Search, ShieldCheck,
-  TrendingUp, Award, Hash, MapPin, Briefcase, ArrowUpDown,
+  TrendingUp, Award, Hash, MapPin, Briefcase, ArrowUpDown,Check,
   Heart, ShoppingCart
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -211,83 +211,98 @@ const handleWishlist = async (productId: string) => {
 }
 function ProductCard({ product, onWishlist, onCart, isWishlisted, isInCart }: any) {
   return (
-    <motion.div layout className="group bg-white rounded-2xl border border-yellow-100 hover:border-yellow-400 shadow-md transition-all overflow-hidden flex flex-col relative">
+  <motion.div layout className="group bg-white rounded-2xl border border-yellow-100 hover:border-yellow-400 shadow-md transition-all overflow-hidden flex flex-col relative">
 
-      {/* WISHLIST BUTTON - TOGGLE DESIGN */}
-      <motion.button
-        whileTap={{ scale: 0.8 }}
-        onClick={(e) => {
-          e.preventDefault();
-          onWishlist();
-        }}
-        className={`absolute top-3 right-3 z-30 p-2 rounded-full shadow-md border transition-all 
-          ${isWishlisted 
-            ? "bg-red-500 text-white border-red-500" 
-            : "bg-white/90 text-gray-400 hover:text-red-500 border-slate-100"
-          }`}
-      >
-        <Heart 
-          size={16} 
-          fill={isWishlisted ? "currentColor" : "none"} 
-          strokeWidth={isWishlisted ? 0 : 2}
-        />
-      </motion.button>
+  {/* 🤍 FLOATING WISHLIST BUTTON */}
+  <motion.button
+    whileTap={{ scale: 0.8 }}
+    onClick={(e) => {
+      e.preventDefault();
+      onWishlist();
+    }}
+    className={`absolute top-3 right-3 z-30 p-2 rounded-full shadow-md border transition-all 
+      ${isWishlisted 
+        ? "bg-red-500 text-white border-red-500" 
+        : "bg-white/90 text-gray-400 hover:text-red-500 border-slate-100"
+      }`}
+  >
+    <Heart 
+      size={16} 
+      fill={isWishlisted ? "currentColor" : "none"} 
+      strokeWidth={isWishlisted ? 0 : 2}
+    />
+  </motion.button>
 
-      {/* IMAGE SLIDER */}
-      <div className="relative h-44 overflow-hidden bg-gray-50">
-        {product.product_image?.length > 0 ? (
-          <ImageSlider images={product.product_image} />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-yellow-200">
-            <Package size={40} />
-          </div>
-        )}
+  {/* 🛒 FLOATING CART BUTTON (Sits perfectly below the Wishlist) */}
+{/* 🛒 FLOATING CART BUTTON */}
+<motion.button
+  whileTap={{ scale: 0.8 }}
+  onClick={(e) => {
+    e.preventDefault();
+    onCart();
+  }}
+  className={`absolute top-14 right-3 z-30 p-2 rounded-full shadow-md border transition-all duration-300
+    ${isInCart 
+      ? "bg-green-500 text-white border-green-500" 
+      : "bg-white/90 text-gray-600 hover:bg-yellow-500 hover:text-black border-slate-100"
+    }`}
+>
+  <ShoppingCart 
+    size={16} 
+    fill={isInCart ? "currentColor" : "none"} 
+    strokeWidth={isInCart ? 0 : 2}
+  />
+</motion.button>
+
+  {/* IMAGE SLIDER */}
+  <div className="relative h-44 overflow-hidden bg-gray-50">
+    {product.product_image?.length > 0 ? (
+      <ImageSlider images={product.product_image} />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-yellow-200">
+        <Package size={40} />
       </div>
+    )
+    }
+  </div>
 
-      <div className="p-5 flex flex-col flex-1">
-        <div className="flex justify-between items-start mb-2">
-          <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
-            {product.vendor?.company_name}
-          </span>
-          <span className="text-[9px] font-medium text-gray-400">
-            {product.vendor?.city}
-          </span>
-        </div>
+  {/* CONTENT CARD DETAILS */}
+  <div className="p-5 flex flex-col flex-1">
+    <div className="flex justify-between items-start mb-2">
+      <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
+        {product.vendor?.company_name}
+      </span>
+      <span className="text-[9px] font-medium text-gray-400">
+        {product.vendor?.city}
+      </span>
+    </div>
 
-        <h3 className="text-sm font-black text-gray-900 mb-1 line-clamp-1">
-          {product.product_name}
-        </h3>
-        <p className="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">
-          {product.description}
+    <h3 className="text-sm font-black text-gray-900 mb-1 line-clamp-1">
+      {product.product_name}
+    </h3>
+    <p className="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+      {product.description}
+    </p>
+
+    {/* BOTTOM ROW (Now looks spacious and clean) */}
+    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+      <div>
+        <p className="text-[8px] font-bold text-gray-400 uppercase">Price</p>
+        <p className="text-lg font-black text-gray-900">
+          ₹{Number(product.price).toLocaleString()}
         </p>
-
-        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-          <div>
-            <p className="text-[8px] font-bold text-gray-400 uppercase">Price</p>
-            <p className="text-lg font-black text-gray-900">
-              ₹{Number(product.price).toLocaleString()}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={onCart}
-              className={`px-3 py-2 rounded-xl transition-all active:scale-90 shadow-sm flex items-center gap-1 text-xs font-bold
-                ${isInCart ? "bg-green-500 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-black"}`}
-            >
-              {isInCart ? "✓ Added" : <><ShoppingCart size={16} /> Add</>}
-            </button>
-
-            <Link 
-              href={`/user/products/${product.id}`} 
-              className="bg-gray-900 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all hover:translate-x-1 shadow-md"
-            >
-              <ArrowRight size={18} />
-            </Link>
-          </div>
-        </div>
       </div>
-    </motion.div>
+
+      {/* View Details Arrow button remains perfectly placed */}
+      <Link 
+        href={`/user/products/${product.id}`} 
+        className="bg-gray-900 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all hover:translate-x-1 shadow-md flex items-center justify-center"
+      >
+        <ArrowRight size={18} />
+      </Link>
+    </div>
+  </div>
+</motion.div>
   );
 }
 
