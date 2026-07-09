@@ -23,16 +23,26 @@ jobs:
         run: npm install
 
       - name: Create Production .env File
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+          SHIPROCKET_EMAIL: ${{ secrets.SHIPROCKET_EMAIL }}
+          SHIPROCKET_PASSWORD: ${{ secrets.SHIPROCKET_PASSWORD }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          echo "NEXT_PUBLIC_SUPABASE_URL='${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}'" >> .env
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY='${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}'" >> .env
-          echo "SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}'" >> .env
-          echo "RAZORPAY_KEY_ID='${{ secrets.RAZORPAY_KEY_ID }}'" >> .env
-          echo "RAZORPAY_KEY_SECRET='${{ secrets.RAZORPAY_KEY_SECRET }}'" >> .env
-          echo "NEXT_PUBLIC_RAZORPAY_KEY_ID='${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}'" >> .env
-          echo "SHIPROCKET_EMAIL='${{ secrets.SHIPROCKET_EMAIL }}'" >> .env
-          echo "SHIPROCKET_PASSWORD='${{ secrets.SHIPROCKET_PASSWORD }}'" >> .env
-          echo "GMAIL_APP_PASSWORD='${{ secrets.GMAIL_APP_PASSWORD }}'" >> .env
+          printenv NEXT_PUBLIC_SUPABASE_URL >> .env
+          printenv NEXT_PUBLIC_SUPABASE_ANON_KEY >> .env
+          printenv SUPABASE_SERVICE_ROLE_KEY >> .env
+          printenv RAZORPAY_KEY_ID >> .env
+          printenv RAZORPAY_KEY_SECRET >> .env
+          printenv NEXT_PUBLIC_RAZORPAY_KEY_ID >> .env
+          printenv SHIPROCKET_EMAIL >> .env
+          printenv SHIPROCKET_PASSWORD >> .env
+          printenv GMAIL_APP_PASSWORD >> .env
 
       - name: Build Web Application
         run: npm run build
