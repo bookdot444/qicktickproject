@@ -47,6 +47,11 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
+      - name: Ensure Android Assets Directory Exists
+        run: |
+          mkdir -p out
+          mkdir -p android/app/src/main/assets
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
