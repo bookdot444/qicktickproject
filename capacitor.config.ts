@@ -3,11 +3,31 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.qicktick.app',
   appName: 'Qicktick',
-  webDir: 'out', // leave this, but it won’t be used
+
+  // Required by Capacitor, even when using a live website
+  webDir: 'out',
+
   server: {
     url: 'https://qicktick.com',
-    cleartext: false, // VERY IMPORTANT
-    allowNavigation: ['qicktick.com', '*.qicktick.com']
+    androidScheme: 'https',
+    cleartext: false,
+    allowNavigation: [
+      'qicktick.com',
+      '*.qicktick.com'
+    ]
+  },
+
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 3000,
+      backgroundColor: '#FFFFFF',
+      showSpinner: true,
+      androidScaleType: 'CENTER_CROP'
+    }
+  },
+
+  android: {
+    allowMixedContent: false
   }
 };
 
