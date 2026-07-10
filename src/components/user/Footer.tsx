@@ -128,14 +128,12 @@ export default function Footer() {
               </div>
             </div>
 
-            <a
-              href="/terms.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-10 block text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-amber-500"
-            >
-              Terms & Conditions
-            </a>
+            <Link
+  href="/user/terms"
+  className="mt-10 block text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-amber-500"
+>
+  Terms & Conditions
+</Link>
           </div>
         </div>
 
